@@ -59,15 +59,14 @@ then
 
     
 
-    pkgs="numpy numba hyperspy h5py pyFAI pytest ipympl jupyter"
-    pkgs=${pkgs}" 'fakecbed>=0.3.0' h5pywrappers torch kornia"
+    pkgs="numpy numba hyperspy h5py pyFAI pytest ipympl jupyter torch kornia"
     if [ "${install_libs_required_to_run_all_examples}" = true ]
     then
 	pkgs=${pkgs}" pyprismatic-gpu"
     fi
     pip install --no-index ${pkgs}
 
-    pkgs="'fakecbed>=0.3.0' h5pywrappers"
+    pkgs="fakecbed>=0.3.0 h5pywrappers"
     pip install ${pkgs}
 
     
