@@ -67,6 +67,9 @@ then
     fi
     pip install --no-index ${pkgs}
 
+    pkgs="'fakecbed>=0.3.0' h5pywrappers"
+    pip install ${pkgs}
+
     
     
 else
