@@ -59,8 +59,8 @@ then
 
     
 
-    pkgs="numpy numba hyperspy h5py pyFAI pytest ipympl jupyter fakecbed>=0.0.2"
-    pkgs=${pkgs}" h5pywrappers torch kornia"
+    pkgs="numpy numba hyperspy h5py pyFAI pytest ipympl jupyter"
+    pkgs=${pkgs}" 'fakecbed>=0.3.0' h5pywrappers torch kornia"
     if [ "${install_libs_required_to_run_all_examples}" = true ]
     then
 	pkgs=${pkgs}" pyprismatic-gpu"
@@ -124,7 +124,7 @@ else
 
 
     pkgs="python=3.10 numpy numba hyperspy h5py pyFAI pytest ipympl jupyter"
-    pkgs=${pkgs}" 'fakecbed>=0.0.2' h5pywrappers"
+    pkgs=${pkgs}" 'fakecbed>=0.3.0' h5pywrappers"
     conda create -n ${virtual_env_name} ${pkgs} -y -c conda-forge
     conda activate ${virtual_env_name}
 
@@ -150,7 +150,7 @@ cp -r ${path_to_required_git_repos} ${path_to_copy_of_required_git_repos}
 libs=(emicroml)
 if [ "${install_libs_required_to_run_all_examples}" = true ]
 then
-    libs+=(emconstants empix embeam prismatique)
+    libs+=(emconstants embeam prismatique)
 fi
 
 for lib in "${libs[@]}"

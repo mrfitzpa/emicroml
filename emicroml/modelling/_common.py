@@ -22,12 +22,6 @@
 ## Load libraries/packages/modules ##
 #####################################
 
-# For accessing attributes of functions.
-import inspect
-
-# For randomly selecting items in dictionaries.
-import random
-
 # For timing the execution of different segments of code.
 import time
 
@@ -59,6 +53,10 @@ import czekitout.name
 # pre-serialization, and de-serialization.
 import fancytypes
 
+# For validating objects intended to be used as seeds to random number
+# generators.
+import fakecbed
+
 # For loading objects from and saving objects to HDF5 files.
 import h5py
 import h5pywrappers
@@ -69,8 +67,8 @@ import torch
 
 
 # For validating, pre-serializing, and de-pre-serializing instances of the
-# class :class:`emicrocml.modelling.lr.LRSchedulerManager`.
-import emicrocml.modelling.lr
+# class :class:`emicroml.modelling.lr.LRSchedulerManager`.
+import emicroml.modelling.lr
 
 
 
@@ -88,9 +86,7 @@ default_num_ml_data_instances = 1
 
 
 def _check_and_convert_num_ml_data_instances(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "num_ml_data_instances"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     num_ml_data_instances = czekitout.convert.to_positive_int(**kwargs)
 
@@ -242,8 +238,8 @@ class _MLDataNormalizer():
 
             min_candidate_1 = np.min(ml_data_dict_elem).item()
             min_candidate_2 = self._extrema_cache[key]["min"]
-            self.extrema_cache[key]["min"] = min(min_candidate_1,
-                                                 min_candidate_2)
+            self._extrema_cache[key]["min"] = min(min_candidate_1,
+                                                  min_candidate_2)
 
             max_candidate_1 = np.max(ml_data_dict_elem).item()
             max_candidate_2 = self._extrema_cache[key]["max"]
@@ -536,7 +532,7 @@ class _MLDataValueValidator():
         self._ml_data_dict_key_to_custom_value_checker_map = \
             ml_data_dict_key_to_custom_value_checker_map
         self._keys_of_normalizable_ml_data_dict_elems = \
-            ml_data_normalizer.keys_of_normalizable_ml_data_dict_elems
+            ml_data_normalizer._keys_of_normalizable_ml_data_dict_elems
 
         return None
 
@@ -627,7 +623,7 @@ class _MLDataValueValidator():
                   "hdf5_dataset",
                   "obj_alias_from_which_data_chunk_was_obtained": \
                   hdf5_dataset}
-        self.check_values_of_data_chunk(**kwargs)
+        self._check_values_of_data_chunk(**kwargs)
 
         return None
 
@@ -706,7 +702,7 @@ class _MLDataNormalizationWeightsAndBiasesLoader():
         obj_alias = \
             ml_data_value_validator
         self._ml_data_dict_key_to_unnormalized_hdf5_dataset_value_limits_map = \
-            obj_alias.ml_data_dict_key_to_unnormalized_value_limits_map
+            obj_alias._ml_data_dict_key_to_unnormalized_value_limits_map
         
         return None
 
@@ -913,10 +909,10 @@ _default_normalization_weights = None
 
 
 def _check_and_convert_normalization_weights(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "normalization_weights"
     obj = params[obj_name]
+
+    current_func_name = "_check_and_convert_normalization_weights"
 
     if obj is None:
         normalization_weights = params["default_normalization_weights"]
@@ -967,10 +963,10 @@ _default_normalization_biases = None
 def _check_and_convert_normalization_biases(params):
     normalization_weights = _check_and_convert_normalization_weights(params)
 
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "normalization_biases"
     obj = params[obj_name]
+
+    current_func_name = "_check_and_convert_normalization_biases"
 
     if obj is None:
         normalization_biases = params["default_normalization_biases"]
@@ -2140,20 +2136,16 @@ def _check_and_convert_generate_and_save_ml_dataset_params(params):
 
 
 def _check_and_convert_output_filename(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "output_filename"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
-    output_filename = czekitout.convert.to_str_from_path_like(**kwargs)
+    output_filename = czekitout.convert.to_str_from_str_like(**kwargs)
     
     return output_filename
 
 
 
 def _check_and_convert_max_num_ml_data_instances_per_file_update(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "max_num_ml_data_instances_per_file_update"
     obj = params[obj_name]
 
     if obj == float("inf"):
@@ -2194,7 +2186,6 @@ def _generate_and_save_ml_dataset(
     hdf5_dataset_path_to_shape_map_of_ml_dataset_file = func_alias(**kwargs)
 
     try:
-        func_alias = _initialize_output_file_to_which_to_save_ml_dataset
         kwargs = {"output_filename": \
                   output_filename,
                   "hdf5_dataset_path_to_shape_map_of_ml_dataset_file": \
@@ -2203,7 +2194,7 @@ def _generate_and_save_ml_dataset(
                   ml_data_dict_key_to_dtype_map,
                   "axes_labels_of_hdf5_datasets_of_ml_dataset_file": \
                   axes_labels_of_hdf5_datasets_of_ml_dataset_file}
-        func_alias(**kwargs)
+        _initialize_output_file_to_which_to_save_ml_dataset(**kwargs)
 
         kwargs = {"unnormalized_ml_data_instance_generator": \
                   unnormalized_ml_data_instance_generator,
@@ -2217,6 +2208,7 @@ def _generate_and_save_ml_dataset(
                   output_filename}
         _generate_and_save_data_of_ml_dataset_to_output_file(**kwargs)
     except:
+        current_func_name = "_generate_and_save_ml_dataset"
         unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
         err_msg = unformatted_err_msg.format(output_filename)
         raise IOError(err_msg)
@@ -2346,13 +2338,13 @@ def _generate_and_save_data_of_ml_dataset_to_output_file(
               total_num_ml_data_instances,
               "ml_data_dict_key_to_dtype_map": \
               ml_data_dict_key_to_dtype_map}
-    ml_dataset_buffer = initialize_ml_dataset_buffer(**kwargs)
+    ml_dataset_buffer = _initialize_ml_dataset_buffer(**kwargs)
 
     ml_data_instance_idx = 0
     
     while ml_data_instance_idx < total_num_ml_data_instances:
         func_alias = \
-            update_and_flush_buffer_and_return_updated_ml_data_instance_idx
+            _update_and_flush_buffer_and_return_updated_ml_data_instance_idx
         kwargs = \
             {"unnormalized_ml_data_instance_generator": \
              unnormalized_ml_data_instance_generator,
@@ -2441,7 +2433,7 @@ def _update_and_flush_buffer_and_return_updated_ml_data_instance_idx(
             unnormalized_ml_data_instance_generator._generate(**kwargs)
 
         func_alias = \
-            store_ml_data_instances_in_respective_buffers
+            _store_ml_data_instances_in_respective_buffers
         kwargs = \
             {"ml_data_instances": ml_data_instances,
              "buffered_ml_data_instance_idx": buffered_ml_data_instance_idx,
@@ -2559,16 +2551,14 @@ def _check_and_convert_combine_ml_dataset_files_params(params):
 
 
 def _check_and_convert_input_ml_dataset_filenames(params):
-    current_func_name = \
-        inspect.stack()[0][3]
-    char_idx = \
-        19
     obj_name = \
-        current_func_name[char_idx:]
+        "input_ml_dataset_filenames"
     kwargs = \
         {"obj": params[obj_name], "obj_name": obj_name}
     input_ml_dataset_filenames = \
-        czekitout.convert.to_tuple_of_path_like_objs(**kwargs)
+        czekitout.convert.to_tuple_of_strs(**kwargs)
+
+    current_func_name = "_check_and_convert_input_ml_dataset_filenames"
 
     num_datasets = len(input_ml_dataset_filenames)
     if num_datasets < 1:
@@ -2580,25 +2570,19 @@ def _check_and_convert_input_ml_dataset_filenames(params):
 
 
 def _check_and_convert_output_ml_dataset_filename(params):
-    current_func_name = \
-        inspect.stack()[0][3]
-    char_idx = \
-        19
     obj_name = \
-        current_func_name[char_idx:]
+        "output_ml_dataset_filename"
     kwargs = \
         {"obj": params[obj_name], "obj_name": obj_name}
     output_ml_dataset_filename = \
-        czekitout.convert.to_str_from_path_like(**kwargs)
+        czekitout.convert.to_str_from_str_like(**kwargs)
     
     return output_ml_dataset_filename
 
 
 
 def _check_and_convert_rm_input_ml_dataset_files(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "rm_input_ml_dataset_files"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     rm_input_ml_dataset_files = czekitout.convert.to_bool(**kwargs)
     
@@ -2622,8 +2606,10 @@ def _combine_ml_dataset_files(input_ml_dataset_filenames,
     kwargs = {"input_ml_dataset_filenames": input_ml_dataset_filenames,
               "output_ml_dataset_filename": output_ml_dataset_filename}
     partial_msg = _generate_partial_msg_of_combine_ml_dataset_files(**kwargs)
-    
+
     _print_combine_ml_dataset_files_starting_msg(partial_msg)
+
+    current_func_name = "_combine_ml_dataset_files"
 
     try:
         method_alias_name = ("_check_dtypes_of_hdf5_datasets"
@@ -2700,7 +2686,7 @@ def _initialize_output_file_to_which_to_copy_combined_contents_of_ml_datasets(
     ml_data_dict_key_to_dtype_map = \
         ml_data_type_validator._ml_data_dict_key_to_dtype_map
 
-    func_alias = initialize_output_file_to_which_to_save_ml_dataset
+    func_alias = _initialize_output_file_to_which_to_save_ml_dataset
     kwargs = {"output_filename": \
               output_ml_dataset_filename,
               "hdf5_dataset_path_to_shape_map_of_ml_dataset_file": \
@@ -2775,51 +2761,41 @@ def _check_and_convert_split_ml_dataset_file_params(params):
 
 
 def _check_and_convert_input_ml_dataset_filename(params):
-    current_func_name = \
-        inspect.stack()[0][3]
-    char_idx = \
-        19
     obj_name = \
-        current_func_name[char_idx:]
+        "input_ml_dataset_filename"
     kwargs = \
         {"obj": params[obj_name], "obj_name": obj_name}
     input_ml_dataset_filename = \
-        czekitout.convert.to_str_from_path_like(**kwargs)
+        czekitout.convert.to_str_from_str_like(**kwargs)
     
     return input_ml_dataset_filename
 
 
 
 def _check_and_convert_output_ml_dataset_filename_1(params):
-    current_func_name = \
-        inspect.stack()[0][3]
-    char_idx = \
-        19
     obj_name = \
-        current_func_name[char_idx:]
+        "output_ml_dataset_filename_1"
     kwargs = \
         {"obj": params[obj_name], "obj_name": obj_name}
     output_ml_dataset_filename_1 = \
-        czekitout.convert.to_str_from_path_like(**kwargs)
+        czekitout.convert.to_str_from_str_like(**kwargs)
     
     return output_ml_dataset_filename_1
 
 
 
 def _check_and_convert_output_ml_dataset_filename_2(params):
-    current_func_name = \
-        inspect.stack()[0][3]
-    char_idx = \
-        19
     obj_name = \
-        current_func_name[char_idx:]
+        "output_ml_dataset_filename_2"
     kwargs = \
         {"obj": params[obj_name], "obj_name": obj_name}
     output_ml_dataset_filename_2 = \
-        czekitout.convert.to_str_from_path_like(**kwargs)
+        czekitout.convert.to_str_from_str_like(**kwargs)
 
     output_ml_dataset_filename_1 = \
         _check_and_convert_output_ml_dataset_filename_1(params)
+
+    current_func_name = "_check_and_convert_output_ml_dataset_filename_2"
 
     path_1 = pathlib.Path(output_ml_dataset_filename_1).resolve()
     path_2 = pathlib.Path(output_ml_dataset_filename_2).resolve()
@@ -2832,19 +2808,17 @@ def _check_and_convert_output_ml_dataset_filename_2(params):
 
 
 def _check_and_convert_output_ml_dataset_filename_3(params):
-    current_func_name = \
-        inspect.stack()[0][3]
-    char_idx = \
-        19
     obj_name = \
-        current_func_name[char_idx:]
+        "output_ml_dataset_filename_3"
     kwargs = \
         {"obj": params[obj_name], "obj_name": obj_name}
     output_ml_dataset_filename_3 = \
-        czekitout.convert.to_str_from_path_like(**kwargs)
+        czekitout.convert.to_str_from_str_like(**kwargs)
 
     output_ml_dataset_filename_1 = \
         _check_and_convert_output_ml_dataset_filename_1(params)
+
+    current_func_name = "_check_and_convert_output_ml_dataset_filename_3"
 
     path_1 = pathlib.Path(output_ml_dataset_filename_1).resolve()
     path_3 = pathlib.Path(output_ml_dataset_filename_3).resolve()
@@ -2857,13 +2831,13 @@ def _check_and_convert_output_ml_dataset_filename_3(params):
 
 
 def _check_and_convert_split_ratio(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "split_ratio"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     split_ratio = czekitout.convert.to_tuple_of_nonnegative_floats(**kwargs)
 
-    if (len(split_ratio) != 3) or (split_ratio.sum() == 0):
+    current_func_name = "_check_and_convert_split_ratio"
+
+    if (len(split_ratio) != 3) or (sum(split_ratio) == 0):
         err_msg = globals()[current_func_name+"_err_msg_1"]
         raise ValueError(err_msg)
     
@@ -2872,29 +2846,19 @@ def _check_and_convert_split_ratio(params):
 
 
 def _check_and_convert_rng_seed(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
-    obj = params[obj_name]
+    obj_name = "rng_seed"
 
-    if obj is not None:
-        kwargs = {"obj": obj, "obj_name": obj_name}
-        try:
-            rng_seed = czekitout.convert.to_nonnegative_int(**kwargs)
-        except:
-            err_msg = globals()[current_func_name+"_err_msg_1"]
-            raise TypeError(err_msg)
-    else:
-        rng_seed = obj
+    module_alias = fakecbed.discretized
+    cls_alias = module_alias.CBEDPattern
+    func_alias = cls_alias.get_validation_and_conversion_funcs()[obj_name]
+    rng_seed = func_alias(params)
 
     return rng_seed
 
 
 
 def _check_and_convert_rm_input_ml_dataset_file(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "rm_input_ml_dataset_file"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     rm_input_ml_dataset_file = czekitout.convert.to_bool(**kwargs)
     
@@ -2920,31 +2884,29 @@ def _split_ml_dataset_file(ml_data_splitter,
                            start_time):
     kwargs = {"ml_data_splitter": ml_data_splitter,
               "output_ml_dataset_filenames": output_ml_dataset_filenames}
-    partial_msg = _generate_partial_msg_of_split_ml_dataset_file(**kwargs)
+    partial_msg = _generate_partial_msg_of_split_ml_dataset_file(**kwargs)    
 
     _print_split_ml_dataset_file_starting_msg(partial_msg)
 
     input_ml_dataset_filename = ml_data_splitter._input_ml_dataset_filename
+    current_func_name = "_split_ml_dataset_file"
 
     try:
         method_alias_name = ("_check_dtypes_of_hdf5_datasets"
-                             "_of_ml_dataset_files")
+                             "_of_ml_dataset_file")
         method_alias = getattr(ml_data_type_validator, method_alias_name)
         method_alias(path_to_ml_dataset=input_ml_dataset_filename)
         
         func_name = ("_initialize_output_files_to_which_to_copy_contents"
                      "_of_split_ml_dataset")
         func_alias = globals()[func_name]
-        kwargs = {"ml_data_splitter": \
-                  ml_data_splitter,
+        kwargs = {**kwargs,
                   "ml_data_shape_analyzer": \
                   ml_data_shape_analyzer,
                   "input_ml_dataset_filename": \
                   input_ml_dataset_filename,
                   "ml_data_type_validator": \
                   ml_data_type_validator,
-                  "output_ml_dataset_filenames": \
-                  output_ml_dataset_filenames,
                   "axes_labels_of_hdf5_datasets_of_ml_dataset_file": \
                   axes_labels_of_hdf5_datasets_of_ml_dataset_file}
         func_alias(**kwargs)
@@ -3257,9 +3219,7 @@ _default_ml_data_instance_idx = 0
 
 
 def _check_and_convert_ml_data_instance_idx(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "ml_data_instance_idx"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     ml_data_instance_idx = czekitout.convert.to_int(**kwargs)
 
@@ -3274,6 +3234,8 @@ def _check_and_convert_ml_data_instance_idx(params):
     max_accepted_ml_data_instance_idx = \
         -min_accepted_ml_data_instance_idx-1
     
+    current_func_name = "_check_and_convert_ml_data_instance_idx"
+
     if ((ml_data_instance_idx < min_accepted_ml_data_instance_idx)
         or (max_accepted_ml_data_instance_idx < ml_data_instance_idx)):
         partial_err_msg_1 = (" from the ML dataset stored in the file "
@@ -3345,9 +3307,7 @@ _default_check_ml_data_dict_first = True
 
 
 def _check_and_convert_check_ml_data_dict_first(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "check_ml_data_dict_first"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     check_ml_data_dict_first = czekitout.convert.to_bool(**kwargs)
 
@@ -3823,18 +3783,16 @@ class _TorchMLDataset(torch.utils.data.Dataset):
 
 
 def _check_and_convert_path_to_ml_dataset(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "path_to_ml_dataset"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
-    path_to_ml_dataset = czekitout.convert.to_str_from_path_like(**kwargs)
+    path_to_ml_dataset = czekitout.convert.to_str_from_str_like(**kwargs)
     
     return path_to_ml_dataset
 
 
 
 def _pre_serialize_path_to_ml_dataset(path_to_ml_dataset):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = path_to_ml_dataset
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -3849,9 +3807,7 @@ def _de_pre_serialize_path_to_ml_dataset(serializable_rep):
 
 
 def _check_and_convert_entire_ml_dataset_is_to_be_cached(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "entire_ml_dataset_is_to_be_cached"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     entire_ml_dataset_is_to_be_cached = czekitout.convert.to_bool(**kwargs)
     
@@ -3861,7 +3817,7 @@ def _check_and_convert_entire_ml_dataset_is_to_be_cached(params):
 
 def _pre_serialize_entire_ml_dataset_is_to_be_cached(
         entire_ml_dataset_is_to_be_cached):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = entire_ml_dataset_is_to_be_cached
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -3876,9 +3832,7 @@ def _de_pre_serialize_entire_ml_dataset_is_to_be_cached(serializable_rep):
 
 
 def _check_and_convert_ml_data_values_are_to_be_checked(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "ml_data_values_are_to_be_checked"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     ml_data_values_are_to_be_checked = czekitout.convert.to_bool(**kwargs)
     
@@ -3888,7 +3842,7 @@ def _check_and_convert_ml_data_values_are_to_be_checked(params):
 
 def _pre_serialize_ml_data_values_are_to_be_checked(
         ml_data_values_are_to_be_checked):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = ml_data_values_are_to_be_checked
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -3903,9 +3857,7 @@ def _de_pre_serialize_ml_data_values_are_to_be_checked(serializable_rep):
 
 
 def _check_and_convert_max_num_ml_data_instances_per_chunk(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "max_num_ml_data_instances_per_chunk"
     obj = params[obj_name]
 
     if obj == float("inf"):
@@ -3923,7 +3875,7 @@ def _check_and_convert_max_num_ml_data_instances_per_chunk(params):
 
 def _pre_serialize_max_num_ml_data_instances_per_chunk(
         max_num_ml_data_instances_per_chunk):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = max_num_ml_data_instances_per_chunk
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -3963,7 +3915,7 @@ def _check_and_convert_device_name(params):
 
 
 def _pre_serialize_device_name(device_name):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = device_name
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -3978,9 +3930,7 @@ def _de_pre_serialize_device_name(serializable_rep):
 
 
 def _check_and_convert_decode(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "decode"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     decode = czekitout.convert.to_bool(**kwargs)
     
@@ -3989,7 +3939,7 @@ def _check_and_convert_decode(params):
 
 
 def _pre_serialize_decode(decode):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = decode
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -4004,9 +3954,7 @@ def _de_pre_serialize_decode(serializable_rep):
 
 
 def _check_and_convert_unnormalize_normalizable_elems(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "unnormalize_normalizable_elems"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     unnormalize_normalizable_elems = czekitout.convert.to_bool(**kwargs)
     
@@ -4016,7 +3964,7 @@ def _check_and_convert_unnormalize_normalizable_elems(params):
 
 def _pre_serialize_unnormalize_normalizable_elems(
         unnormalize_normalizable_elems):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = unnormalize_normalizable_elems
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -4091,12 +4039,16 @@ def _de_pre_serialize_single_dim_slice(serializable_rep):
 
 
 
+_module_alias = \
+    emicroml.modelling.optimizers
 _default_entire_ml_dataset_is_to_be_cached = \
     False
 _default_ml_data_values_are_to_be_checked = \
     False
 _default_max_num_ml_data_instances_per_chunk = \
     _default_max_num_ml_data_instances_per_file_update
+_default_skip_validation_and_conversion = \
+    _module_alias._default_skip_validation_and_conversion
 _default_device_name = \
     None
 _default_decode = \
@@ -4137,7 +4089,7 @@ class _MLDataset(fancytypes.PreSerializableAndUpdatable):
         return None
 
 
-    
+
     def execute_post_core_attrs_update_actions(self):
         self._clear_torch_ml_dataset()
         self._generate_and_store_normalization_weights_and_biases()
@@ -4148,14 +4100,6 @@ class _MLDataset(fancytypes.PreSerializableAndUpdatable):
 
     def _clear_torch_ml_dataset(self):
         self._torch_ml_dataset = None
-
-        return None
-
-
-
-    def update(self, new_core_attr_subset_candidate):
-        super().update(new_core_attr_subset_candidate)
-        self.execute_post_core_attrs_update_actions()
 
         return None
 
@@ -4181,6 +4125,45 @@ class _MLDataset(fancytypes.PreSerializableAndUpdatable):
 
     def _generate_ml_data_normalization_weights_and_biases_loader(self):
         pass
+
+
+
+    @classmethod
+    def get_validation_and_conversion_funcs(cls):
+        validation_and_conversion_funcs = \
+            cls._validation_and_conversion_funcs_.copy()
+
+        return validation_and_conversion_funcs
+
+
+    
+    @classmethod
+    def get_pre_serialization_funcs(cls):
+        pre_serialization_funcs = \
+            cls._pre_serialization_funcs_.copy()
+
+        return pre_serialization_funcs
+
+
+    
+    @classmethod
+    def get_de_pre_serialization_funcs(cls):
+        de_pre_serialization_funcs = \
+            cls._de_pre_serialization_funcs_.copy()
+
+        return de_pre_serialization_funcs
+
+
+    
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
+        self.execute_post_core_attrs_update_actions()
+
+        return None
 
 
 
@@ -4224,13 +4207,13 @@ class _MLDataset(fancytypes.PreSerializableAndUpdatable):
 
     def get_ml_data_instances(self,
                               single_dim_slice=\
-                              default_single_dim_slice,
+                              _default_single_dim_slice,
                               device_name=\
-                              default_device_name,
+                              _default_device_name,
                               decode=\
-                              default_decode,
+                              _default_decode,
                               unnormalize_normalizable_elems=\
-                              default_unnormalize_normalizable_elems):
+                              _default_unnormalize_normalizable_elems):
         r"""Return a subset of the machine learning data instances as a 
         dictionary.
 
@@ -4310,9 +4293,10 @@ class _MLDataset(fancytypes.PreSerializableAndUpdatable):
 
         params["ml_dataset"] = self
 
+        global_symbol_table = globals()
         for param_name in param_name_subset:
             func_name = "_check_and_convert_" + param_name
-            func_alias = globals()[func_name]
+            func_alias = global_symbol_table[func_name]
             params[param_name] = func_alias(params)
 
         kwargs = {param_name: params[param_name]
@@ -4622,8 +4606,39 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def update(self, new_core_attr_subset_candidate):
-        super().update(new_core_attr_subset_candidate)
+    @classmethod
+    def get_validation_and_conversion_funcs(cls):
+        validation_and_conversion_funcs = \
+            cls._validation_and_conversion_funcs_.copy()
+
+        return validation_and_conversion_funcs
+
+
+    
+    @classmethod
+    def get_pre_serialization_funcs(cls):
+        pre_serialization_funcs = \
+            cls._pre_serialization_funcs_.copy()
+
+        return pre_serialization_funcs
+
+
+    
+    @classmethod
+    def get_de_pre_serialization_funcs(cls):
+        de_pre_serialization_funcs = \
+            cls._de_pre_serialization_funcs_.copy()
+
+        return de_pre_serialization_funcs
+
+
+
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
         self.execute_post_core_attrs_update_actions()
 
         return None
@@ -4935,9 +4950,9 @@ class _MLModel(torch.nn.Module):
             self,
             ml_inputs,
             normalizable_elems_of_ml_inputs_are_normalized=\
-            default_normalizable_elems_of_ml_inputs_are_normalized,
+            _default_normalizable_elems_of_ml_inputs_are_normalized,
             unnormalize_normalizable_elems_of_ml_predictions=\
-            default_unnormalize_normalizable_elems_of_ml_predictions):
+            _default_unnormalize_normalizable_elems_of_ml_predictions):
         params = {key: val
                   for key, val in locals().items()
                   if (key not in ("self", "__class__"))}
@@ -4960,10 +4975,11 @@ class _MLModel(torch.nn.Module):
             ("ml_inputs",
              "normalizable_elems_of_ml_inputs_are_normalized",
              "unnormalize_normalizable_elems_of_ml_predictions")
-        
+
+        global_symbol_table = globals()
         for param_name_2 in param_name_subset_2:
             func_name = "_check_and_convert_" + param_name_2
-            func_alias = globals()[func_name]
+            func_alias = global_symbol_table[func_name]
             params[param_name_2] = func_alias(params)
 
         kwargs = {param_name_2: params[param_name_2]
@@ -5039,9 +5055,7 @@ def _initialize_layer_weights_according_to_activation_func(activation_func,
 
 
 def _check_and_convert_mini_batch_norm_eps(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "mini_batch_norm_eps"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}    
     mini_batch_norm_eps = czekitout.convert.to_positive_float(**kwargs)
 
@@ -5337,7 +5351,7 @@ class _NoPoolResNetMiddleFlow(torch.nn.Module):
         self._resnet_stages = \
             self._generate_resnet_stages()
         self._num_output_channels = \
-            self._resnet_stages[-1].num_output_channels
+            self._resnet_stages[-1]._num_output_channels
 
         return None
 
@@ -5353,7 +5367,7 @@ class _NoPoolResNetMiddleFlow(torch.nn.Module):
                   "final_activation_func": torch.nn.ReLU(),
                   "mini_batch_norm_eps": self._mini_batch_norm_eps}
 
-        resnet_building_block_cls = BasicResNetBuildingBlock
+        resnet_building_block_cls = _BasicResNetBuildingBlock
         kwargs["num_output_channels"] = 2*self._num_input_channels
 
         downsampling_blocks = tuple()
@@ -5408,7 +5422,7 @@ class _NoPoolResNetMiddleFlow(torch.nn.Module):
         for downsampling_block, resnet_stage in zip_obj:
             intermediate_tensor = downsampling_block(intermediate_tensor)
             intermediate_tensor = resnet_stage(intermediate_tensor)
-            if self.return_intermediate_tensor_subset_upon_call_to_forward:
+            if self._return_intermediate_tensor_subset_upon_call_to_forward:
                 intermediate_tensor_subset += (intermediate_tensor,)
 
         intermediate_tensor_subset = intermediate_tensor_subset[:-1]
@@ -5560,7 +5574,7 @@ class _NoPoolResNet(torch.nn.Module):
         self._middle_flow = self._generate_middle_flow()
         self._exit_flow = self._generate_exit_flow()
 
-        self._num_downsamplings = self._middle_flow.num_downsamplings
+        self._num_downsamplings = self._middle_flow._num_downsamplings
 
         return None
 
@@ -5888,7 +5902,7 @@ class _MLLossManager():
                                            ml_predictions,
                                            ml_targets,
                                            phase):
-        ml_loss_calculator = self.ml_loss_calculator
+        ml_loss_calculator = self._ml_loss_calculator
 
         kwargs = \
             {"ml_inputs": \
@@ -6032,7 +6046,7 @@ def _de_pre_serialize_checkpoints(serializable_rep):
 
 
 def _check_and_convert_lr_scheduler_manager(params):
-    module_alias = emicrocml.modelling.lr
+    module_alias = emicroml.modelling.lr
     func_alias = module_alias._check_and_convert_lr_scheduler_manager
     lr_scheduler_manager = func_alias(params)
 
@@ -6041,7 +6055,7 @@ def _check_and_convert_lr_scheduler_manager(params):
 
 
 def _pre_serialize_lr_scheduler_manager(lr_scheduler_manager):
-    module_alias = emicrocml.modelling.lr
+    module_alias = emicroml.modelling.lr
     func_alias = module_alias._pre_serialize_lr_scheduler_manager
     serializable_rep = func_alias(lr_scheduler_manager)
     
@@ -6050,7 +6064,7 @@ def _pre_serialize_lr_scheduler_manager(lr_scheduler_manager):
 
 
 def _de_pre_serialize_lr_scheduler_manager(serializable_rep):
-    module_alias = emicrocml.modelling.lr
+    module_alias = emicroml.modelling.lr
     func_alias = module_alias._de_pre_serialize_lr_scheduler_manager
     lr_scheduler_manager = func_alias(serializable_rep)
 
@@ -6061,7 +6075,7 @@ def _de_pre_serialize_lr_scheduler_manager(serializable_rep):
 def _check_and_convert_output_dirname(params):
     obj_name = "output_dirname"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}    
-    output_dirname = czekitout.convert.to_str_from_path_like(**kwargs)
+    output_dirname = czekitout.convert.to_str_from_str_like(**kwargs)
 
     return output_dirname
 
@@ -6165,9 +6179,9 @@ def _check_and_convert_ml_model_param_groups(params):
 
 
 
-_module_alias = emicrocml.modelling.lr
+_module_alias = emicroml.modelling.lr
 _default_checkpoints = None
-_default_lr_scheduler_manager = module_alias._default_lr_scheduler_manager
+_default_lr_scheduler_manager = _module_alias._default_lr_scheduler_manager
 _default_output_dirname = "results"
 _default_misc_model_training_metadata = dict()
 
@@ -6254,6 +6268,45 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
 
 
 
+    @classmethod
+    def get_validation_and_conversion_funcs(cls):
+        validation_and_conversion_funcs = \
+            cls._validation_and_conversion_funcs_.copy()
+
+        return validation_and_conversion_funcs
+
+
+    
+    @classmethod
+    def get_pre_serialization_funcs(cls):
+        pre_serialization_funcs = \
+            cls._pre_serialization_funcs_.copy()
+
+        return pre_serialization_funcs
+
+
+    
+    @classmethod
+    def get_de_pre_serialization_funcs(cls):
+        de_pre_serialization_funcs = \
+            cls._de_pre_serialization_funcs_.copy()
+
+        return de_pre_serialization_funcs
+
+
+
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
+        self.execute_post_core_attrs_update_actions()
+
+        return None
+
+
+
     def train_ml_model(self, ml_model, ml_model_param_groups):
         params = {key: val
                   for key, val in locals().items()
@@ -6276,7 +6329,7 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
 
         self._execute_training_and_validation_cycles()
 
-        self._ml_loss_manager.save_mini_batch_losses()
+        self._ml_loss_manager._save_mini_batch_losses()
 
         self._save_lr_schedules()
 
@@ -6746,9 +6799,7 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
 
 
 def _check_and_convert_ml_model_trainer(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "ml_model_trainer"
     obj = params[obj_name]
 
     key = "ml_model_trainer_cls"
@@ -6768,7 +6819,7 @@ def _check_and_convert_ml_model_trainer(params):
 
 
 def _pre_serialize_ml_model_trainer(ml_model_trainer):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = ml_model_trainer
     serializable_rep = obj_to_pre_serialize.pre_serialize()
     
     return serializable_rep
@@ -6784,7 +6835,7 @@ def _check_and_convert_misc_model_testing_metadata(params):
 
 
 def _pre_serialize_misc_model_testing_metadata(misc_model_testing_metadata):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = misc_model_testing_metadata
     serializable_rep = obj_to_pre_serialize.pre_serialize()
     
     return serializable_rep
@@ -6854,6 +6905,45 @@ class _MLModelTester(fancytypes.PreSerializableAndUpdatable):
         self._ml_loss_manager = None
         self._testing_has_not_finished = None
                 
+        return None
+
+
+
+    @classmethod
+    def get_validation_and_conversion_funcs(cls):
+        validation_and_conversion_funcs = \
+            cls._validation_and_conversion_funcs_.copy()
+
+        return validation_and_conversion_funcs
+
+
+    
+    @classmethod
+    def get_pre_serialization_funcs(cls):
+        pre_serialization_funcs = \
+            cls._pre_serialization_funcs_.copy()
+
+        return pre_serialization_funcs
+
+
+    
+    @classmethod
+    def get_de_pre_serialization_funcs(cls):
+        de_pre_serialization_funcs = \
+            cls._de_pre_serialization_funcs_.copy()
+
+        return de_pre_serialization_funcs
+
+
+
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
+        self.execute_post_core_attrs_update_actions()
+
         return None
 
 
@@ -7090,9 +7180,7 @@ class _MLModelTester(fancytypes.PreSerializableAndUpdatable):
 
 
 def _check_and_convert_ml_model_tester(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "ml_model_tester"
     obj = params[obj_name]
 
     key = "ml_model_tester_cls"
@@ -7112,7 +7200,7 @@ def _check_and_convert_ml_model_tester(params):
 
 
 def _pre_serialize_ml_model_tester(ml_model_tester):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = ml_model_tester
     serializable_rep = obj_to_pre_serialize.pre_serialize()
     
     return serializable_rep
@@ -7133,16 +7221,12 @@ def _check_and_convert_load_ml_model_from_file_params(params):
 
 
 def _check_and_convert_ml_model_state_dict_filename(params):
-    current_func_name = \
-        inspect.stack()[0][3]
-    char_idx = \
-        19
     obj_name = \
-        current_func_name[char_idx:]
+        "ml_model_state_dict_filename"
     kwargs = \
         {"obj": params[obj_name], "obj_name": obj_name}
     ml_model_state_dict_filename = \
-        czekitout.convert.to_str_from_path_like(**kwargs)
+        czekitout.convert.to_str_from_str_like(**kwargs)
     
     return ml_model_state_dict_filename
 
@@ -7151,9 +7235,13 @@ def _check_and_convert_ml_model_state_dict_filename(params):
 def _load_ml_model_from_file(ml_model_state_dict_filename,
                              device_name,
                              ml_model_cls):
+    current_func_name = "_load_ml_model_from_file"
+
     try:
-        ml_model_state_dict = torch.load(ml_model_state_dict_filename, 
-                                         map_location=torch.device('cpu'))
+        kwargs = {"f": ml_model_state_dict_filename,
+                  "map_location": torch.device('cpu'),
+                  "weights_only": True}
+        ml_model_state_dict = torch.load(**kwargs)
         
         ml_model = _load_ml_model_from_state_dict(ml_model_state_dict,
                                                   device_name,
@@ -7186,11 +7274,9 @@ def _check_and_convert_load_ml_model_from_state_dict_params(params):
 
 
 def _check_and_convert_ml_model_state_dict(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "ml_model_state_dict"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
-    ml_model_state_dict = czekitout.convert.to_str_from_path_like(**kwargs)
+    ml_model_state_dict = czekitout.convert.to_str_from_str_like(**kwargs)
     
     return ml_model_state_dict_filename
 
@@ -7203,6 +7289,8 @@ def _load_ml_model_from_state_dict(ml_model_state_dict,
               "obj_name": "ml_model_state_dict",
               "accepted_types": (collections.OrderedDict,)}
     czekitout.check.if_instance_of_any_accepted_types(**kwargs)
+
+    current_func_name = "_load_ml_model_from_state_dict"
 
     try:
         ml_model_ctor_params = \
@@ -7364,10 +7452,6 @@ _check_and_convert_output_ml_dataset_filename_2_err_msg_1 = \
 _check_and_convert_split_ratio_err_msg_1 = \
     ("The object ``split_ratio`` must be a triplet of nonnegative real "
      "numbers that add up to a positive number.")
-
-_check_and_convert_rng_seed_err_msg_1 = \
-    ("The object ``rng_seed`` must be either a nonnegative integer or of the "
-     "type `NoneType`.")
 
 _split_ml_dataset_file_err_msg_1 = \
     ("An error occurred in trying to split {}: see traceback for details.")

@@ -21,14 +21,6 @@
 ## Load libraries/packages/modules ##
 #####################################
 
-# For accessing attributes of functions.
-import inspect
-
-# For randomly selecting items in dictionaries.
-import random
-
-
-
 # For general array handling.
 import numpy as np
 
@@ -58,7 +50,8 @@ import emicroml.modelling.optimizers
 ##################################
 
 # List of public objects in module.
-__all__ = ["Constant",
+__all__ = ["BaseLRScheduler",
+           "Constant",
            "Linear",
            "Exponential",
            "ReduceOnPlateau",
@@ -69,9 +62,28 @@ __all__ = ["Constant",
 
 
 
-class _Base(fancytypes.PreSerializableAndUpdatable):
+_module_alias = \
+    emicroml.modelling.optimizers
+_default_skip_validation_and_conversion = \
+    _module_alias._default_skip_validation_and_conversion
+
+
+
+class BaseLRScheduler(fancytypes.PreSerializableAndUpdatable):
+    r"""A wrapper to a PyTorch learning rate scheduler class.
+
+    One cannot construct an instance of the class
+    :class:`emicroml.modelling.lr.schedulers.BaseLRScheduler`, only subclasses
+    of itself defined in :mod:`emicroml.modelling.lr.schedulers` module.
+
+    Parameters
+    ----------
+    ctor_params : `dict`
+        The construction parameters of the subclass.
+
+    """
     def __init__(self, ctor_params):
-        if type(self) is BaseShape:
+        if type(self) is BaseLRScheduler:
             self._generate_torch_ml_optimizer(ml_model_param_group=None)
         else:
             kwargs = ctor_params
@@ -115,8 +127,39 @@ class _Base(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def update(self, new_core_attr_subset_candidate):
-        super().update(new_core_attr_subset_candidate)
+    @classmethod
+    def get_validation_and_conversion_funcs(cls):
+        validation_and_conversion_funcs = \
+            cls._validation_and_conversion_funcs_.copy()
+
+        return validation_and_conversion_funcs
+
+
+    
+    @classmethod
+    def get_pre_serialization_funcs(cls):
+        pre_serialization_funcs = \
+            cls._pre_serialization_funcs_.copy()
+
+        return pre_serialization_funcs
+
+
+    
+    @classmethod
+    def get_de_pre_serialization_funcs(cls):
+        de_pre_serialization_funcs = \
+            cls._de_pre_serialization_funcs_.copy()
+
+        return de_pre_serialization_funcs
+
+
+
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
         self.execute_post_core_attrs_update_actions()
 
         return None
@@ -138,7 +181,7 @@ class _Base(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_and_store_torch_lr_scheduler(self):
-        raise NotImplementedError(_base_err_msg_1)
+        raise NotImplementedError(_base_lr_scheduler_err_msg_1)
 
 
 
@@ -184,14 +227,14 @@ class _Base(fancytypes.PreSerializableAndUpdatable):
         self._lr_step_idx += 1
 
         func_alias = self._torch_lr_scheduler.step
-        full_arg_spec = inspect.getfullargspec(func_alias)
+        func_alias_co_varnames = func_alias.__code__.co_varnames
 
         kwargs = dict()
-        if "ml_loss_manager" in full_arg_spec.args:
+        if "ml_loss_manager" in func_alias_co_varnames:
             kwargs["ml_loss_manager"] = ml_loss_manager
-        if "phase" in full_arg_spec.args:
+        if "phase" in func_alias_co_varnames:
             kwargs["phase"] = phase
-        if "epoch" in full_arg_spec.args:
+        if "epoch" in func_alias_co_varnames:
             kwargs["epoch"] = None
 
         func_alias(**kwargs)
@@ -257,8 +300,7 @@ def _de_pre_serialize_ml_optimizer(serializable_rep):
 
 
 def _check_and_convert_total_num_steps(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "total_num_steps"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     total_num_steps = czekitout.convert.to_nonnegative_int(**kwargs)
 
@@ -267,7 +309,7 @@ def _check_and_convert_total_num_steps(params):
 
 
 def _pre_serialize_total_num_steps(total_num_steps):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = total_num_steps
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -282,8 +324,7 @@ def _de_pre_serialize_total_num_steps(serializable_rep):
 
 
 def _check_and_convert_scale_factor(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "scale_factor"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     scale_factor = czekitout.convert.to_positive_float(**kwargs)
 
@@ -292,7 +333,7 @@ def _check_and_convert_scale_factor(params):
 
 
 def _pre_serialize_scale_factor(scale_factor):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = scale_factor
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -306,14 +347,20 @@ def _de_pre_serialize_scale_factor(serializable_rep):
 
 
 
-_module_alias = emicroml.modelling.optimizers
-_default_ml_optimizer = _module_alias._default_ml_optimizer
-_default_total_num_steps = 0
-_default_scale_factor = 1
+_module_alias = \
+    emicroml.modelling.optimizers
+_default_ml_optimizer = \
+    _module_alias._default_ml_optimizer
+_default_total_num_steps = \
+    0
+_default_scale_factor = \
+    1
+_default_skip_validation_and_conversion = \
+    _module_alias._default_skip_validation_and_conversion
 
 
 
-class Constant(_Base):
+class Constant(BaseLRScheduler):
     r"""A wrapper to the PyTorch learning rate scheduler class 
     :class:`torch.optim.lr_scheduler.ConstantLR`.
 
@@ -400,7 +447,7 @@ class Constant(_Base):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
-        _Base.__init__(self, ctor_params)
+        BaseLRScheduler.__init__(self, ctor_params)
 
         return None
 
@@ -421,8 +468,7 @@ class Constant(_Base):
 
 
 def _check_and_convert_start_scale_factor(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "start_scale_factor"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     start_scale_factor = czekitout.convert.to_nonnegative_float(**kwargs)
 
@@ -431,7 +477,7 @@ def _check_and_convert_start_scale_factor(params):
 
 
 def _pre_serialize_start_scale_factor(start_scale_factor):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = start_scale_factor
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -446,8 +492,7 @@ def _de_pre_serialize_start_scale_factor(serializable_rep):
 
 
 def _check_and_convert_end_scale_factor(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "end_scale_factor"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     end_scale_factor = czekitout.convert.to_nonnegative_float(**kwargs)
 
@@ -456,7 +501,7 @@ def _check_and_convert_end_scale_factor(params):
 
 
 def _pre_serialize_end_scale_factor(end_scale_factor):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = end_scale_factor
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -475,7 +520,7 @@ _default_end_scale_factor = 1
 
 
 
-class Linear(_Base):
+class Linear(BaseLRScheduler):
     r"""A wrapper to the PyTorch learning rate scheduler class 
     :class:`torch.optim.lr_scheduler.LinearLR`.
 
@@ -568,7 +613,7 @@ class Linear(_Base):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
-        _Base.__init__(self, ctor_params)
+        BaseLRScheduler.__init__(self, ctor_params)
 
         return None
 
@@ -590,8 +635,7 @@ class Linear(_Base):
 
 
 def _check_and_convert_multiplicative_decay_factor(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "multiplicative_decay_factor"
     func_alias = czekitout.convert.to_nonnegative_float
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     multiplicative_decay_factor = func_alias(**kwargs)
@@ -601,7 +645,7 @@ def _check_and_convert_multiplicative_decay_factor(params):
 
 
 def _pre_serialize_multiplicative_decay_factor(multiplicative_decay_factor):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = multiplicative_decay_factor
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -619,7 +663,7 @@ _default_multiplicative_decay_factor = 1
 
 
 
-class Exponential(_Base):
+class Exponential(BaseLRScheduler):
     r"""A wrapper to the PyTorch learning rate scheduler class 
     :class:`torch.optim.lr_scheduler.ExponentialLR`.
 
@@ -703,7 +747,7 @@ class Exponential(_Base):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
-        _Base.__init__(self, ctor_params)
+        BaseLRScheduler.__init__(self, ctor_params)
 
         return None
 
@@ -728,7 +772,7 @@ _default_epoch = None
 
 
 
-_cls_alias = _torch.optim.lr_scheduler._LRScheduler
+_cls_alias = torch.optim.lr_scheduler._LRScheduler
 class _TorchReduceOnPlateau(_cls_alias):
     def __init__(self,
                  torch_ml_optimizer,
@@ -784,8 +828,7 @@ class _TorchReduceOnPlateau(_cls_alias):
 
 
 def _check_and_convert_reduction_factor(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "reduction_factor"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     reduction_factor = czekitout.convert.to_positive_float(**kwargs)
 
@@ -794,7 +837,7 @@ def _check_and_convert_reduction_factor(params):
 
 
 def _pre_serialize_reduction_factor(reduction_factor):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = reduction_factor
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -809,8 +852,7 @@ def _de_pre_serialize_reduction_factor(serializable_rep):
 
 
 def _check_and_convert_max_num_steps_of_stagnation(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "max_num_steps_of_stagnation"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     max_num_steps_of_stagnation = czekitout.convert.to_positive_int(**kwargs)
 
@@ -819,7 +861,7 @@ def _check_and_convert_max_num_steps_of_stagnation(params):
 
 
 def _pre_serialize_max_num_steps_of_stagnation(max_num_steps_of_stagnation):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = max_num_steps_of_stagnation
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -834,8 +876,7 @@ def _de_pre_serialize_max_num_steps_of_stagnation(serializable_rep):
 
 
 def _check_and_convert_improvement_threshold(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "improvement_threshold"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     improvement_threshold = czekitout.convert.to_positive_float(**kwargs)
 
@@ -844,7 +885,7 @@ def _check_and_convert_improvement_threshold(params):
 
 
 def _pre_serialize_improvement_threshold(improvement_threshold):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = improvement_threshold
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -859,8 +900,7 @@ def _de_pre_serialize_improvement_threshold(serializable_rep):
 
 
 def _check_and_convert_averaging_window_in_steps(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "averaging_window_in_steps"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     averaging_window_in_steps = czekitout.convert.to_positive_int(**kwargs)
 
@@ -869,7 +909,7 @@ def _check_and_convert_averaging_window_in_steps(params):
 
 
 def _pre_serialize_averaging_window_in_steps(averaging_window_in_steps):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = averaging_window_in_steps
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -890,7 +930,7 @@ _default_averaging_window_in_steps = 1
 
 
 
-class ReduceOnPlateau(_Base):
+class ReduceOnPlateau(BaseLRScheduler):
     r"""A wrapper to a custom PyTorch learning rate scheduler class based on 
     the class :class:`torch.optim.lr_scheduler.ReduceLROnPlateau`.
 
@@ -1016,7 +1056,7 @@ class ReduceOnPlateau(_Base):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
-        _Base.__init__(self, ctor_params)
+        BaseLRScheduler.__init__(self, ctor_params)
 
         return None
 
@@ -1082,9 +1122,9 @@ class _TorchCosineAnnealingWithWarmRestarts(cls_alias):
         torch_ml_optimizer_param_group = torch_ml_optimizer.param_groups[-1]
 
         num_previous_steps_since_last_restart = \
-            self.base_torch_lr_scheduler.T_cur
+            self._base_torch_lr_scheduler.T_cur
         total_num_steps_in_current_anneal_cycle = \
-            self.base_torch_lr_scheduler.T_i
+            self._base_torch_lr_scheduler.T_i
         
         cycle_period_scale_factor = self._cycle_period_scale_factor
 
@@ -1188,7 +1228,7 @@ _default_min_lr_in_first_cycle = 0
 
 
 
-class CosineAnnealingWithWarmRestarts(_Base):
+class CosineAnnealingWithWarmRestarts(BaseLRScheduler):
     r"""A wrapper to a custom PyTorch learning rate scheduler class based on 
     the class :class:`torch.optim.lr_scheduler.CosineAnnealingWarmRestarts`.
 
@@ -1316,7 +1356,7 @@ class CosineAnnealingWithWarmRestarts(_Base):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
-        _Base.__init__(self, ctor_params)
+        BaseLRScheduler.__init__(self, ctor_params)
 
         return None
 
@@ -1362,8 +1402,7 @@ def _check_and_convert_lr_scheduler_name_v1(params):
 
 
 def _check_and_convert_lr_scheduler_name(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "lr_scheduler_name"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     obj = czekitout.convert.to_str_from_str_like(**kwargs)
 
@@ -1387,7 +1426,7 @@ def _check_and_convert_lr_scheduler_name(params):
 
 
 def _pre_serialize_lr_scheduler_name_v1(lr_scheduler_name):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = lr_scheduler_name
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -1412,8 +1451,7 @@ def _check_and_convert_lr_scheduler_params_v1(params):
 
 
 def _check_and_convert_lr_scheduler_params(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "lr_scheduler_params"
     obj = params[obj_name]
 
     key = "expecting_only_a_non_sequential_lr_scheduler"
@@ -1427,6 +1465,8 @@ def _check_and_convert_lr_scheduler_params(params):
 
     accepted_types = (dict, type(None))
 
+    current_func_name = "_check_and_convert_lr_scheduler_params"
+    
     if isinstance(obj, accepted_types[-1]):
         lr_scheduler_params = lr_scheduler_cls().get_core_attrs(deep_copy=False)
     else:
@@ -1516,7 +1556,7 @@ _default_lr_scheduler_params = None
 
 
 
-class Nonsequential(_Base):
+class Nonsequential(BaseLRScheduler):
     r"""A wrapper to a nonsequential PyTorch learning rate scheduler class.
 
     The current class is a subclass of
@@ -1586,15 +1626,15 @@ class Nonsequential(_Base):
         copies or conversions are made in this case.
 
     """
-    _validation_and_conversion_funcs = \
+    _validation_and_conversion_funcs_ = \
         {"lr_scheduler_name": _check_and_convert_lr_scheduler_name_v1,
          "lr_scheduler_params": _check_and_convert_lr_scheduler_params_v1}
 
-    _pre_serialization_funcs = \
+    _pre_serialization_funcs_ = \
         {"lr_scheduler_name": _pre_serialize_lr_scheduler_name_v1,
          "lr_scheduler_params": _pre_serialize_lr_scheduler_params_v1}
 
-    _de_pre_serialization_funcs = \
+    _de_pre_serialization_funcs_ = \
         {"lr_scheduler_name": _de_pre_serialize_lr_scheduler_name_v1,
          "lr_scheduler_params": _de_pre_serialize_lr_scheduler_params_v1}
 
@@ -1610,7 +1650,7 @@ class Nonsequential(_Base):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
-        _Base.__init__(self, ctor_params)
+        BaseLRScheduler.__init__(self, ctor_params)
 
         return None
 
@@ -1683,8 +1723,8 @@ class _TorchSequential(torch.optim.lr_scheduler._LRScheduler):
             base_torch_lr_scheduler = lr_scheduler._torch_lr_scheduler
             self._base_torch_lr_schedulers += (base_torch_lr_scheduler,)
             
-            milestone = lr_scheduler.total_num_steps + self.milestones[-1] + 1
-            self.milestones += (milestone,)
+            milestone = lr_scheduler.total_num_steps + self._milestones[-1] + 1
+            self._milestones += (milestone,)
 
         key = "weight_decay"
         self._initial_weight_decay = (torch_ml_optimizer_param_group[key]
@@ -1703,9 +1743,9 @@ class _TorchSequential(torch.optim.lr_scheduler._LRScheduler):
              epoch=_default_epoch):
         self.last_epoch = self.last_epoch+1 if (epoch is None) else epoch
 
-        for milestone_idx, _ in enumerate(self.milestones[:-1]):
-            interval = (self.milestones[milestone_idx],
-                        self.milestones[milestone_idx+1])
+        for milestone_idx, _ in enumerate(self._milestones[:-1]):
+            interval = (self._milestones[milestone_idx],
+                        self._milestones[milestone_idx+1])
             
             if interval[0] <= self.last_epoch < interval[1]:
                 base_torch_lr_scheduler = \
@@ -1724,15 +1764,17 @@ class _TorchSequential(torch.optim.lr_scheduler._LRScheduler):
                             self._initial_weight_decay
                         
                 else:
-                    base_step_func = base_torch_lr_scheduler.step
-                    full_arg_spec = inspect.getfullargspec(base_step_func)
+                    base_step_func = \
+                        base_torch_lr_scheduler.step
+                    base_step_func_co_varnames = \
+                        base_step_func.__code__.co_varnames
 
                     kwargs = dict()
-                    if "ml_loss_manager" in full_arg_spec.args:
+                    if "ml_loss_manager" in base_step_func_co_varnames:
                         kwargs["ml_loss_manager"] = ml_loss_manager
-                    if "phase" in full_arg_spec.args:
+                    if "phase" in base_step_func_co_varnames:
                         kwargs["phase"] = phase
-                    if "epoch" in full_arg_spec.args:
+                    if "epoch" in base_step_func_co_varnames:
                         kwargs["epoch"] = None
 
                     base_step_func(**kwargs)
@@ -1745,8 +1787,7 @@ class _TorchSequential(torch.optim.lr_scheduler._LRScheduler):
 
 
 def _check_and_convert_non_sequential_lr_schedulers(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "non_sequential_lr_schedulers"
     obj = params[obj_name]
 
     accepted_types = (Nonsequential, type(None))
@@ -1755,6 +1796,8 @@ def _check_and_convert_non_sequential_lr_schedulers(params):
         "non_sequential_lr_scheduler"
     params["accepted_nontrivial_cls_of_obj_alias_of_lr_scheduler"] = \
         accepted_types[0]
+
+    current_func_name = "_check_and_convert_non_sequential_lr_schedulers"
 
     if isinstance(obj, accepted_types[-1]):
         non_sequential_lr_schedulers = (accepted_types[0](),)
@@ -1790,8 +1833,7 @@ def _check_and_convert_non_sequential_lr_schedulers(params):
 
 
 def _check_and_convert_lr_scheduler(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "lr_scheduler"
     obj = params[obj_name]
 
     name_of_obj_alias_of_lr_scheduler = \
@@ -1817,7 +1859,7 @@ def _check_and_convert_lr_scheduler(params):
 
 
 def _pre_serialize_non_sequential_lr_schedulers(non_sequential_lr_schedulers):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = non_sequential_lr_schedulers
 
     serializable_rep = tuple()
     for non_sequential_lr_scheduler in obj_to_pre_serialize:
@@ -1828,7 +1870,7 @@ def _pre_serialize_non_sequential_lr_schedulers(non_sequential_lr_schedulers):
 
 
 def _pre_serialize_non_sequential(non_sequential):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = non_sequential
     serializable_rep = obj_to_pre_serialize.pre_serialize()
     
     return serializable_rep
@@ -1861,7 +1903,7 @@ _default_non_sequential_lr_schedulers = None
 
 
 
-class Sequential(_Base):
+class Sequential(BaseLRScheduler):
     r"""A wrapper to a sequential PyTorch learning rate scheduler class.
 
     The current class is a subclass of
@@ -1946,7 +1988,7 @@ class Sequential(_Base):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
-        _Base.__init__(self, ctor_params)
+        BaseLRScheduler.__init__(self, ctor_params)
 
         return None
 
@@ -2024,7 +2066,7 @@ def _check_and_convert_lr_scheduler_name_v2(params):
 
 
 def _pre_serialize_lr_scheduler_name_v2(lr_scheduler_name):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = lr_scheduler_name
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -2064,7 +2106,7 @@ def _de_pre_serialize_lr_scheduler_params_v2(serializable_rep):
 
 
 
-class Generic(_Base):
+class Generic(BaseLRScheduler):
     r"""A generic wrapper to a PyTorch learning rate scheduler class.
 
     The current class is a subclass of
@@ -2138,15 +2180,15 @@ class Generic(_Base):
         copies or conversions are made in this case.
 
     """
-    _validation_and_conversion_funcs = \
+    _validation_and_conversion_funcs_ = \
         {"lr_scheduler_name": _check_and_convert_lr_scheduler_name_v2,
          "lr_scheduler_params": _check_and_convert_lr_scheduler_params_v2}
 
-    _pre_serialization_funcs = \
+    _pre_serialization_funcs_ = \
         {"lr_scheduler_name": _pre_serialize_lr_scheduler_name_v2,
          "lr_scheduler_params": _pre_serialize_lr_scheduler_params_v2}
 
-    _de_pre_serialization_funcs = \
+    _de_pre_serialization_funcs_ = \
         {"lr_scheduler_name": _de_pre_serialize_lr_scheduler_name_v2,
          "lr_scheduler_params": _de_pre_serialize_lr_scheduler_params_v2}
 
@@ -2162,7 +2204,7 @@ class Generic(_Base):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
-        _Base.__init__(self, ctor_params)
+        BaseLRScheduler.__init__(self, ctor_params)
 
         return None
 
@@ -2229,8 +2271,7 @@ class Generic(_Base):
 
 
 def _check_and_convert_lr_schedulers(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "lr_schedulers"
     obj = params[obj_name]
 
     accepted_types = (Generic, type(None))
@@ -2240,12 +2281,13 @@ def _check_and_convert_lr_schedulers(params):
     params["accepted_nontrivial_cls_of_obj_alias_of_lr_scheduler"] = \
         accepted_types[0]
 
+    current_func_name = "_check_and_convert_lr_schedulers"
+    
     if isinstance(obj, accepted_types[-1]):
         lr_schedulers = (accepted_types[0](),)
     else:
         try:
-            lr_schedulers = tuple()
-            
+            lr_schedulers = tuple()            
             total_num_steps = None
 
             for lr_scheduler in obj:
@@ -2326,10 +2368,10 @@ _default_lr_schedulers = None
 ## Define error messages ##
 ###########################
 
-_base_err_msg_1 = \
+_base_lr_scheduler_err_msg_1 = \
     ("Cannot construct instances of the class "
-     "`emicroml.modelling.lr.schedulers._Base`, only subclasses of itself "
-     "defined in the `emicroml.modelling.lr.schedulers` module.")
+     "`emicroml.modelling.lr.schedulers.BaseLRScheduler`, only subclasses of "
+     "itself defined in the `emicroml.modelling.lr.schedulers` module.")
 
 _check_and_convert_lr_scheduler_params_err_msg_1 = \
     ("The object ``lr_scheduler_params`` does not specify a valid set of "

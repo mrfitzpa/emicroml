@@ -22,12 +22,6 @@
 ## Load libraries/packages/modules ##
 #####################################
 
-# For accessing attributes of functions.
-import inspect
-
-# For randomly selecting items in dictionaries.
-import random
-
 # For performing deep copies.
 import copy
 
@@ -70,7 +64,7 @@ import h5py
 
 
 # Contains implementation code that is applicable to the current module.
-import emicrocml.modelling._common
+import emicroml.modelling._common
 
 
 
@@ -84,9 +78,8 @@ __all__ = []
 
 
 def _get_device(device_name):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._get_device
     device = func_alias(device_name)
 
     return device
@@ -94,9 +87,7 @@ def _get_device(device_name):
 
 
 def _check_and_convert_reference_pt(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "reference_pt"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}    
     reference_pt = czekitout.convert.to_pair_of_floats(**kwargs)
 
@@ -105,7 +96,7 @@ def _check_and_convert_reference_pt(params):
 
 
 def _pre_serialize_reference_pt(reference_pt):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = reference_pt
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -120,9 +111,8 @@ def _de_pre_serialize_reference_pt(serializable_rep):
 
 
 def _check_and_convert_rng_seed(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._check_and_convert_rng_seed
     rng_seed = func_alias(params)
 
     return rng_seed
@@ -130,24 +120,33 @@ def _check_and_convert_rng_seed(params):
 
 
 def _pre_serialize_rng_seed(rng_seed):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
-    serializable_rep = obj_to_pre_serialize
+    obj_to_pre_serialize = rng_seed
+
+    obj_name = "rng_seed"
+
+    module_alias = fakecbed.discretized
+    cls_alias = module_alias.CBEDPattern
+    func_alias = cls_alias.get_pre_serialization_funcs()[obj_name]
+    serializable_rep = func_alias(obj_to_pre_serialize)
     
     return serializable_rep
 
 
 
 def _de_pre_serialize_rng_seed(serializable_rep):
-    rng_seed = serializable_rep
+    obj_name = "rng_seed"
+
+    module_alias = fakecbed.discretized
+    cls_alias = module_alias.CBEDPattern
+    func_alias = cls_alias.get_de_pre_serialization_funcs()[obj_name]
+    rng_seed = func_alias(serializable_rep)
 
     return rng_seed
 
 
 
 def _check_and_convert_sampling_grid_dims_in_pixels(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "sampling_grid_dims_in_pixels"
 
     module_alias = distoptica
     cls_alias = module_alias.DistortionModel
@@ -159,11 +158,9 @@ def _check_and_convert_sampling_grid_dims_in_pixels(params):
 
 
 def _pre_serialize_sampling_grid_dims_in_pixels(sampling_grid_dims_in_pixels):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = sampling_grid_dims_in_pixels
 
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 15
-    obj_name = current_func_name[char_idx:]
+    obj_name = "sampling_grid_dims_in_pixels"
 
     module_alias = distoptica
     cls_alias = module_alias.DistortionModel
@@ -175,9 +172,7 @@ def _pre_serialize_sampling_grid_dims_in_pixels(sampling_grid_dims_in_pixels):
 
 
 def _de_pre_serialize_sampling_grid_dims_in_pixels(serializable_rep):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 18
-    obj_name = current_func_name[char_idx:]
+    obj_name = "sampling_grid_dims_in_pixels"
 
     module_alias = distoptica
     cls_alias = module_alias.DistortionModel
@@ -188,54 +183,46 @@ def _de_pre_serialize_sampling_grid_dims_in_pixels(serializable_rep):
 
 
 
-def _check_and_convert_least_square_alg_params(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+def _check_and_convert_least_squares_alg_params(params):
+    obj_name = "least_squares_alg_params"
 
     module_alias = distoptica
     cls_alias = module_alias.DistortionModel
     func_alias = cls_alias.get_validation_and_conversion_funcs()[obj_name]
-    least_square_alg_params = func_alias(params)
+    least_squares_alg_params = func_alias(params)
 
-    return least_square_alg_params
+    return least_squares_alg_params
 
 
 
-def _pre_serialize_least_square_alg_params(least_square_alg_params):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+def _pre_serialize_least_squares_alg_params(least_squares_alg_params):
+    obj_to_pre_serialize = least_squares_alg_params
 
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 15
-    obj_name = current_func_name[char_idx:]
+    obj_name = "least_squares_alg_params"
 
     module_alias = distoptica
     cls_alias = module_alias.DistortionModel
     func_alias = cls_alias.get_pre_serialization_funcs()[obj_name]
-    serializable_rep = func_alias(least_square_alg_params)
+    serializable_rep = func_alias(least_squares_alg_params)
     
     return serializable_rep
 
 
 
-def _de_pre_serialize_least_square_alg_params(serializable_rep):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 18
-    obj_name = current_func_name[char_idx:]
+def _de_pre_serialize_least_squares_alg_params(serializable_rep):
+    obj_name = "least_squares_alg_params"
 
     module_alias = distoptica
     cls_alias = module_alias.DistortionModel
     func_alias = cls_alias.get_de_pre_serialization_funcs()[obj_name]
-    least_square_alg_params = func_alias(serializable_rep)
+    least_squares_alg_params = func_alias(serializable_rep)
 
-    return least_square_alg_params
+    return least_squares_alg_params
 
 
 
 def _check_and_convert_device_name(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "device_name"
 
     module_alias = distoptica
     cls_alias = module_alias.DistortionModel
@@ -247,11 +234,9 @@ def _check_and_convert_device_name(params):
 
 
 def _pre_serialize_device_name(device_name):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = device_name
 
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 15
-    obj_name = current_func_name[char_idx:]
+    obj_name = "device_name"
 
     module_alias = distoptica
     cls_alias = module_alias.DistortionModel
@@ -263,9 +248,7 @@ def _pre_serialize_device_name(device_name):
 
 
 def _de_pre_serialize_device_name(serializable_rep):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 18
-    obj_name = current_func_name[char_idx:]
+    obj_name = "device_name"
 
     module_alias = distoptica
     cls_alias = module_alias.DistortionModel
@@ -276,24 +259,14 @@ def _de_pre_serialize_device_name(serializable_rep):
 
 
 
-def _check_and_convert_skip_validation_and_conversion(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.optimizers
-    func_alias = getattr(module_alias, current_func_name)
-    skip_validation_and_conversion = func_alias(device_name)
-
-    return skip_validation_and_conversion
-
-
-
 _module_alias_1 = \
-    emicrocml.modelling._common
+    emicroml.modelling._common
 _module_alias_2 = \
-    emicrocml.modelling.optimizers
+    emicroml.modelling.optimizers
 _default_reference_pt = \
     (0.5, 0.5)
 _default_rng_seed = \
-    module_alias_1._default_rng_seed
+    _module_alias_1._default_rng_seed
 _default_sampling_grid_dims_in_pixels = \
     (512, 512)
 _default_least_squares_alg_params = \
@@ -338,9 +311,24 @@ class _DefaultDistortionModelGenerator(fancytypes.PreSerializableAndUpdatable):
         kwargs["skip_cls_tests"] = True
         fancytypes.PreSerializableAndUpdatable.__init__(self, **kwargs)
 
-        self._set_fixed_attrs()
         self.execute_post_core_attrs_update_actions()
 
+        return None
+
+
+
+    def execute_post_core_attrs_update_actions(self):
+        self._set_fixed_attrs()
+
+        self_core_attrs = self.get_core_attrs(deep_copy=False)
+        for self_core_attr_name in self_core_attrs:
+            attr_name = "_"+self_core_attr_name
+            attr = self_core_attrs[self_core_attr_name]
+            setattr(self, attr_name, attr)
+
+        self._rng = np.random.default_rng(self._rng_seed)
+        self._device = _get_device(device_name=self._device_name)
+        
         return None
 
 
@@ -367,22 +355,45 @@ class _DefaultDistortionModelGenerator(fancytypes.PreSerializableAndUpdatable):
         self._min_fractional_mask_frame_width = 0/8
         self._max_fractional_mask_frame_width = 1/8
 
-        self._max_num_generation_attempts = 10
-
         return None
 
 
 
-    def execute_post_core_attrs_update_actions(self):
-        self_core_attrs = self.get_core_attrs(deep_copy=False)
-        for self_core_attr_name in self_core_attrs:
-            attr_name = "_"+self_core_attr_name
-            attr = self_core_attrs[self_core_attr_name]
-            setattr(self, attr_name, attr)
+    @classmethod
+    def get_validation_and_conversion_funcs(cls):
+        validation_and_conversion_funcs = \
+            cls._validation_and_conversion_funcs_.copy()
 
-        self._rng = np.random.default_rng(self._rng_seed)
-        self._device = _get_device(device_name=self._device_name)
-        
+        return validation_and_conversion_funcs
+
+
+    
+    @classmethod
+    def get_pre_serialization_funcs(cls):
+        pre_serialization_funcs = \
+            cls._pre_serialization_funcs_.copy()
+
+        return pre_serialization_funcs
+
+
+    
+    @classmethod
+    def get_de_pre_serialization_funcs(cls):
+        de_pre_serialization_funcs = \
+            cls._de_pre_serialization_funcs_.copy()
+
+        return de_pre_serialization_funcs
+
+
+
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
+        self.execute_post_core_attrs_update_actions()
+
         return None
 
 
@@ -399,9 +410,11 @@ class _DefaultDistortionModelGenerator(fancytypes.PreSerializableAndUpdatable):
             The distortion model.
 
         """
-        max_num_generation_attempts = self._max_num_generation_attempts
-
-        for generation_attempt_count in range(1, max_num_generation_attempts+1):
+        generation_attempt_count = 0
+        max_num_generation_attempts = 10
+        distortion_model_generation_has_not_been_completed = True
+        
+        while distortion_model_generation_has_not_been_completed:
             try:
                 kwargs = {"standard_coord_transform_params": \
                           self._generate_standard_coord_transform_params(),
@@ -425,7 +438,10 @@ class _DefaultDistortionModelGenerator(fancytypes.PreSerializableAndUpdatable):
                     err_msg = _default_distortion_model_generator_err_msg_1
                     raise ValueError(err_msg)
 
+                distortion_model_generation_has_not_been_completed = False
             except:
+                generation_attempt_count += 1
+                
                 if generation_attempt_count == max_num_generation_attempts:
                     unformatted_err_msg = \
                         _default_distortion_model_generator_err_msg_2
@@ -560,9 +576,7 @@ _building_block_counts_in_stages_of_no_pool_resnet_39 = (1, 2, 3, 5, 2)
 
 
 def _check_and_convert_num_pixels_across_each_cbed_pattern(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "num_pixels_across_each_cbed_pattern"
 
     func_alias = czekitout.convert.to_positive_int
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
@@ -570,6 +584,8 @@ def _check_and_convert_num_pixels_across_each_cbed_pattern(params):
 
     max_num_downsampling_steps_in_any_encoder_used_in_ml_model = \
         len(_building_block_counts_in_stages_of_no_pool_resnet_39)
+
+    current_func_name = "_check_and_convert_num_pixels_across_each_cbed_pattern"
 
     M = 2**max_num_downsampling_steps_in_any_encoder_used_in_ml_model
     if num_pixels_across_each_cbed_pattern % M != 0:
@@ -583,7 +599,7 @@ def _check_and_convert_num_pixels_across_each_cbed_pattern(params):
 
 def _pre_serialize_num_pixels_across_each_cbed_pattern(
         num_pixels_across_each_cbed_pattern):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = num_pixels_across_each_cbed_pattern
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -598,12 +614,8 @@ def _de_pre_serialize_num_pixels_across_each_cbed_pattern(serializable_rep):
 
 
 def _check_and_convert_max_num_disks_in_any_cbed_pattern(params):
-    current_func_name = \
-        inspect.stack()[0][3]
-    char_idx = \
-        19
     obj_name = \
-        current_func_name[char_idx:]
+        "max_num_disks_in_any_cbed_pattern"
     kwargs = \
         {"obj": params[obj_name], "obj_name": obj_name}
     max_num_disks_in_any_cbed_pattern = \
@@ -615,7 +627,7 @@ def _check_and_convert_max_num_disks_in_any_cbed_pattern(params):
 
 def _pre_serialize_max_num_disks_in_any_cbed_pattern(
         max_num_disks_in_any_cbed_pattern):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = max_num_disks_in_any_cbed_pattern
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -683,8 +695,6 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             attr_name = "_"+self_core_attr_name
             attr = self_core_attrs[self_core_attr_name]
             setattr(self, attr_name, attr)
-
-        self._rng = np.random.default_rng(self._rng_seed)
         
         sampling_grid_dims_in_pixels = \
             2*(self._num_pixels_across_each_cbed_pattern,)
@@ -699,6 +709,8 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         self._distortion_model_generator = \
             _DefaultDistortionModelGenerator(**kwargs)
 
+        self._rng = self._distortion_model_generator._rng
+
         self._device = self._distortion_model_generator._device
 
         self._min_fractional_mask_frame_width = \
@@ -706,7 +718,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         self._max_fractional_mask_frame_width = \
             self._distortion_model_generator._max_fractional_mask_frame_width
 
-        self._min_num_disks_in_any_cbed_pattern = 4
+        self._min_num_disks_in_any_cbed_pattern = 1
 
         self._A_0_min = 20
         self._A_0_max = 100
@@ -749,7 +761,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                 f /= f.max()
                 f = np.log10(f) - np.log10(threshold)
 
-                idx_1 = (F.size - np.argmax(F[::-1]>0) - 1)
+                idx_1 = (f.size - np.argmax(f[::-1]>0) - 1)
                 idx_2 = idx_1+1
 
                 approx_root_of_f = (u_rho[idx_1]+u_rho[idx_2]) / 2
@@ -788,7 +800,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
                 for m_orbital in range(0, l_orbital+1):
                     characteristic_sizes = \
-                        characteristic_sizes_of_orbitals
+                        self._characteristic_sizes_of_orbitals
                     characteristic_size = \
                         characteristic_sizes[n_orbital][l_orbital]
 
@@ -817,6 +829,45 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
+    @classmethod
+    def get_validation_and_conversion_funcs(cls):
+        validation_and_conversion_funcs = \
+            cls._validation_and_conversion_funcs_.copy()
+
+        return validation_and_conversion_funcs
+
+
+    
+    @classmethod
+    def get_pre_serialization_funcs(cls):
+        pre_serialization_funcs = \
+            cls._pre_serialization_funcs_.copy()
+
+        return pre_serialization_funcs
+
+
+    
+    @classmethod
+    def get_de_pre_serialization_funcs(cls):
+        de_pre_serialization_funcs = \
+            cls._de_pre_serialization_funcs_.copy()
+
+        return de_pre_serialization_funcs
+
+
+
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
+        self.execute_post_core_attrs_update_actions()
+
+        return None
+
+
+
     def generate(self):
         r"""Generate a fake CBED pattern.
 
@@ -832,13 +883,15 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             The fake CBED pattern.
 
         """
+        generation_attempt_count = 0
         max_num_generation_attempts = 10
-
-        for generation_attempt_count in range(1, max_num_generation_attempts+1):
+        cbed_pattern_generation_has_not_been_completed = True
+        
+        while cbed_pattern_generation_has_not_been_completed:
             try:
                 cbed_pattern_params = self._generate_cbed_pattern_params()
                 kwargs = cbed_pattern_params
-                cbed_pattern_params = fakecbed.discretized.CBEDPattern(**kwargs)
+                cbed_pattern = fakecbed.discretized.CBEDPattern(**kwargs)
 
                 disk_clipping_registry = \
                     cbed_pattern.get_disk_clipping_registry(deep_copy=False)
@@ -848,8 +901,10 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                 if num_non_clipped_disks < 2:
                     raise ValueError(_default_cbed_pattern_generator_err_msg_1)
 
-                break
+                cbed_pattern_generation_has_not_been_completed = False
             except:
+                generation_attempt_count += 1
+                
                 if generation_attempt_count == max_num_generation_attempts:
                     unformatted_err_msg = \
                         _default_cbed_pattern_generator_err_msg_2
@@ -857,30 +912,24 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                     args = ("", " ({})".format(max_num_generation_attempts))
                     err_msg = unformatted_err_msg.format(*args)                    
                     raise RuntimeError(err_msg)
-            
+
         return cbed_pattern
 
 
 
     def _generate_cbed_pattern_params(self):
-        mask_frame = \
-            self._generate_mask_frame()
-        undistorted_tds_model_1 = \
-            self._generate_undistorted_tds_model_1()
-        undistorted_tds_model_2 = \
-            self._generate_undistorted_tds_model_2(undistorted_tds_model_1)
+        mask_frame, undistorted_tds_model_1, undistorted_tds_model_2 = \
+            self._generate_mask_frame_and_undistorted_tds_models()
 
-        undistorted_outer_illumination_shape = None
-        while undistorted_outer_illumination_shape is None:
-            distortion_model = \
-                self._generate_distortion_model(undistorted_tds_model_1)
+        distortion_model = \
+            self._generate_distortion_model(undistorted_tds_model_1)
 
-            kwargs = \
-                {"distortion_model": distortion_model,
-                 "undistorted_tds_model_1": undistorted_tds_model_1}
-            undistorted_outer_illumination_shape = \
-                self._generate_undistorted_outer_illumination_shape(**kwargs)
-
+        kwargs = \
+            {"undistorted_tds_model_1": undistorted_tds_model_1,
+             "distortion_model": distortion_model}
+        undistorted_outer_illumination_shape = \
+            self._generate_undistorted_outer_illumination_shape(**kwargs)
+            
         kwargs = \
             {"undistorted_tds_model_1": undistorted_tds_model_1,
              "undistorted_tds_model_2": undistorted_tds_model_2}
@@ -903,6 +952,8 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                                distortion_model,
                                "apply_shot_noise": \
                                True,
+                               "rng_seed": \
+                               self._rng.integers(low=0, high=2**32-1).item(),
                                "cold_pixels": \
                                self._generate_cold_pixels(mask_frame),
                                "detector_partition_width_in_pixels": \
@@ -911,6 +962,18 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                                mask_frame}
 
         return cbed_pattern_params
+
+
+
+    def _generate_mask_frame_and_undistorted_tds_models(self):
+        mask_frame = \
+            self._generate_mask_frame()
+        undistorted_tds_model_1 = \
+            self._generate_undistorted_tds_model_1()
+        undistorted_tds_model_2 = \
+            self._generate_undistorted_tds_model_2(undistorted_tds_model_1)
+
+        return mask_frame, undistorted_tds_model_1, undistorted_tds_model_2
 
 
 
@@ -1042,7 +1105,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         num_peaks = len(peaks)
 
         reference_pt_of_distortion_model_generator = \
-            np.zeros((0.0, 0.0))
+            np.array((0.0, 0.0))
         for peak in peaks:
             peak_core_attrs = \
                 peak.get_core_attrs(deep_copy=False)
@@ -1051,76 +1114,37 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         reference_pt_of_distortion_model_generator /= \
             num_peaks
         reference_pt_of_distortion_model_generator = \
-            tuple(reference_pt.tolist())
+            tuple(reference_pt_of_distortion_model_generator.tolist())
 
         return reference_pt_of_distortion_model_generator
 
 
 
-    def _generate_undistorted_outer_illumination_shape(self,
-                                                       distortion_model,
-                                                       undistorted_tds_model_1):
-        rng = self._rng
-
-        undistorted_outer_illumination_shape_is_elliptical = \
-            rng.choice((False, True), p=(3/4, 1/4)).item()
-
+    def _generate_undistorted_outer_illumination_shape(
+            self, undistorted_tds_model_1, distortion_model):
         kwargs = \
             {"undistorted_tds_model_1": undistorted_tds_model_1}
         reference_pt_of_distortion_model_generator = \
             self._generate_reference_pt_of_distortion_model_generator(**kwargs)
 
-        u_x, u_y = self._calc_u_x_and_u_y(distortion_model)
+        undistorted_outer_illumination_shape_is_elliptical = \
+            self._rng.choice((True, False), p=(3/4, 1/4)).item()
 
-        max_num_iterations = 10
-        for iteration_idx in range(max_num_iterations):
-            if undistorted_outer_illumination_shape_is_elliptical:
-                method_name = ("_generate_elliptical"
-                               "_undistorted_outer_illumination_shape")
-            else:
-                method_name = ("_generate_generic"
-                               "_undistorted_outer_illumination_shape")
-            method_alias = getattr(self, method_name)
-            kwargs = {"reference_pt_of_distortion_model_generator": \
-                      reference_pt_of_distortion_model_generator,
-                      "distortion_model": \
-                      distortion_model}
-            undistorted_outer_illumination_shape = method_alias(**kwargs)
-
-            kwargs = \
-                {"undistorted_outer_illumination_shape": \
-                 undistorted_outer_illumination_shape,
-                 "u_x": \
-                 u_x,
-                 "u_y": \
-                 u_y,
-                 "distortion_model": \
-                 distortion_model}
-            undistorted_outer_illumination_shape_is_valid = \
-                self._undistorted_outer_illumination_shape_is_valid(**kwargs)
-
-            if undistorted_outer_illumination_shape_is_valid:
-                break
-            if iteration_idx == max_num_iterations-1:
-                undistorted_outer_illumination_shape = None
+        if undistorted_outer_illumination_shape_is_elliptical:
+            method_name = ("_generate_elliptical"
+                           "_undistorted_outer_illumination_shape")
+        else:
+            method_name = ("_generate_generic"
+                           "_undistorted_outer_illumination_shape")
+            
+        method_alias = getattr(self, method_name)
+        kwargs = {"reference_pt_of_distortion_model_generator": \
+                  reference_pt_of_distortion_model_generator,
+                  "distortion_model": \
+                  distortion_model}
+        undistorted_outer_illumination_shape = method_alias(**kwargs)
 
         return undistorted_outer_illumination_shape
-
-
-
-    def _calc_u_x_and_u_y(self, distortion_model):
-        method_alias = distortion_model.get_sampling_grid
-        sampling_grid = method_alias(deep_copy=False)
-
-        method_alias = \
-            distortion_model.get_flow_field_of_coord_transform_right_inverse
-        flow_field_of_coord_transform_right_inverse = \
-            method_alias(deep_copy=False)
-
-        u_x = sampling_grid[0] + flow_field_of_coord_transform_right_inverse[0]
-        u_y = sampling_grid[1] + flow_field_of_coord_transform_right_inverse[1]
-
-        return u_x, u_y
 
 
 
@@ -1134,18 +1158,20 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         sin = np.sin
 
         center = \
-            (reference_pt_of_distortion_model_generator - u_r_E*cos(u_phi_E),
-             reference_pt_of_distortion_model_generator - u_r_E*sin(u_phi_E))
+            (reference_pt_of_distortion_model_generator[0]
+             - u_r_E*cos(u_phi_E),
+             reference_pt_of_distortion_model_generator[1]
+             - u_r_E*sin(u_phi_E))
         center = \
             (center[0].item(), center[1].item())
 
         mask_frame_of_distorted_then_resampled_images = \
             distortion_model.mask_frame_of_distorted_then_resampled_images
 
-        loc = 0.5
-        if sum(mask_frame_of_distorted_then_resampled_images) == 0:
-            loc += rng.choice((0.0, np.inf), p=(1/4, 1-1/4)).item()
-        semi_major_axis = abs(rng.normal(loc=loc, scale=0.1))
+        loc = (0.5
+               + ((sum(mask_frame_of_distorted_then_resampled_images) == 0)
+                  * rng.choice((0.0, 1e6), p=(1/4, 1-1/4)).item()))
+        semi_major_axis = abs(rng.normal(loc=loc, scale=0.05))
 
         kwargs = {"center": center,
                   "semi_major_axis": semi_major_axis,
@@ -1169,8 +1195,10 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         sin = np.sin
 
         radial_reference_pt_of_blob = \
-            (reference_pt_of_distortion_model_generator - u_r_GB*cos(u_phi_GB),
-             reference_pt_of_distortion_model_generator - u_r_GB*sin(u_phi_GB))
+            (reference_pt_of_distortion_model_generator[0]
+             - u_r_GB*cos(u_phi_GB),
+             reference_pt_of_distortion_model_generator[1]
+             - u_r_GB*sin(u_phi_GB))
         radial_reference_pt_of_blob = \
             (radial_reference_pt_of_blob[0].item(),
              radial_reference_pt_of_blob[1].item())
@@ -1178,10 +1206,10 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         mask_frame_of_distorted_then_resampled_images = \
             distortion_model.mask_frame_of_distorted_then_resampled_images
 
-        loc = 0.5
-        if sum(mask_frame_of_distorted_then_resampled_images) == 0:
-            loc += rng.choice((0.0, np.inf), p=(3/4, 1-3/4)).item()
-        radial_amplitude = abs(rng.normal(loc=loc, scale=0.1))
+        loc = (0.5
+               + ((sum(mask_frame_of_distorted_then_resampled_images) == 0)
+                  * rng.choice((0.0, 1e6), p=(1/4, 1-1/4)).item()))
+        radial_amplitude = abs(rng.normal(loc=loc, scale=0.05))
 
         num_amplitudes = rng.integers(low=2, high=4, endpoint=True).item()
         radial_amplitudes = (radial_amplitude,)
@@ -1210,55 +1238,26 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _undistorted_outer_illumination_shape_is_valid(
-            self,
-            undistorted_outer_illumination_shape,
-            u_x,
-            u_y,
-            distortion_model):
-        kwargs = \
-            {"u_x": u_x,
-             "u_y": u_y,
-             "device": self._device,
-             "skip_validation_and_conversion": True}
-        illumination_support = \
-            (undistorted_outer_illumination_shape.eval(**kwargs) != 0)
-
-        method_name = \
-            "get_convergence_map_of_distorted_then_resampled_images"
-        method_alias = \
-            getattr(distortion_model, method_name)
-        convergence_map_of_distorted_then_resampled_images = \
-            method_alias(deep_copy=False)
-
-        masked_illumination_support = \
-            (illumination_support
-             * convergence_map_of_distorted_then_resampled_images)
-
-        result = \
-            (masked_illumination_support.sum() == illumination_support.sum())
-        result = \
-            result.item()
-
-        return result
-
-
-
     def _generate_undistorted_disks_and_misc_shapes(self,
                                                     undistorted_tds_model_1,
                                                     undistorted_tds_model_2):
+        orbitals_only = \
+            self._rng.choice((False, True), p=(5/6, 1-5/6)).item()
+
         method_alias = \
             self._generate_undistorted_disks_and_max_abs_amplitude_sums
         kwargs = \
             {"undistorted_tds_model_1": undistorted_tds_model_1,
-             "undistorted_tds_model_2": undistorted_tds_model_2}
+             "undistorted_tds_model_2": undistorted_tds_model_2,
+             "orbitals_only": orbitals_only}
         undistorted_disks, max_abs_amplitude_sums = \
             method_alias(**kwargs)
 
         kwargs = \
             {"undistorted_tds_model_1": undistorted_tds_model_1,
              "undistorted_disks": undistorted_disks,
-             "max_abs_amplitude_sums": max_abs_amplitude_sums}
+             "max_abs_amplitude_sums": max_abs_amplitude_sums,
+             "orbitals_only": orbitals_only}
         undistorted_misc_shapes = \
             self._generate_undistorted_misc_shapes(**kwargs)
 
@@ -1267,11 +1266,12 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_undistorted_disks_and_max_abs_amplitude_sums(
-            self, undistorted_tds_model_1, undistorted_tds_model_2):
+            self,
+            undistorted_tds_model_1,
+            undistorted_tds_model_2,
+            orbitals_only):
         undistorted_disk_supports = \
             self._generate_undistorted_disk_supports(undistorted_tds_model_1)
-        orbitals_and_uniform_disks_only = \
-            rng.choice((False, True), p=(4/5, 1/5)).item()
             
         undistorted_disks = tuple()
         max_abs_amplitude_sums = []
@@ -1280,21 +1280,17 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             method_alias = \
                 self._generate_intra_disk_shapes_and_max_abs_amplitude_sum
             kwargs = \
-                {"orbitals_and_uniform_disks_only": \
-                 orbitals_and_uniform_disks_only,
-                 "undistorted_disk_support": \
-                 undistorted_disk_support,
-                 "undistorted_tds_model_1": \
-                 undistorted_tds_model_1,
-                 "undistorted_tds_model_2": \
-                 undistorted_tds_model_2}
+                {"orbitals_only": orbitals_only,
+                 "undistorted_disk_support": undistorted_disk_support,
+                 "undistorted_tds_model_1": undistorted_tds_model_1,
+                 "undistorted_tds_model_2": undistorted_tds_model_2}
             intra_disk_shapes, max_abs_amplitude_sum = \
                 method_alias(**kwargs)
 
             if len(intra_disk_shapes) > 0:
                 NonuniformBoundedShape = fakecbed.shapes.NonuniformBoundedShape
                 kwargs = {"support": undistorted_disk_support,
-                          "intra_disk_shapes": intra_disk_shapes,
+                          "intra_support_shapes": intra_disk_shapes,
                           "skip_validation_and_conversion": True}
                 undistorted_disk = NonuniformBoundedShape(**kwargs)
                 undistorted_disks += (undistorted_disk,)
@@ -1381,36 +1377,34 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                 undistorted_disk_support_centers += \
                     self._sample_positions_quasi_uniformly_from_space(**kwargs)
 
-            if len(undistorted_disk_support_centers) > 0:
-                center_generation_has_not_been_completed = False
+            center_generation_has_not_been_completed = \
+                (len(undistorted_disk_support_centers) == 0)
 
         return undistorted_disk_support_centers
 
 
 
-    def _generate_positions_from_a_jittered_grid(
-            self,
-            u_R_support,
-            undistorted_tds_model_1):
+    def _generate_positions_from_a_jittered_grid(self,
+                                                 u_R_support,
+                                                 undistorted_tds_model_1):
         jitter = 1/8
         rotation_matrix = self._generate_rotation_matrix()
         positions_from_a_jittered_grid = tuple()
 
-        max_num_iterations = 10
-        for iteration_idx in range(max_num_iterations):
+        generation_attempt_count = 0
+        max_num_generation_attempts = 10
+        positions_from_a_jittered_grid = tuple()
+
+        while len(positions_from_a_jittered_grid) == 0:
             kwargs = {"u_R_support": u_R_support, "jitter": jitter}
             a_1, a_2 = self._generate_primitive_lattice_vectors(**kwargs)
 
             kwargs = {"undistorted_tds_model_1": undistorted_tds_model_1}
             approx_tiling_radius = self._generate_approx_tiling_radius(**kwargs)
 
-            nn_distance = self._calc_nn_distance(a_1, a_2)
-
             kwargs = {"approx_tiling_radius": approx_tiling_radius, "a_2": a_2}
             tiling_idx_set_2 = self._generate_tiling_idx_set_2(**kwargs)
 
-            positions_from_a_jittered_grid = \
-                tuple()
             for tiling_idx_2 in tiling_idx_set_2:
                 kwargs = \
                     {"approx_tiling_radius": approx_tiling_radius,
@@ -1419,7 +1413,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                      "tiling_idx_2": tiling_idx_2,
                      "undistorted_tds_model_1": undistorted_tds_model_1,
                      "jitter": jitter,
-                     "nn_distance": nn_distance,
+                     "nn_distance": self._calc_nn_distance(a_1, a_2),
                      "rotation_matrix": rotation_matrix,
                      "u_R_support": u_R_support}
                 positions_from_a_jittered_grid += \
@@ -1429,10 +1423,15 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             min_num_disks = self._min_num_disks_in_any_cbed_pattern
             max_num_disks = self._max_num_disks_in_any_cbed_pattern
 
-            if min_num_disks <= num_disks <= max_num_disks:
-                break
+            generation_attempt_count += 1
 
-            positions_from_a_jittered_grid = tuple()
+            position_generation_has_been_completed = \
+                ((min_num_disks <= num_disks <= max_num_disks)
+                 or (generation_attempt_count == max_num_generation_attempts))
+            single_dim_slice = \
+                slice(0, position_generation_has_been_completed*max_num_disks)
+            positions_from_a_jittered_grid = \
+                positions_from_a_jittered_grid[single_dim_slice]
 
         return positions_from_a_jittered_grid
 
@@ -1487,9 +1486,8 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
             nn_distance = \
                 self._calc_nn_distance(a_1, a_2)
-            if nn_distance > nn_distance_threshold:
-                primitive_lattice_vector_generation_has_not_been_completed = \
-                    False
+            primitive_lattice_vector_generation_has_not_been_completed = \
+                (nn_distance <= nn_distance_threshold)
 
         return a_1, a_2
 
@@ -1565,10 +1563,12 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             d_u_x, d_u_y = \
                 self._generate_displacement_from_grid(jitter, nn_distance)
             candidate_position = \
-                tuple(reference_pt_of_distortion_model_generator
-                      + rotation_matrix @ (tiling_idx_1*a_1
-                                           + tiling_idx_2*a_2
-                                           + np.array((d_u_x, d_u_y))))
+                (reference_pt_of_distortion_model_generator
+                 + rotation_matrix @ (tiling_idx_1*a_1
+                                      + tiling_idx_2*a_2
+                                      + np.array((d_u_x, d_u_y))))
+            candidate_position = \
+                tuple(candidate_position.tolist())
 
             kwargs = {"u_R_support": u_R_support,
                       "disk_center": candidate_position}
@@ -1595,8 +1595,8 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_displacement_from_grid(self, jitter, nn_distance):
-        d_u_r = np.random.uniform(0, jitter*nn_distance)
-        theta = np.random.uniform(0, 2*np.pi)
+        d_u_r = self._rng.uniform(low=0, high=jitter*nn_distance)
+        theta = self._rng.uniform(low=0, high=2*np.pi)
         
         d_u_x = d_u_r * np.cos(theta)
         d_u_y = d_u_r * np.sin(theta)
@@ -1639,29 +1639,22 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         target_num_sampled_positions = max(0, rand_int)
 
         sampled_positions = tuple()
-        while position_sampling_has_not_been_completed:
+        while (len(sampled_positions) < target_num_sampled_positions):
             kwargs = \
                 {"previously_sampled_positions": \
                  sampled_positions,
                  "undistorted_disk_support_centers": \
                  undistorted_disk_support_centers,
-                 "u_R_support": \
-                 u_R_support,
                  "min_distance_between_undistorted_disk_support_centers": \
                  min_distance_between_undistorted_disk_support_centers,
                  "undistorted_tds_model_1": \
-                 undistorted_tds_model_1}
+                 undistorted_tds_model_1,
+                 "u_R_support": \
+                 u_R_support}
             sampled_position = \
                 self._sample_position_quasi_uniformly_from_space(**kwargs)
-
-            if sampled_position is None:
-                position_sampling_has_not_been_completed = \
-                    False
-            else:
-                sampled_positions += \
-                    (sampled_position,)
-                position_sampling_has_not_been_completed = \
-                    (len(sampled_positions) < target_num_sampled_positions)
+            sampled_positions += \
+                (sampled_position,)
 
         return sampled_positions
 
@@ -1671,48 +1664,50 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             self,
             previously_sampled_positions,
             undistorted_disk_support_centers,
+            min_distance_between_undistorted_disk_support_centers,
             undistorted_tds_model_1,
-            u_R_support,
-            min_distance_between_undistorted_disk_support_centers):
+            u_R_support):
         previously_sampled_positions = \
             np.array(previously_sampled_positions)
         undistorted_disk_support_centers = \
             np.array(undistorted_disk_support_centers)
 
-        sampled_position = None
-        max_num_iterations = 10
-        for iteration_idx in range(max_num_iterations):
-            num_positions_previously_sampled = len(previously_sampled_positions)
-            if ((num_positions_previously_sampled == 0)
+        displacement_origins = (undistorted_disk_support_centers.tolist()
+                                + previously_sampled_positions.tolist())
+        displacement_origins = np.array(displacement_origins)
+
+        target_distance_threshold = \
+            min_distance_between_undistorted_disk_support_centers
+
+        generation_attempt_count = 0
+        max_num_generation_attempts = 10
+        position_sampling_has_not_been_completed = True
+
+        while position_sampling_has_not_been_completed:
+            if ((len(previously_sampled_positions) == 0)
                 and (len(undistorted_disk_support_centers) == 0)):
                 method_name = ("_generate_reference_pt"
                                "_of_distortion_model_generator")
                 method_alias = getattr(self, method_name)
                 kwargs = {"undistorted_tds_model_1": undistorted_tds_model_1}
                 sampled_position = method_alias(**kwargs)
-                break
 
-            u_x_min = -(3/4)*u_R_support
-            u_x_max = 1 + (3/4)*u_R_support
-            u_x = self._rng.uniform(low=u_x_min, high=u_x_max)
-                
-            u_y_min = -(3/4)*u_R_support
-            u_y_max = 1 + (3/4)*u_R_support
-            u_y = self._rng.uniform(low=u_y_min, high=u_y_max)
+                position_sampling_has_not_been_completed = False
+            else:
+                u_x = self._rng.uniform(low=-(3/4)*u_R_support,
+                                        high=1+(3/4)*u_R_support)                
+                u_y = self._rng.uniform(low=-(3/4)*u_R_support,
+                                        high=1+(3/4)*u_R_support)
 
-            candidate_position = np.array((u_x, u_y))
-            threshold = min_distance_between_undistorted_disk_support_centers
-
-            displacements = (previously_sampled_positions
-                             - candidate_position)
-            distances = np.linalg.norm(displacements, axis=-1)
-            if np.all(distances > threshold):
-                displacements = (undistorted_disk_support_centers
-                                 - candidate_position)
+                candidate_position = np.array((u_x, u_y))
+                displacements = displacement_origins - candidate_position
                 distances = np.linalg.norm(displacements, axis=-1)
-                if np.all(distances > threshold):
+
+                generation_attempt_count += 1
+                if ((generation_attempt_count == max_num_generation_attempts)
+                    or np.all(distances > target_distance_threshold)):
                     sampled_position = tuple(candidate_position.tolist())
-                    break
+                    position_sampling_has_not_been_completed = False
 
         return sampled_position
 
@@ -1720,14 +1715,14 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
     def _generate_intra_disk_shapes_and_max_abs_amplitude_sum(
             self,
-            orbitals_and_uniform_disks_only,
+            orbitals_only,
             undistorted_disk_support,
             undistorted_tds_model_1,
             undistorted_tds_model_2):
         method_alias = \
             self._generate_prescaled_intra_disk_shapes_and_amplitude_sums
         kwargs = \
-            {"orbitals_and_uniform_disks_only": orbitals_and_uniform_disks_only,
+            {"orbitals_only": orbitals_only,
              "undistorted_disk_support": undistorted_disk_support}
         prescaled_intra_disk_shapes, prescaled_amplitude_sums = \
             method_alias(**kwargs)
@@ -1735,15 +1730,11 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         max_abs_prescaled_amplitude_sum = \
             np.amax(np.abs(prescaled_amplitude_sums))
         
-        uniform_disk = prescaled_intra_disk_shapes[0]
-        uniform_disk_core_attrs = uniform_disk.get_core_attrs(deep_copy=False)
-        A_uniform_disk = uniform_disk_core_attrs["intra_shape_val"]
-
         kwargs = \
-            {"undistorted_tds_model_1": undistorted_tds_model_1,
+            {"undistorted_disk_support": undistorted_disk_support,
+             "undistorted_tds_model_1": undistorted_tds_model_1,
              "undistorted_tds_model_2": undistorted_tds_model_2,
-             "max_abs_prescaled_amplitude_sum": max_abs_prescaled_amplitude_sum,
-             "A_uniform_disk": A_uniform_disk}
+             "max_abs_prescaled_amplitude_sum": max_abs_prescaled_amplitude_sum}
         rescaling_factor_1 = \
             self._generate_rescaling_factor_1(**kwargs)
 
@@ -1763,13 +1754,12 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_prescaled_intra_disk_shapes_and_amplitude_sums(
-            self, orbitals_and_uniform_disks_only, undistorted_disk_support):
+            self, orbitals_only, undistorted_disk_support):
         intra_disk_shape_wishlist_keys = \
             self._generate_intra_disk_shape_wishlist_keys()
 
         kwargs = \
-            {"orbitals_and_uniform_disks_only": \
-             orbitals_and_uniform_disks_only}
+            {"orbitals_only": orbitals_only}
         intra_disk_shape_wishlist = \
             self._generate_intra_disk_shape_wishlist(**kwargs)
         
@@ -1785,10 +1775,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             if prescaled_intra_disk_shape_subset_is_to_be_generated:
                 method_name = unformatted_method_name_1.format(key)
                 method_alias = getattr(self, method_name)
-                kwargs = {"undistorted_disk_support": \
-                          undistorted_disk_support,
-                          "prescaled_intra_disk_shapes": \
-                          prescaled_intra_disk_shapes}
+                kwargs = {"undistorted_disk_support": undistorted_disk_support}
                 prescaled_intra_disk_shape_subset = method_alias(**kwargs)
                 prescaled_intra_disk_shapes += prescaled_intra_disk_shape_subset
 
@@ -1820,19 +1807,18 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _generate_intra_disk_shape_wishlist(self,
-                                            orbitals_and_uniform_disks_only):
+    def _generate_intra_disk_shape_wishlist(self, orbitals_only):
         intra_disk_shape_wishlist_keys = \
             self._generate_intra_disk_shape_wishlist_keys()
 
         intra_disk_shape_wishlist = \
             {key: False for key in intra_disk_shape_wishlist_keys}
-        intra_disk_shape_wishlist["uniform_disk_set"] = \
-            True
-        if orbitals_and_uniform_disks_only:
+        if orbitals_only:
             intra_disk_shape_wishlist["orbital_set"] = \
                 True
         else:
+            intra_disk_shape_wishlist["uniform_disk_set"] = \
+                self._rng.choice((True, False), p=(5/6, 1-5/6)).item()
             intra_disk_shape_wishlist["nonuniform_lune_set"] = \
                 self._rng.choice((True, False), p=(1/3, 1-1/3)).item()
             intra_disk_shape_wishlist["plane_wave_set"] = \
@@ -1840,15 +1826,13 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             intra_disk_shape_wishlist["orbital_set"] = \
                 self._rng.choice((True, False), p=(1/2, 1-1/2)).item()
             intra_disk_shape_wishlist["peak_set"] = \
-                (not intra_disk_shape_wishlist["orbital_set"])
+                self._rng.choice((True, False), p=(1/2, 1-1/2)).item()
 
         return intra_disk_shape_wishlist
 
 
 
-    def _generate_uniform_disk_set(self,
-                                   undistorted_disk_support,
-                                   prescaled_intra_disk_shapes):
+    def _generate_uniform_disk_set(self, undistorted_disk_support):
         undistorted_disk_support_core_attrs = \
             undistorted_disk_support.get_core_attrs(deep_copy=False)
         u_x_c_support, u_y_c_support = \
@@ -1868,7 +1852,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_prescaled_amplitude_set_of_uniform_disk_set(
-            prescaled_intra_disk_shape_subset):
+            self, prescaled_intra_disk_shape_subset):
         prescaled_amplitude_set_of_uniform_disk_set = \
             tuple()
         for uniform_disk in prescaled_intra_disk_shape_subset:
@@ -1884,9 +1868,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _generate_nonuniform_lune_set(self,
-                                      undistorted_disk_support,
-                                      prescaled_intra_disk_shapes):
+    def _generate_nonuniform_lune_set(self, undistorted_disk_support):
         kwargs = {"undistorted_disk_support": undistorted_disk_support}
         fg_ellipse = self._generate_fg_ellipse(**kwargs)
         bg_ellipse = self._generate_bg_ellipse(**kwargs)
@@ -1897,8 +1879,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         uniform_lune = fakecbed.shapes.Lune(**kwargs)
 
         kwargs = \
-            {"nonuniform_lune_support": uniform_lune,
-             "prescaled_intra_disk_shapes": prescaled_intra_disk_shapes}
+            {"nonuniform_lune_support": uniform_lune}
         intra_support_shapes = \
             self._generate_intra_support_shapes_of_nonuniform_lune(**kwargs)
 
@@ -1969,8 +1950,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
     def _generate_intra_support_shapes_of_nonuniform_lune(
             self,
-            nonuniform_lune_support,
-            prescaled_intra_disk_shapes):
+            nonuniform_lune_support):
         possible_functional_forms = ("asymmetric_exponential",
                                      "asymmetric_lorentzian",
                                      "asymmetric_gaussian")
@@ -1981,18 +1961,21 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         center_of_intra_support_shape_of_nonuniform_lune = \
             method_alias(nonuniform_lune_support)
 
-        uniform_disk = prescaled_intra_disk_shapes[0]
-        uniform_disk_core_attrs = uniform_disk.get_core_attrs(deep_copy=False)
-        A_uniform_disk = uniform_disk_core_attrs["intra_shape_val"]
-        u_x_c_support, u_y_c_support = uniform_disk_core_attrs["center"]
-        u_R_support = uniform_disk_core_attrs["radius"]
+        nonuniform_lune_support_core_attrs = \
+            nonuniform_lune_support.get_core_attrs(deep_copy=False)
+        bg_ellipse = \
+            nonuniform_lune_support_core_attrs["bg_ellipse"]
 
-        sigma_peak = self._rng.uniform(low=u_R_support/4, high=u_R_support)
+        bg_ellipse_core_attrs = bg_ellipse.get_core_attrs(deep_copy=False)
+        u_x_c_support, u_y_c_support = bg_ellipse_core_attrs["center"]
+        u_R_support = bg_ellipse_core_attrs["radius"]
+
+        sigma_peak = self._rng.uniform(low=u_R_support/2, high=2*u_R_support)
         
         widths = sigma_peak * self._rng.uniform(low=0.8, high=1.2, size=4)
         widths = tuple(widths.tolist())
 
-        abs_A_peak_min = A_uniform_disk/3
+        abs_A_peak_min = 1/3
         abs_A_peak_max = 2*abs_A_peak_min
         abs_A_peak = self._rng.uniform(low=abs_A_peak_min, high=abs_A_peak_max)
         sign_A_peak = 2*self._rng.binomial(n=1, p=0.5) - 1
@@ -2026,6 +2009,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
         fg_ellipse_core_attrs = fg_ellipse.get_core_attrs(deep_copy=False)
         u_x_c_fg_ellipse, u_y_c_fg_ellipse = fg_ellipse_core_attrs["center"]
+        u_R_fg_ellipse = fg_ellipse_core_attrs["radius"]
 
         u_r_c_fg_ellipse = np.sqrt((u_x_c_fg_ellipse-u_x_c_bg_ellipse)**2
                                    + (u_y_c_fg_ellipse-u_y_c_bg_ellipse)**2)
@@ -2033,12 +2017,13 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         u_phi_c_fg_ellipse = np.atan2(u_y_c_fg_ellipse-u_y_c_bg_ellipse,
                                       u_x_c_fg_ellipse-u_x_c_bg_ellipse)
 
-        u_r_c_peak = (u_r_c_fg_ellipse
-                      + ((u_R_bg_ellipse-u_r_c_fg_ellipse)
-                         * self._rng.uniform(low=-5/4, high=5/4)))
+        u_r_c_peak_min = 0.5 * ((u_r_c_fg_ellipse+u_R_bg_ellipse)
+                                + u_R_fg_ellipse)
+        u_r_c_peak_max = u_r_c_fg_ellipse+u_R_bg_ellipse
+        u_r_c_peak = self._rng.uniform(low=u_r_c_peak_min, high=u_r_c_peak_max)
 
-        u_phi_c_peak = (u_phi_c_fg_ellipse
-                        + self._rng.uniform(low=-np.pi/6, high=np.pi/6))
+        u_phi_c_peak = -(u_phi_c_fg_ellipse
+                         + self._rng.uniform(low=-np.pi/6, high=np.pi/6))
 
         u_x_c_peak = (u_x_c_fg_ellipse
                       + u_r_c_peak*np.cos(u_phi_c_peak)).item()
@@ -2053,7 +2038,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_prescaled_amplitude_set_of_nonuniform_lune_set(
-            prescaled_intra_disk_shape_subset):
+            self, prescaled_intra_disk_shape_subset):
         prescaled_amplitude_set_of_nonuniform_lune_set = \
             tuple()
         for nonuniform_lune in prescaled_intra_disk_shape_subset:
@@ -2074,9 +2059,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _generate_plane_wave_set(self,
-                                 undistorted_disk_support,
-                                 prescaled_intra_disk_shapes):
+    def _generate_plane_wave_set(self, undistorted_disk_support):
         num_plane_waves = self._rng.integers(low=0, high=3).item()
 
         undistorted_disk_support_core_attrs = \
@@ -2084,11 +2067,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         u_R_support = \
             undistorted_disk_support_core_attrs["radius"]
 
-        uniform_disk = prescaled_intra_disk_shapes[0]
-        uniform_disk_core_attrs = uniform_disk.get_core_attrs(deep_copy=False)
-        A_uniform_disk = uniform_disk_core_attrs["intra_shape_val"]
-        
-        amplitude_min = A_uniform_disk/3/max(num_plane_waves, 1)
+        amplitude_min = 1/3/max(num_plane_waves, 1)
         amplitude_max = 2*amplitude_min
 
         plane_wave_set = tuple()
@@ -2114,7 +2093,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_prescaled_amplitude_set_of_plane_wave_set(
-            prescaled_intra_disk_shape_subset):
+            self, prescaled_intra_disk_shape_subset):
         prescaled_amplitude_set_of_plane_wave_set = tuple()
         for plane_wave in prescaled_intra_disk_shape_subset:
             plane_wave_core_attrs = plane_wave.get_core_attrs(deep_copy=False)
@@ -2126,19 +2105,13 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _generate_orbital_set(self,
-                              undistorted_disk_support,
-                              prescaled_intra_disk_shapes):
+    def _generate_orbital_set(self, undistorted_disk_support):
         undistorted_disk_support_core_attrs = \
             undistorted_disk_support.get_core_attrs(deep_copy=False)
         u_x_c_support, u_y_c_support = \
             undistorted_disk_support_core_attrs["center"]
         u_R_support = \
             undistorted_disk_support_core_attrs["radius"]
-
-        uniform_disk = prescaled_intra_disk_shapes[0]
-        uniform_disk_core_attrs = uniform_disk.get_core_attrs(deep_copy=False)
-        A_uniform_disk = uniform_disk_core_attrs["intra_shape_val"]
 
         u_r_c_orbital = self._rng.uniform(low=0, high=u_R_support)
         u_phi_c_orbital = self._rng.uniform(low=0, high=2*np.pi)
@@ -2148,7 +2121,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         u_y_c_orbital = (u_y_c_support
                          + u_r_c_orbital*np.sin(u_phi_c_orbital)).item()
 
-        n_orbital = self._rng.integers(low=0, high=5).item()
+        n_orbital = self._rng.integers(low=1, high=5).item()
         l_orbital = self._rng.integers(low=0, high=n_orbital).item()
         m_orbital = self._rng.integers(low=0, high=l_orbital+1).item()
 
@@ -2159,7 +2132,6 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         A_orbital = self._generate_A_orbital(n_orbital,
                                              l_orbital,
                                              m_orbital,
-                                             A_uniform_disk,
                                              a_orbital)
 
         kwargs = {"center": (u_x_c_orbital, u_y_c_orbital),
@@ -2198,30 +2170,33 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                             n_orbital,
                             l_orbital,
                             m_orbital,
-                            A_uniform_disk,
                             a_orbital):
         characteristic_scales_of_orbitals = \
             self._characteristic_scales_of_orbitals
         characteristic_scale_of_orbital = \
             characteristic_scales_of_orbitals[n_orbital][l_orbital][m_orbital]
 
-        abs_A_orbital = (A_uniform_disk
-                         * a_orbital
-                         * a_orbital
-                         * a_orbital
+        characteristic_sizes_of_orbitals = \
+            self._characteristic_sizes_of_orbitals
+        characteristic_size_of_orbital = \
+            characteristic_sizes_of_orbitals[n_orbital][l_orbital]
+
+        abs_A_orbital = ((a_orbital/characteristic_size_of_orbital)**3
                          * characteristic_scale_of_orbital
                          * self._rng.uniform(low=1, high=2))
         sign_A_orbital = 2*self._rng.binomial(n=1, p=0.5) - 1
-        A_orbital = sign_peak*abs_A_peak
+        A_orbital = sign_A_orbital*abs_A_orbital
 
         return A_orbital
 
 
 
     def _generate_prescaled_amplitude_set_of_orbital_set(
-            prescaled_intra_disk_shape_subset):
+            self, prescaled_intra_disk_shape_subset):
         characteristic_scales_of_orbitals = \
             self._characteristic_scales_of_orbitals
+        characteristic_sizes_of_orbitals = \
+                self._characteristic_sizes_of_orbitals
 
         prescaled_amplitude_set_of_orbital_set = tuple()
         for orbital in prescaled_intra_disk_shape_subset:
@@ -2237,11 +2212,15 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             characteristic_scale = \
                 characteristic_scales[n_orbital][l_orbital][m_orbital]
 
-            prescaled_amplitude = (A_orbital
-                                       / a_orbital
-                                       / a_orbital
-                                       / a_orbital
-                                       / characteristic_scale)
+            characteristic_sizes = \
+                characteristic_sizes_of_orbitals
+            characteristic_size = \
+                characteristic_sizes[n_orbital][l_orbital]
+
+            prescaled_amplitude = \
+                (A_orbital
+                 / (a_orbital/characteristic_size)**3
+                 / characteristic_scale)
 
             prescaled_amplitude_set_of_orbital_set += \
                 (prescaled_amplitude,)
@@ -2250,9 +2229,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _generate_peak_set(self,
-                           undistorted_disk_support,
-                           prescaled_intra_disk_shapes):
+    def _generate_peak_set(self, undistorted_disk_support):
         num_peaks = self._rng.integers(low=0, high=6).item()
 
         undistorted_disk_support_core_attrs = \
@@ -2262,17 +2239,13 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         u_R_support = \
             undistorted_disk_support_core_attrs["radius"]
 
-        uniform_disk = prescaled_intra_disk_shapes[0]
-        uniform_disk_core_attrs = uniform_disk.get_core_attrs(deep_copy=False)
-        A_uniform_disk = uniform_disk_core_attrs["intra_shape_val"]
-
         possible_functional_forms = ("asymmetric_exponential",
                                      "asymmetric_lorentzian")
         functional_form = self._rng.choice(possible_functional_forms).item()
 
         peak_set = tuple()
         for _ in range(num_peaks):
-            abs_A_peak = A_uniform_disk * self._rng.uniform(low=1, high=2)
+            abs_A_peak = self._rng.uniform(low=1, high=2)
             sign_peak = 2*self._rng.binomial(n=1, p=0.5) - 1
             A_peak = sign_peak*abs_A_peak
 
@@ -2304,7 +2277,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_prescaled_amplitude_set_of_peak_set(
-            prescaled_intra_disk_shape_subset):
+            self, prescaled_intra_disk_shape_subset):
         prescaled_amplitude_set_of_peak_set = tuple()
         for peak in prescaled_intra_disk_shape_subset:
             peak_core_attrs = peak.get_core_attrs(deep_copy=False)
@@ -2328,7 +2301,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                                    fakecbed.shapes.Peak)
             if isinstance(shape, shape_type_subset_1):
                 shape_type_subset_2 = shape_type_subset_1[:2]
-                if isinstance(shape, fakecbed.shapes.Orbital):
+                if isinstance(shape, shape_type_subset_2):
                     prescaled_amplitude = prescaled_amplitudes[shape_idx]
                     prescaled_amplitude_sum_subset_1 = prescaled_amplitude_sums
                     prescaled_amplitude_sum_subset_2 = (prescaled_amplitude_sums
@@ -2344,7 +2317,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                 prescaled_amplitude_sums[0] += prescaled_amplitude
 
         if num_peaks > 0:
-            binary_seqs = itertools.product((0, 1), repeat=num_peaks)
+            binary_seqs = tuple(itertools.product((0, 1), repeat=num_peaks))
             num_binary_seqs = len(binary_seqs)
 
             arrays_to_join = num_binary_seqs*(prescaled_amplitude_sums,)
@@ -2357,7 +2330,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
                     M = len(prescaled_amplitude_sums) // num_binary_seqs
                     sum_idx_subset = range(M*binary_seq_idx,
-                                           (M+1)*binary_seq_idx)
+                                           M*(binary_seq_idx+1))
                     
                     for sum_idx in sum_idx_subset:
                         prescaled_amplitude_sums[sum_idx] += prescaled_amplitude
@@ -2370,8 +2343,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                                      undistorted_disk_support,
                                      undistorted_tds_model_1,
                                      undistorted_tds_model_2,
-                                     max_abs_prescaled_amplitude_sum,
-                                     A_uniform_disk):
+                                     max_abs_prescaled_amplitude_sum):
         undistorted_disk_support_core_attrs = \
             undistorted_disk_support.get_core_attrs(deep_copy=False)
         u_x_c_support, u_y_c_support = \
@@ -2394,14 +2366,14 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         
         temp_4 = max(temp_1*temp_2, temp_3)
         
-        temp_5 = max_abs_prescaled_amplitude_sum
+        temp_5 = (max_abs_prescaled_amplitude_sum
+                  if (max_abs_prescaled_amplitude_sum != 0)
+                  else 1)
         
-        temp_6 = np.abs(A_uniform_disk)
+        temp_6 = self._rng.choice((temp_5, 1))
         
-        temp_7 = self._rng.choice((temp_5, temp_6))
-        
-        rescaling_factor_1 = (abs(temp_4/temp_7).item()
-                              if (temp_4>temp_7)
+        rescaling_factor_1 = (abs(temp_4/temp_6).item()
+                              if (temp_4>temp_6)
                               else 0)
 
         return rescaling_factor_1
@@ -2432,7 +2404,6 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                     attr_name = key
                     attr_val = (intra_disk_shape_core_attrs[key]
                                 * rescaling_factor)
-                    break
 
         kwargs = {"new_core_attr_subset_candidate": {attr_name: attr_val},
                   "skip_validation_and_conversion": True}
@@ -2457,7 +2428,9 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         for disk_idx in disk_indices:
             temp_1 = np.sort(max_abs_amplitude_sums)[-2].item()
             temp_2 = self._rng.uniform(low=10, high=11)
-            temp_3 = max_abs_amplitude_sums[disk_idx]
+            temp_3 = (max_abs_amplitude_sums[disk_idx]
+                      if (max_abs_amplitude_sums[disk_idx] != 0)
+                      else 1)
             temp_4 = self._rng.uniform(low=1/5, high=1/3)
             rescaling_factor_2 = (temp_1*temp_2/temp_3
                                   if disk_idx > 0
@@ -2468,7 +2441,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             undistorted_disk_core_attrs = \
                 undistorted_disk.get_core_attrs(deep_copy=False)
             intra_disk_shapes = \
-                undistorted_disk_core_attrs["intra_disk_shapes"]
+                undistorted_disk_core_attrs["intra_support_shapes"]
 
             for intra_disk_shape in intra_disk_shapes:
                 kwargs = {"intra_disk_shape": intra_disk_shape,
@@ -2490,13 +2463,18 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
     def _generate_undistorted_misc_shapes(self,
                                           undistorted_tds_model_1,
                                           undistorted_disks,
-                                          max_abs_amplitude_sums):
-        kwargs = \
-            {key: val
-             for key, val in locals().items()
-             if (key not in ("self", "__class__"))}
-        undistorted_misc_shapes = \
-            self._generate_undistorted_nonuniform_bands(**kwargs)
+                                          max_abs_amplitude_sums,
+                                          orbitals_only):
+        if orbitals_only:
+            kwargs = \
+                {"undistorted_disks": undistorted_disks,
+                 "undistorted_tds_model_1": undistorted_tds_model_1,
+                 "max_abs_amplitude_sums": max_abs_amplitude_sums}
+            undistorted_misc_shapes = \
+                self._generate_undistorted_nonuniform_bands(**kwargs)
+        else:
+            undistorted_misc_shapes = \
+                tuple()
 
         return undistorted_misc_shapes
 
@@ -2540,7 +2518,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                 kwargs = {"undistorted_disk": undistorted_disk,
                           "band_is_pinned_to_disk": band_is_pinned_to_disk,
                           "undistorted_tds_model_1": undistorted_tds_model_1,
-                          "max_abs_amplitude_sums": max_abs_amplitude_sum}
+                          "max_abs_amplitude_sum": max_abs_amplitude_sum}
                 undistorted_nonuniform_band = method_alias(**kwargs)
                 undistorted_nonuniform_bands += (undistorted_nonuniform_band,)
 
@@ -2597,7 +2575,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
         NonuniformBoundedShape = fakecbed.shapes.NonuniformBoundedShape
         kwargs = {"support": undistorted_uniform_band,
-                  "intra_disk_shapes": (undistorted_tds_model_1,),
+                  "intra_support_shapes": (undistorted_tds_model_1,),
                   "skip_validation_and_conversion": True}
         undistorted_nonuniform_band = NonuniformBoundedShape(**kwargs)
 
@@ -2735,10 +2713,11 @@ def _generate_keys_of_unnormalizable_ml_data_dict_elems():
                              "_ml_data_dict_elems{}_having_decoders")
 
     keys_of_unnormalizable_ml_data_dict_elems = tuple()
+    global_symbol_table = globals()
     for format_arg in ("_not", ""):
         args = (format_arg,)
         func_name = unformatted_func_name.format(*args)
-        func_alias = globals()[func_name]
+        func_alias = global_symbol_table[func_name]
         keys_of_unnormalizable_ml_data_dict_elems += func_alias()
 
     return keys_of_unnormalizable_ml_data_dict_elems
@@ -2821,6 +2800,8 @@ def _generate_all_valid_ml_data_dict_keys():
 
 
 def _generate_cbed_pattern_signal(cbed_pattern_generator):
+    current_func_name = "_generate_cbed_pattern_signal"
+
     try:
         cbed_pattern = cbed_pattern_generator.generate()
     except:
@@ -2851,6 +2832,8 @@ def _check_cbed_pattern_signal(cbed_pattern_signal,
         np.array(cbed_pattern_signal.metadata.FakeCBED.disk_absence_registry)
     num_disk_in_cbed_pattern_image = \
         (~disk_absence_registry).sum()
+
+    current_func_name = "_check_cbed_pattern_signal"
     
     if num_disk_in_cbed_pattern_image > max_num_disks_in_any_cbed_pattern:
         err_msg = globals()[current_func_name+"_err_msg_1"]
@@ -2877,8 +2860,7 @@ def _extract_ml_data_dict_from_cbed_pattern_signal(
     distortion_param_val_set = func_alias(cbed_pattern_signal)
 
     key_subset = _generate_keys_of_ml_data_dict_elems_having_decoders()
-    for key in key_subset:
-        ml_data_dict[key] = None
+    ml_data_dict = {**ml_data_dict, **{key: None for key in key_subset}}
         
     key_subset = _generate_keys_related_to_distortion_params()
     for key_idx, key in enumerate(key_subset):
@@ -2958,6 +2940,8 @@ def _extract_intra_disk_avgs_from_cbed_pattern_signal(cbed_pattern_signal):
 
     cbed_pattern_image = cbed_pattern_signal.inav[0].data
 
+    current_func_name = "_extract_intra_disk_avgs_from_cbed_pattern_signal"
+
     for disk_idx in range(num_disks):
         path_to_item = \
             "FakeCBED.pre_serialized_core_attrs.undistorted_disks"
@@ -3000,17 +2984,14 @@ def _extract_disk_clipping_registry_from_cbed_pattern_signal(
     disk_clipping_registry = disk_clipping_registry[new_disk_order]
 
     num_disks = len(intra_disk_avgs)
-
-    if num_disks < max_num_disks_in_any_cbed_pattern:
-        num_elems_to_pad = max_num_disks_in_any_cbed_pattern-num_disks
-        kwargs = {"array": disk_clipping_registry,
-                  "pad_width": (0, num_elems_to_pad),
-                  "mode": "constant",
-                  "constant_values": True}
-        disk_clipping_registry = np.pad(**kwargs)
-    else:
-        single_dim_slice = slice(0, max_num_disks_in_any_cbed_pattern)
-        disk_clipping_registry = disk_clipping_registry[single_dim_slice]
+    num_elems_to_pad = max(max_num_disks_in_any_cbed_pattern-num_disks, 0)
+    single_dim_slice = slice(0, max_num_disks_in_any_cbed_pattern)
+    
+    kwargs = {"array": disk_clipping_registry,
+              "pad_width": (0, num_elems_to_pad),
+              "mode": "constant",
+              "constant_values": True}
+    disk_clipping_registry = np.pad(**kwargs)[single_dim_slice]
 
     return disk_clipping_registry
 
@@ -3039,21 +3020,14 @@ def _extract_undistorted_disk_center_set_from_cbed_pattern_signal(
 
     undistorted_disk_center_set = undistorted_disk_center_set[new_disk_order]
 
-    if num_disks < max_num_disks_in_any_cbed_pattern:
-        num_rows_to_pad = \
-            max_num_disks_in_any_cbed_pattern-num_disks
-        kwargs = \
-            {"array": undistorted_disk_center_set,
-             "pad_width": ((0, num_rows_to_pad), (0, 0)),
-             "mode": "constant",
-             "constant_values": 0.5}
-        undistorted_disk_center_set = \
-            np.pad(**kwargs)
-    else:
-        single_dim_slice = \
-            slice(0, max_num_disks_in_any_cbed_pattern)
-        undistorted_disk_center_set = \
-            undistorted_disk_center_set[single_dim_slice]
+    num_rows_to_pad = max(max_num_disks_in_any_cbed_pattern-num_disks, 0)
+    single_dim_slice = slice(0, max_num_disks_in_any_cbed_pattern)
+
+    kwargs = {"array": undistorted_disk_center_set,
+              "pad_width": ((0, num_rows_to_pad), (0, 0)),
+              "mode": "constant",
+              "constant_values": 0.5}
+    undistorted_disk_center_set = np.pad(**kwargs)[single_dim_slice]
 
     return undistorted_disk_center_set
 
@@ -3066,22 +3040,20 @@ def _extract_disk_objectness_set_from_cbed_pattern_signal(
     disk_objectness_set = (intra_disk_avgs > 0).astype("float")
     disk_objectness_set = disk_objectness_set[new_disk_order]
 
-    if num_disks < max_num_disks_in_any_cbed_pattern:
-        num_elems_to_pad = max_num_disks_in_any_cbed_pattern-num_disks
-        kwargs = {"array": disk_objectness_set,
-                  "pad_width": (0, num_elems_to_pad),
-                  "mode": "constant",
-                  "constant_values": 0.0}
-        disk_objectness_set = np.pad(**kwargs)
-    else:
-        single_dim_slice = slice(0, max_num_disks_in_any_cbed_pattern)
-        disk_objectness_set = disk_objectness_set[single_dim_slice]
+    num_elems_to_pad = max(max_num_disks_in_any_cbed_pattern-num_disks, 0)
+    single_dim_slice = slice(0, max_num_disks_in_any_cbed_pattern)
+
+    kwargs = {"array": disk_objectness_set,
+              "pad_width": (0, num_elems_to_pad),
+              "mode": "constant",
+              "constant_values": 0.0}
+    disk_objectness_set = np.pad(**kwargs)[single_dim_slice]
 
     return disk_objectness_set
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _tol_for_comparing_floats = _module_alias._tol_for_comparing_floats
 
 
@@ -3115,6 +3087,8 @@ def _extract_distortion_param_val_set_from_cbed_pattern_signal(
         (not coord_transform_params.is_corresponding_model_standard)
     
     if distortion_model_is_not_standard:
+        current_func_name = ("_extract_distortion_param_val_set"
+                             "_from_cbed_pattern_signal")
         err_msg = globals()[current_func_name+"_err_msg_1"]
         raise ValueError(err_msg)
     
@@ -3137,24 +3111,21 @@ def _extract_distortion_param_val_set_from_cbed_pattern_signal(
 
 
 
-def _de_pre_serialize_coord_transform_params(
-        serializable_rep_of_coord_transform_params):
+def _de_pre_serialize_coord_transform_params(serializable_rep):
     key = \
         "coord_transform_params"
     de_pre_serialize_coord_transform_params = \
         distoptica.DistortionModel.get_de_pre_serialization_funcs()[key]
     
-    kwargs = \
-        {"serializable_rep": serializable_rep_of_coord_transform_params}
-    coord_transform_params = \
-        de_pre_serialize_coord_transform_params(**kwargs)
+    kwargs = {"serializable_rep": serializable_rep}
+    coord_transform_params = de_pre_serialize_coord_transform_params(**kwargs)
 
     return coord_transform_params
         
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._UnnormalizedMLDataInstanceGenerator
 class _UnnormalizedMLDataInstanceGenerator(_cls_alias):
     def __init__(self,
@@ -3174,7 +3145,7 @@ class _UnnormalizedMLDataInstanceGenerator(_cls_alias):
 
         cached_ml_data_instances = self._generate(num_ml_data_instances=1)
 
-        module_alias = emicrocml.modelling._common
+        module_alias = emicroml.modelling._common
         cls_alias = module_alias._UnnormalizedMLDataInstanceGenerator
         kwargs = {"cached_ml_data_instances": cached_ml_data_instances}
         cls_alias.__init__(self, **kwargs)
@@ -3198,11 +3169,9 @@ class _UnnormalizedMLDataInstanceGenerator(_cls_alias):
         _check_cbed_pattern_signal(cbed_pattern_signal,
                                    max_num_disks_in_any_cbed_pattern)
 
-        if expected_cbed_pattern_dims_in_pixels is not None:
-            expected_dims_in_pixels = expected_cbed_pattern_dims_in_pixels
-            if cbed_pattern_dims_in_pixels != expected_dims_in_pixels:
-                err_msg = _unnormalized_ml_data_instance_generator_err_msg_1
-                raise ValueError(err_msg)
+        if cbed_pattern_dims_in_pixels != expected_cbed_pattern_dims_in_pixels:
+            err_msg = _unnormalized_ml_data_instance_generator_err_msg_1
+            raise ValueError(err_msg)
 
         self._expected_cbed_pattern_dims_in_pixels = \
             cbed_pattern_signal.axes_manager.signal_shape
@@ -3219,11 +3188,10 @@ def _generate_ml_data_dict_elem_decoders():
     keys_of_ml_data_dict_elems_having_decoders = \
         _generate_keys_of_ml_data_dict_elems_having_decoders()
 
-    ml_data_dict_elem_decoders = dict()
-    for key in keys_of_ml_data_dict_elems_having_decoders:
-        decoder_func_name = key + "_decoder"
-        decoder_func = globals()[decoder_func_name]
-        ml_data_dict_elem_decoders[key] = decoder_func
+    global_symbol_table = globals()
+    ml_data_dict_elem_decoders = {global_symbol_table[key+"_decoder"]
+                                  for key
+                                  in keys_of_ml_data_dict_elems_having_decoders}
 
     return ml_data_dict_elem_decoders
 
@@ -3287,11 +3255,11 @@ def _generate_overriding_normalization_weights_and_biases():
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLDataNormalizer
 class _MLDataNormalizer(_cls_alias):
     def __init__(self, max_num_ml_data_instances_per_file_update):
-        module_alias = emicrocml.modelling._common
+        module_alias = emicroml.modelling._common
         cls_alias = module_alias._MLDataNormalizer
         kwargs = {"keys_of_unnormalizable_ml_data_dict_elems": \
                   _generate_keys_of_unnormalizable_ml_data_dict_elems(),
@@ -3310,9 +3278,9 @@ class _MLDataNormalizer(_cls_alias):
 
 
 _module_alias = \
-    emicrocml.modelling._common
+    emicroml.modelling._common
 _default_max_num_ml_data_instances_per_file_update = \
-    module_alias._default_max_num_ml_data_instances_per_file_update
+    _module_alias._default_max_num_ml_data_instances_per_file_update
 
 
 
@@ -3344,11 +3312,11 @@ def _generate_ml_data_dict_key_to_dtype_map():
 
 
 
-_module_alias = emicrocml.modelling._common
-_cls_alias = _module_alias.MLDataTypeValidator
+_module_alias = emicroml.modelling._common
+_cls_alias = _module_alias._MLDataTypeValidator
 class _MLDataTypeValidator(_cls_alias):
     def __init__(self):
-        module_alias = emicrocml.modelling._common
+        module_alias = emicroml.modelling._common
         cls_alias = module_alias._MLDataTypeValidator
         kwargs = {"ml_data_dict_key_to_dtype_map": \
                   _generate_ml_data_dict_key_to_dtype_map()}
@@ -3397,8 +3365,9 @@ def _custom_value_checker_for_cbed_pattern_images(
         obj_alias_from_which_data_chunk_was_obtained):
     lower_value_limit = 0
     upper_value_limit = 1
-
     tol = _tol_for_comparing_floats
+    current_func_name = "_custom_value_checker_for_cbed_pattern_images"
+
     for cbed_pattern_image in data_chunk:
         if ((abs(cbed_pattern_image.min().item()-lower_value_limit) > tol)
             or (abs(cbed_pattern_image.max().item()-upper_value_limit) > tol)):
@@ -3419,11 +3388,11 @@ def _custom_value_checker_for_cbed_pattern_images(
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLDataValueValidator
 class _MLDataValueValidator(_cls_alias):
     def __init__(self):
-        module_alias = emicrocml.modelling._common
+        module_alias = emicroml.modelling._common
         cls_alias = module_alias._MLDataValueValidator
         kwargs = {"ml_data_dict_key_to_unnormalized_value_limits_map": \
                   _generate_ml_data_dict_key_to_unnormalized_value_limits_map(),
@@ -3437,7 +3406,7 @@ class _MLDataValueValidator(_cls_alias):
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLDataNormalizationWeightsAndBiasesLoader
 class _MLDataNormalizationWeightsAndBiasesLoader(_cls_alias):
     def __init__(self, max_num_ml_data_instances_per_file_update):
@@ -3446,7 +3415,7 @@ class _MLDataNormalizationWeightsAndBiasesLoader(_cls_alias):
         ml_data_value_validator = \
             _MLDataValueValidator()
 
-        module_alias = emicrocml.modelling._common
+        module_alias = emicroml.modelling._common
         cls_alias = module_alias._MLDataNormalizationWeightsAndBiasesLoader
         kwargs = {"ml_data_normalizer": ml_data_normalizer,
                   "ml_data_value_validator": ml_data_value_validator}
@@ -3466,7 +3435,7 @@ def _generate_default_ml_data_normalization_weights_and_biases_loader():
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLDataRenormalizer
 class _MLDataRenormalizer(_cls_alias):
     def __init__(self,
@@ -3478,7 +3447,7 @@ class _MLDataRenormalizer(_cls_alias):
         ml_data_normalization_weights_and_biases_loader = \
             _MLDataNormalizationWeightsAndBiasesLoader(**kwargs)
 
-        module_alias = emicrocml.modelling._common
+        module_alias = emicroml.modelling._common
         cls_alias = module_alias._MLDataRenormalizer
         kwargs = {"input_ml_dataset_filenames": \
                   input_ml_dataset_filenames,
@@ -3492,11 +3461,11 @@ class _MLDataRenormalizer(_cls_alias):
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLDataShapeAnalyzer
 class _MLDataShapeAnalyzer(_cls_alias):
     def __init__(self):
-        module_alias = emicrocml.modelling._common
+        module_alias = emicroml.modelling._common
         cls_alias = module_alias._MLDataShapeAnalyzer
         kwargs = {"variable_axis_size_dict_keys": \
                   _generate_variable_axis_size_dict_keys(),
@@ -3510,7 +3479,7 @@ class _MLDataShapeAnalyzer(_cls_alias):
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLDataSplitter
 class _MLDataSplitter(_cls_alias):
     def __init__(self,
@@ -3524,7 +3493,7 @@ class _MLDataSplitter(_cls_alias):
         ml_data_normalization_weights_and_biases_loader = \
             _MLDataNormalizationWeightsAndBiasesLoader(**kwargs)
 
-        module_alias = emicrocml.modelling._common
+        module_alias = emicroml.modelling._common
         cls_alias = module_alias._MLDataSplitter
         kwargs = {"input_ml_dataset_filename": \
                   input_ml_dataset_filename,
@@ -3575,7 +3544,7 @@ def _check_and_convert_generate_and_save_ml_dataset_params(params):
     params = params.copy()
 
     module_alias = \
-        emicrocml.modelling._common
+        emicroml.modelling._common
     func_alias = \
         module_alias._check_and_convert_generate_and_save_ml_dataset_params
     params = \
@@ -3585,9 +3554,10 @@ def _check_and_convert_generate_and_save_ml_dataset_params(params):
                          "cbed_pattern_generator",
                          "max_num_disks_in_any_cbed_pattern")
 
+    global_symbol_table = globals()
     for param_name in param_name_subset:
         func_name = "_check_and_convert_" + param_name
-        func_alias = globals()[func_name]
+        func_alias = global_symbol_table[func_name]
         params[param_name] = func_alias(params)
 
     return params
@@ -3613,7 +3583,7 @@ def _check_and_convert_cbed_pattern_generator(params):
                   "max_num_disks_in_any_cbed_pattern": \
                   _default_max_num_disks_in_any_cbed_pattern,
                   "rng_seed": \
-                  _default_rng_seed
+                  _default_rng_seed,
                   "sampling_grid_dims_in_pixels": \
                   _default_sampling_grid_dims_in_pixels,
                   "least_squares_alg_params": \
@@ -3628,7 +3598,7 @@ def _check_and_convert_cbed_pattern_generator(params):
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _default_cbed_pattern_generator = None
 _default_num_cbed_patterns = 1500
 _default_output_filename = _module_alias._default_output_filename
@@ -3658,12 +3628,12 @@ def _generate_and_save_ml_dataset(cbed_pattern_generator,
     ml_data_type_validator = \
         _MLDataTypeValidator()
     ml_data_dict_key_to_dtype_map = \
-        ml_data_type_validator.ml_data_dict_key_to_dtype_map
+        ml_data_type_validator._ml_data_dict_key_to_dtype_map
 
     func_alias = _generate_axes_labels_of_hdf5_datasets_of_ml_dataset_file
     axes_labels_of_hdf5_datasets_of_ml_dataset_file = func_alias()
 
-    module_alias = emicrocml.modelling._common
+    module_alias = emicroml.modelling._common
     func_alias = module_alias._generate_and_save_ml_dataset
     func_alias(output_filename,
                unnormalized_ml_data_instance_generator,
@@ -3678,9 +3648,8 @@ def _generate_and_save_ml_dataset(cbed_pattern_generator,
 
 
 def _check_and_convert_combine_ml_dataset_files_params(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._check_and_convert_combine_ml_dataset_files_params
     params = func_alias(params)
 
     return params
@@ -3688,7 +3657,7 @@ def _check_and_convert_combine_ml_dataset_files_params(params):
 
 
 _module_alias = \
-    emicrocml.modelling._common
+    emicroml.modelling._common
 _default_output_ml_dataset_filename = \
     _module_alias._default_output_ml_dataset_filename
 _default_rm_input_ml_dataset_files = \
@@ -3714,7 +3683,7 @@ def _combine_ml_dataset_files(max_num_ml_data_instances_per_file_update,
               max_num_ml_data_instances_per_file_update}
     ml_data_renormalizer = _MLDataRenormalizer(**kwargs)
 
-    module_alias = emicrocml.modelling._common
+    module_alias = emicroml.modelling._common
     func_alias = module_alias._combine_ml_dataset_files
     func_alias(input_ml_dataset_filenames,
                output_ml_dataset_filename,
@@ -3730,9 +3699,8 @@ def _combine_ml_dataset_files(max_num_ml_data_instances_per_file_update,
 
 
 def _check_and_convert_split_ml_dataset_file_params(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._check_and_convert_split_ml_dataset_file_params
     params = func_alias(params)
 
     return params
@@ -3740,7 +3708,7 @@ def _check_and_convert_split_ml_dataset_file_params(params):
 
 
 _module_alias = \
-    emicrocml.modelling._common
+    emicroml.modelling._common
 _default_output_ml_dataset_filename_1 = \
     _module_alias._default_output_ml_dataset_filename_1
 _default_output_ml_dataset_filename_2 = \
@@ -3783,7 +3751,7 @@ def _split_ml_dataset_file(output_ml_dataset_filename_1,
               "split_ratio": split_ratio}
     ml_data_splitter = _MLDataSplitter(**kwargs)
 
-    module_alias = emicrocml.modelling._common
+    module_alias = emicroml.modelling._common
     func_alias = module_alias._split_ml_dataset_file
     func_alias(ml_data_splitter,
                output_ml_dataset_filenames,
@@ -3858,9 +3826,8 @@ def _get_ml_data_instance_chunk(ml_dataset, chunk_idx, device_name):
 
 
 def _check_and_convert_check_ml_data_dict_first(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._check_and_convert_check_ml_data_dict_first
     check_ml_data_dict_first = func_alias(params)
 
     return check_ml_data_dict_first
@@ -3869,8 +3836,6 @@ def _check_and_convert_check_ml_data_dict_first(params):
 
 def _check_and_convert_normalize_normalizable_elems_in_ml_data_dict_params(
         params):
-    current_func_name = inspect.stack()[0][3]
-
     params = params.copy()
 
     params["ml_data_shape_analyzer"] = \
@@ -3884,7 +3849,10 @@ def _check_and_convert_normalize_normalizable_elems_in_ml_data_dict_params(
     params["default_normalization_biases"] = \
         _generate_default_normalization_biases()
 
-    module_alias = emicrocml.modelling._common
+    current_func_name = ("_check_and_convert"
+                         "_normalize_normalizable_elems_in_ml_data_dict_params")
+
+    module_alias = emicroml.modelling._common
     func_alias = getattr(module_alias, current_func_name)
     params = func_alias(params)
 
@@ -3893,7 +3861,7 @@ def _check_and_convert_normalize_normalizable_elems_in_ml_data_dict_params(
 
 
 _module_alias = \
-    emicrocml.modelling._common
+    emicroml.modelling._common
 _default_check_ml_data_dict_first = \
     _module_alias._default_check_ml_data_dict_first
 
@@ -3903,7 +3871,7 @@ def _normalize_normalizable_elems_in_ml_data_dict(ml_data_dict,
                                                   normalization_weights,
                                                   normalization_biases):
     kwargs = locals()
-    module_alias = emicrocml.modelling._common
+    module_alias = emicroml.modelling._common
     func_alias = module_alias._normalize_normalizable_elems_in_ml_data_dict
     func_alias(**kwargs)
 
@@ -3913,8 +3881,6 @@ def _normalize_normalizable_elems_in_ml_data_dict(ml_data_dict,
 
 def _check_and_convert_unnormalize_normalizable_elems_in_ml_data_dict_params(
         params):
-    current_func_name = inspect.stack()[0][3]
-    
     params = params.copy()
 
     params["ml_data_shape_analyzer"] = \
@@ -3928,7 +3894,10 @@ def _check_and_convert_unnormalize_normalizable_elems_in_ml_data_dict_params(
     params["default_normalization_biases"] = \
         _generate_default_normalization_biases()
 
-    module_alias = emicrocml.modelling._common
+    current_func_name = ("_check_and_convert_unnormalize_normalizable_elems"
+                         "_in_ml_data_dict_params")
+    
+    module_alias = emicroml.modelling._common
     func_alias = getattr(module_alias, current_func_name)
     params = func_alias(params)
 
@@ -3939,10 +3908,9 @@ def _check_and_convert_unnormalize_normalizable_elems_in_ml_data_dict_params(
 def _unnormalize_normalizable_elems_in_ml_data_dict(ml_data_dict,
                                                     normalization_weights,
                                                     normalization_biases):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
     kwargs = locals()
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._unnormalize_normalizable_elems_in_ml_data_dict
     func_alias(**kwargs)
 
     return None
@@ -3970,8 +3938,6 @@ def _check_and_convert_ml_data_dict_to_distortion_models_params(params):
 
 
 def _check_and_convert_ml_data_dict(params):
-    current_func_name = inspect.stack()[0][3]
-
     params = params.copy()
 
     params["name_of_obj_alias_of_ml_data_dict"] = "ml_data_dict"
@@ -3984,28 +3950,11 @@ def _check_and_convert_ml_data_dict(params):
     params["normalizable_elems_are_normalized"] = False
     params["ml_data_value_validator"] = _MLDataValueValidator()
 
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._check_and_convert_ml_data_dict
     ml_data_dict = func_alias(params)
 
     return ml_data_dict
-
-
-
-def _check_and_convert_least_squares_alg_params(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[18:]
-
-    cls_alias = \
-        distoptica.DistortionModel
-    validation_and_conversion_funcs = \
-        cls_alias.get_validation_and_conversion_funcs()
-    validation_and_conversion_func = \
-        validation_and_conversion_funcs[obj_name]
-    least_squares_alg_params = \
-        validation_and_conversion_func(params)
-
-    return least_squares_alg_params
 
 
 
@@ -4098,10 +4047,11 @@ def _ml_data_dict_to_signals(ml_data_dict,
         _calc_mask_frames_from_cbed_pattern_images(**kwargs)
 
     signals = tuple()
+    global_symbol_table = globals()
     for cbed_pattern_idx, _ in enumerate(cbed_pattern_images):
         func_name = ("_construct_cbed_pattern_signal"
                      "_using_objs_extracted_from_ml_data_dict")
-        func_alias = globals()[func_name]
+        func_alias = global_symbol_table[func_name]
         kwargs = {"undistorted_disk_set": \
                   undistorted_disk_sets[cbed_pattern_idx],
                   "cbed_pattern_image": \
@@ -4120,13 +4070,10 @@ def _ml_data_dict_to_signals(ml_data_dict,
 
 
 def _get_cbed_pattern_images_from_ml_data_dict(ml_data_dict, device_name):
-    current_func_name = inspect.stack()[0][3]
-    char_idx_1 = 5
-    char_idx_2 = 24
-    key = current_func_name[char_idx_1:char_idx_2]
+    key = "cbed_pattern_images"
 
     module_alias = \
-        emicrocml.modelling._common
+        emicroml.modelling._common
     convert_numerical_data_container = \
         module_alias._convert_numerical_data_container
 
@@ -4145,13 +4092,10 @@ def _get_cbed_pattern_images_from_ml_data_dict(ml_data_dict, device_name):
 
 
 def _get_disk_overlap_maps_from_ml_data_dict(ml_data_dict):
-    current_func_name = inspect.stack()[0][3]
-    char_idx_1 = 5
-    char_idx_2 = 22
-    key = current_func_name[char_idx_1:char_idx_2]
+    key = "disk_overlap_maps"
 
     module_alias = \
-        emicrocml.modelling._common
+        emicroml.modelling._common
     convert_numerical_data_container = \
         module_alias._convert_numerical_data_container
 
@@ -4195,7 +4139,7 @@ def _generate_undistorted_disk_set_from_ml_data_dict(ml_data_dict,
                                                      cbed_pattern_idx):
     for key in ml_data_dict:
         module_alias = \
-            emicrocml.modelling._common
+            emicroml.modelling._common
         convert_numerical_data_container = \
             module_alias._convert_numerical_data_container
         kwargs = \
@@ -4303,7 +4247,7 @@ def _construct_cbed_pattern_signal_using_objs_extracted_from_ml_data_dict(
 
 
 _module_alias = \
-    emicrocml.modelling._common
+    emicroml.modelling._common
 _default_entire_ml_dataset_is_to_be_cached = \
     _module_alias._default_entire_ml_dataset_is_to_be_cached
 _default_ml_data_values_are_to_be_checked = \
@@ -4315,18 +4259,19 @@ _default_single_dim_slice = \
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLDataset
 class _MLDataset(_cls_alias):
     def __init__(self,
                  path_to_ml_dataset,
                  entire_ml_dataset_is_to_be_cached,
                  ml_data_values_are_to_be_checked,
-                 max_num_ml_data_instances_per_chunk):
+                 max_num_ml_data_instances_per_chunk,
+                 skip_validation_and_conversion):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
-        module_alias = emicrocml.modelling._common
+        module_alias = emicroml.modelling._common
         cls_alias = module_alias._MLDataset
         cls_alias.__init__(self, ctor_params)
         
@@ -4372,7 +4317,7 @@ class _MLDataset(_cls_alias):
         ml_data_normalization_weights_and_biases_loader = \
             self._generate_ml_data_normalization_weights_and_biases_loader()
 
-        module_alias = emicrocml.modelling._common
+        module_alias = emicroml.modelling._common
         cls_alias = module_alias._TorchMLDataset
         kwargs = {"path_to_ml_dataset": \
                   self_core_attrs["path_to_ml_dataset"],
@@ -4387,9 +4332,9 @@ class _MLDataset(_cls_alias):
                   "ml_data_values_are_to_be_checked": \
                   self_core_attrs["ml_data_values_are_to_be_checked"],
                   "ml_data_dict_elem_decoders": \
-                  generate_ml_data_dict_elem_decoders(),
+                  _generate_ml_data_dict_elem_decoders(),
                   "ml_data_dict_elem_decoding_order": \
-                  generate_ml_data_dict_elem_decoding_order()}
+                  _generate_ml_data_dict_elem_decoding_order()}
         torch_ml_dataset = cls_alias(**kwargs)
 
         return torch_ml_dataset
@@ -4399,13 +4344,13 @@ class _MLDataset(_cls_alias):
     def get_ml_data_instances_as_signals(
             self,
             single_dim_slice=\
-            default_single_dim_slice,
+            _default_single_dim_slice,
             device_name=\
-            default_device_name,
+            _default_device_name,
             sampling_grid_dims_in_pixels=\
-            default_sampling_grid_dims_in_pixels,
+            _default_sampling_grid_dims_in_pixels,
             least_squares_alg_params=\
-            default_least_squares_alg_params):
+            _default_least_squares_alg_params):
         r"""Return a subset of the machine learning data instances as a sequence
         of Hyperspy signals.
 
@@ -4532,9 +4477,8 @@ class _MLDataset(_cls_alias):
 
 
 def _check_and_convert_ml_training_dataset(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._check_and_convert_ml_training_dataset
     ml_training_dataset = func_alias(params)
 
     return ml_training_dataset
@@ -4542,25 +4486,23 @@ def _check_and_convert_ml_training_dataset(params):
 
 
 def _pre_serialize_ml_training_dataset(ml_training_dataset):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    obj_to_pre_serialize = ml_training_dataset
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._pre_serialize_ml_training_dataset
     serializable_rep = func_alias(obj_to_pre_serialize)
     
     return serializable_rep
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _default_ml_training_dataset = _module_alias._default_ml_training_dataset
 
 
 
 def _check_and_convert_ml_validation_dataset(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._check_and_convert_ml_validation_dataset
     ml_validation_dataset = func_alias(params)
 
     return ml_validation_dataset
@@ -4568,25 +4510,23 @@ def _check_and_convert_ml_validation_dataset(params):
 
 
 def _pre_serialize_ml_validation_dataset(ml_validation_dataset):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    obj_to_pre_serialize = ml_validation_dataset
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._pre_serialize_ml_validation_dataset
     serializable_rep = func_alias(obj_to_pre_serialize)
     
     return serializable_rep
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _default_ml_validation_dataset = _module_alias._default_ml_validation_dataset
 
 
 
 def _check_and_convert_ml_testing_dataset(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._check_and_convert_ml_testing_dataset
     ml_testing_dataset = func_alias(params)
 
     return ml_testing_dataset
@@ -4594,35 +4534,35 @@ def _check_and_convert_ml_testing_dataset(params):
 
 
 def _pre_serialize_ml_testing_dataset(ml_testing_dataset):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    obj_to_pre_serialize = ml_testing_dataset
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._pre_serialize_ml_testing_dataset
     serializable_rep = func_alias(obj_to_pre_serialize)
     
     return serializable_rep
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _default_ml_testing_dataset = _module_alias._default_ml_testing_dataset
 _default_mini_batch_size = _module_alias._default_mini_batch_size
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLDatasetManager
 class _MLDatasetManager(_cls_alias):
     def __init__(self,
                  ml_training_dataset,
                  ml_validation_dataset,
                  ml_testing_dataset,
-                 mini_batch_size):
+                 mini_batch_size,
+                 skip_validation_and_conversion):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
         
-        module_alias = emicrocml.modelling._common
+        module_alias = emicroml.modelling._common
         cls_alias = module_alias._MLDatasetManager
         cls_alias.__init__(self, ctor_params)
 
@@ -4631,9 +4571,8 @@ class _MLDatasetManager(_cls_alias):
 
 
 def _check_and_convert_ml_dataset_manager(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._check_and_convert_ml_dataset_manager
     ml_dataset_manager = func_alias(params)
 
     return ml_dataset_manager
@@ -4641,10 +4580,9 @@ def _check_and_convert_ml_dataset_manager(params):
 
 
 def _pre_serialize_ml_dataset_manager(ml_dataset_manager):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    obj_to_pre_serialize = ml_dataset_manager
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._pre_serialize_ml_dataset_manager
     serializable_rep = func_alias(obj_to_pre_serialize)
     
     return serializable_rep
@@ -4653,11 +4591,14 @@ def _pre_serialize_ml_dataset_manager(ml_dataset_manager):
 
 def _initialize_layer_weights_according_to_activation_func(activation_func,
                                                            layer):
-    kwargs = locals()
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
-    func_alias(**kwargs)
+    kwargs = \
+        locals()
+    module_alias = \
+        emicroml.modelling._common
+    func_alias = \
+        module_alias._initialize_layer_weights_according_to_activation_func
+    _ = \
+        func_alias(**kwargs)
 
     return None
 
@@ -4690,7 +4631,7 @@ class _NoPoolResNet39(torch.nn.Module):
         num_nodes_in_second_last_layer = \
             (num_filters_in_first_conv_layer * (2**num_downsamplings))
 
-        module_alias = emicrocml.modelling._common
+        module_alias = emicroml.modelling._common
         kwargs = {"num_input_channels": \
                   1,
                   "num_filters_in_first_conv_layer": \
@@ -4699,8 +4640,6 @@ class _NoPoolResNet39(torch.nn.Module):
                   7,
                   "max_kernel_size_in_middle_flow": \
                   3,
-                  "resnet_stage_cls": \
-                  module_alias._BasicResNetStage,
                   "building_block_counts_in_stages": \
                   building_block_counts_in_stages,
                   "return_intermediate_tensor_subset_upon_call_to_forward": \
@@ -4776,9 +4715,7 @@ class _NoPoolResNet39(torch.nn.Module):
 
 
 def _check_and_convert_architecture(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "architecture"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     architecture = czekitout.convert.to_str_from_str_like(**kwargs)
 
@@ -4790,9 +4727,8 @@ def _check_and_convert_architecture(params):
 
 
 def _check_and_convert_mini_batch_norm_eps(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._check_and_convert_mini_batch_norm_eps
     mini_batch_norm_eps = func_alias(params)
 
     return mini_batch_norm_eps
@@ -4800,19 +4736,18 @@ def _check_and_convert_mini_batch_norm_eps(params):
 
 
 def _check_and_convert_normalization_weights(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "normalization_weights"
 
     params = params.copy()
     param_names = ("ml_data_normalization_weights_and_biases_loader", obj_name)
+    global_symbol_table = globals()
     for param_name in param_names:
         func_name = "_generate_default_"+param_name
-        func_alias = globals()[func_name]
+        func_alias = global_symbol_table[func_name]
         params[param_name] = func_alias()
 
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._check_and_convert_normalization_weights
     normalization_weights = func_alias(params)
 
     return normalization_weights
@@ -4820,9 +4755,7 @@ def _check_and_convert_normalization_weights(params):
 
 
 def _generate_default_normalization_weights():
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 18
-    obj_name = current_func_name[char_idx:]
+    obj_name = "normalization_weights"
 
     ml_data_normalizer = _generate_default_ml_data_normalizer()
     extrema_cache = ml_data_normalizer._extrema_cache
@@ -4850,7 +4783,9 @@ def _update_extrema_cache_for_default_normalization_weights_and_biases(
               "least_squares_alg_params": \
               _default_least_squares_alg_params,
               "device_name": \
-              _default_device_name}
+              _default_device_name,
+              "skip_validation_and_conversion": \
+              True}
     distortion_model_generator = _DefaultDistortionModelGenerator(**kwargs)
 
     all_valid_ml_data_dict_keys = _generate_all_valid_ml_data_dict_keys()
@@ -4875,19 +4810,18 @@ def _update_extrema_cache_for_default_normalization_weights_and_biases(
 
 
 def _check_and_convert_normalization_biases(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "normalization_biases"
 
     params = params.copy()
     param_names = ("ml_data_normalization_weights_and_biases_loader", obj_name)
+    global_symbol_table = globals()
     for param_name in param_names:
         func_name = "_generate_default_"+param_name
-        func_alias = globals()[func_name]
+        func_alias = global_symbol_table[func_name]
         params[param_name] = func_alias()
 
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._check_and_convert_normalization_biases
     normalization_biases = func_alias(params)
 
     return normalization_biases
@@ -4895,9 +4829,7 @@ def _check_and_convert_normalization_biases(params):
 
 
 def _generate_default_normalization_biases():
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 18
-    obj_name = current_func_name[char_idx:]
+    obj_name = "normalization_biases"
 
     ml_data_normalizer = _generate_default_ml_data_normalizer()
     extrema_cache = ml_data_normalizer._extrema_cache
@@ -4915,7 +4847,7 @@ def _generate_default_normalization_biases():
 
 
 _module_alias = \
-    emicrocml.modelling._common
+    emicroml.modelling._common
 _default_architecture = \
     "no_pool_resnet_39"
 _default_mini_batch_norm_eps = \
@@ -4931,7 +4863,7 @@ _default_unnormalize_normalizable_elems_of_ml_predictions = \
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLModel
 class _MLModel(_cls_alias):
     def __init__(self,
@@ -4956,7 +4888,7 @@ class _MLModel(_cls_alias):
         expected_keys_of_ml_inputs = \
             self._generate_expected_keys_of_ml_inputs()
 
-        module_alias = emicrocml.modelling._common
+        module_alias = emicroml.modelling._common
         cls_alias = module_alias._MLModel
         kwargs = {"ml_data_normalizer": _generate_default_ml_data_normalizer(),
                   "ml_data_type_validator": _MLDataTypeValidator(),
@@ -5006,9 +4938,10 @@ class _MLModel(_cls_alias):
     def _check_and_convert_ctor_params(self, ctor_params):
         ctor_params = ctor_params.copy()
 
+        global_symbol_table = globals()
         for ctor_param_name in ctor_params.keys():
             func_name = "_check_and_convert_" + ctor_param_name
-            func_alias = globals()[func_name]
+            func_alias = global_symbol_table[func_name]
             ctor_params[ctor_param_name] = func_alias(params=ctor_params)
 
         return ctor_params
@@ -5022,8 +4955,8 @@ class _MLModel(_cls_alias):
         if architecture == "no_pool_resnet_39":
             base_model_cls = _NoPoolResNet39
 
-        self._base_model = _base_model_cls(num_pixels_across_each_cbed_pattern,
-                                           mini_batch_norm_eps)
+        self._base_model = base_model_cls(num_pixels_across_each_cbed_pattern,
+                                          mini_batch_norm_eps)
 
         return None
 
@@ -5359,7 +5292,7 @@ def _calc_q_masks(ml_inputs, q):
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLLossCalculator
 class _MLLossCalculator(_cls_alias):
     def __init__(self):
@@ -5452,7 +5385,7 @@ class _MLLossCalculator(_cls_alias):
 
 
 _module_alias = \
-    emicrocml.modelling._common
+    emicroml.modelling._common
 _default_checkpoints = \
     _module_alias._default_checkpoints
 _default_lr_scheduler_manager = \
@@ -5464,7 +5397,7 @@ _default_misc_model_training_metadata = \
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLModelTrainer
 class _MLModelTrainer(_cls_alias):
     def __init__(self,
@@ -5473,12 +5406,13 @@ class _MLModelTrainer(_cls_alias):
                  checkpoints,
                  lr_scheduler_manager,
                  output_dirname,
-                 misc_model_training_metadata):
+                 misc_model_training_metadata,
+                 skip_validation_and_conversion):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
         
-        module_alias = emicrocml.modelling._common
+        module_alias = emicroml.modelling._common
         cls_alias = module_alias._MLModelTrainer
         cls_alias.__init__(self, ctor_params)
 
@@ -5496,9 +5430,8 @@ class _MLModelTrainer(_cls_alias):
 
 
 def _check_and_convert_ml_model_trainer(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._check_and_convert_ml_model_trainer
     ml_model_trainer = func_params(params)
 
     return ml_model_trainer
@@ -5506,10 +5439,9 @@ def _check_and_convert_ml_model_trainer(params):
 
 
 def _pre_serialize_ml_model_trainer(ml_model_trainer):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    obj_to_pre_serialize = ml_model_trainer
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._pre_serialize_ml_model_trainer
     serializable_rep = func_alias(obj_to_pre_serialize)
     
     return serializable_rep
@@ -5517,25 +5449,26 @@ def _pre_serialize_ml_model_trainer(ml_model_trainer):
 
 
 _module_alias = \
-    emicrocml.modelling._common
+    emicroml.modelling._common
 _default_misc_model_testing_metadata = \
     _module_alias._default_misc_model_testing_metadata
 
 
 
-_module_alias = emicrocml.modelling._common
+_module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLModelTester
 class _MLModelTester(_cls_alias):
     def __init__(self,
                  ml_dataset_manager,
                  device_name,
                  output_dirname,
-                 misc_model_testing_metadata):
+                 misc_model_testing_metadata,
+                 skip_validation_and_conversion):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
         
-        module_alias = emicrocml.modelling._common
+        module_alias = emicroml.modelling._common
         cls_alias = module_alias._MLModelTester
         cls_alias.__init__(self, ctor_params)
 
@@ -5553,9 +5486,8 @@ class _MLModelTester(_cls_alias):
 
 
 def _check_and_convert_ml_model_tester(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._check_and_convert_ml_model_tester
     ml_model_tester = func_params(params)
 
     return ml_model_tester
@@ -5563,10 +5495,9 @@ def _check_and_convert_ml_model_tester(params):
 
 
 def _pre_serialize_ml_model_tester(ml_model_tester):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling._common
-    func_alias = getattr(module_alias, current_func_name)
+    obj_to_pre_serialize = ml_model_tester
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._pre_serialize_ml_model_tester
     serializable_rep = func_alias(obj_to_pre_serialize)
     
     return serializable_rep
@@ -5609,7 +5540,7 @@ _check_cbed_pattern_signal_err_msg_1 = \
      "allowed number, as specified by the object "
      "``max_num_disks_in_any_cbed_pattern``.")
 
-_extract_new_disk_order_from_cbed_pattern_signal_err_msg_1 = \
+_extract_intra_disk_avgs_from_cbed_pattern_signal_err_msg_1 = \
     ("The object ``cbed_pattern_generator`` must generate a CBED pattern with "
      "only CBED disks of the same radius.")
 

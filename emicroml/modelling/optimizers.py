@@ -21,14 +21,6 @@
 ## Load libraries/packages/modules ##
 #####################################
 
-# For accessing attributes of functions.
-import inspect
-
-# For randomly selecting items in dictionaries.
-import random
-
-
-
 # For validating and converting objects.
 import czekitout.check
 import czekitout.convert
@@ -47,14 +39,31 @@ import torch
 ##################################
 
 # List of public objects in module.
-__all__ = ["AdamW",
+__all__ = ["BaseMLOptimizer",
+           "AdamW",
            "Generic"]
 
 
 
-class _Base(fancytypes.PreSerializableAndUpdatable):
+_default_skip_validation_and_conversion = False
+
+
+
+class BaseMLOptimizer(fancytypes.PreSerializableAndUpdatable):
+    r"""A wrapper to a PyTorch optimizer class.
+
+    One cannot construct an instance of the class
+    :class:`emicroml.modelling.optimizer.BaseMLOptimizer`, only subclasses of
+    itself defined in :mod:`emicroml.modelling.optimizer` module.
+
+    Parameters
+    ----------
+    ctor_params : `dict`
+        The construction parameters of the subclass.
+
+    """
     def __init__(self, ctor_params):
-        if type(self) is BaseShape:
+        if type(self) is BaseMLOptimizer:
             self._generate_torch_ml_optimizer(ml_model_param_group=None)
         else:
             kwargs = ctor_params
@@ -62,6 +71,20 @@ class _Base(fancytypes.PreSerializableAndUpdatable):
             fancytypes.PreSerializableAndUpdatable.__init__(self, **kwargs)
 
             self.execute_post_core_attrs_update_actions()
+
+        return None
+
+
+
+    def execute_post_core_attrs_update_actions(self):
+        self._clear_torch_ml_optimizer()
+
+        return None
+
+
+
+    def _clear_torch_ml_optimizer(self):
+        self._torch_ml_optimizer = None
 
         return None
 
@@ -94,23 +117,13 @@ class _Base(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def update(self, new_core_attr_subset_candidate):
-        super().update(new_core_attr_subset_candidate)
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
         self.execute_post_core_attrs_update_actions()
-
-        return None
-
-
-
-    def execute_post_core_attrs_update_actions(self):
-        self._clear_torch_ml_optimizer()
-
-        return None
-
-
-
-    def _clear_torch_ml_optimizer(self):
-        self._torch_ml_optimizer = None
 
         return None
 
@@ -125,7 +138,7 @@ class _Base(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_torch_ml_optimizer(self, ml_model_param_group):
-        raise NotImplementedError(_base_err_msg_1)
+        raise NotImplementedError(_base_ml_optimizer_err_msg_1)
 
 
 
@@ -137,8 +150,7 @@ class _Base(fancytypes.PreSerializableAndUpdatable):
 
 
 def _check_and_convert_base_lr(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "base_lr"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     base_lr = czekitout.convert.to_nonnegative_float(**kwargs)
 
@@ -147,7 +159,7 @@ def _check_and_convert_base_lr(params):
 
 
 def _pre_serialize_base_lr(base_lr):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = base_lr
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -162,8 +174,7 @@ def _de_pre_serialize_base_lr(serializable_rep):
 
 
 def _check_and_convert_weight_decay(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "weight_decay"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     weight_decay = czekitout.convert.to_nonnegative_float(**kwargs)
 
@@ -172,7 +183,7 @@ def _check_and_convert_weight_decay(params):
 
 
 def _pre_serialize_weight_decay(weight_decay):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = weight_decay
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -187,8 +198,7 @@ def _de_pre_serialize_weight_decay(serializable_rep):
 
 
 def _check_and_convert_beta_1(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "beta_1"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     beta_1 = czekitout.convert.to_nonnegative_float(**kwargs)
 
@@ -197,7 +207,7 @@ def _check_and_convert_beta_1(params):
 
 
 def _pre_serialize_beta_1(beta_1):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = beta_1
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -212,8 +222,7 @@ def _de_pre_serialize_beta_1(serializable_rep):
 
 
 def _check_and_convert_beta_2(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "beta_2"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     beta_2 = czekitout.convert.to_nonnegative_float(**kwargs)
 
@@ -222,7 +231,7 @@ def _check_and_convert_beta_2(params):
 
 
 def _pre_serialize_beta_2(beta_2):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = beta_2
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -237,8 +246,7 @@ def _de_pre_serialize_beta_2(serializable_rep):
 
 
 def _check_and_convert_epsilon(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "epsilon"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     epsilon = czekitout.convert.to_nonnegative_float(**kwargs)
 
@@ -247,7 +255,7 @@ def _check_and_convert_epsilon(params):
 
 
 def _pre_serialize_epsilon(epsilon):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = epsilon
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -262,8 +270,7 @@ def _de_pre_serialize_epsilon(serializable_rep):
 
 
 def _check_and_convert_use_amsgrad_variant(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "use_amsgrad_variant"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     use_amsgrad_variant = czekitout.convert.to_bool(**kwargs)
 
@@ -272,7 +279,7 @@ def _check_and_convert_use_amsgrad_variant(params):
 
 
 def _pre_serialize_use_amsgrad_variant(use_amsgrad_variant):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = use_amsgrad_variant
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -286,26 +293,16 @@ def _de_pre_serialize_use_amsgrad_variant(serializable_rep):
 
 
 
-def _check_and_convert_skip_validation_and_conversion(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
-    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
-    skip_validation_and_conversion = czekitout.convert.to_bool(**kwargs)
-
-    return skip_validation_and_conversion
-
-
-
 _default_base_lr = 1e-3
 _default_weight_decay = 1e-2
 _default_beta_1 = 0.9
 _default_beta_2 = 0.999
 _default_epsilon = 1e-8
 _default_use_amsgrad_variant = False
-_default_skip_validation_and_conversion = False
 
 
-class AdamW(_Base):
+
+class AdamW(BaseMLOptimizer):
     r"""A wrapper to the PyTorch optimizer class :class:`torch.optim.AdamW`.
 
     The current class is a subclass of
@@ -400,7 +397,7 @@ class AdamW(_Base):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
-        _Base.__init__(self, ctor_params)
+        BaseMLOptimizer.__init__(self, ctor_params)
 
         return None
 
@@ -430,8 +427,7 @@ _generic_ml_optimizer_name_to_cls_map = \
 
 
 def _check_and_convert_ml_optimizer_name(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "ml_optimizer_name"
     obj = params[obj_name]
 
     accepted_strings = _generic_ml_optimizer_name_to_cls_map.keys()
@@ -448,7 +444,7 @@ def _check_and_convert_ml_optimizer_name(params):
 
 
 def _pre_serialize_ml_optimizer_name(ml_optimizer_name):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = ml_optimizer_name
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -463,14 +459,15 @@ def _de_pre_serialize_ml_optimizer_name(serializable_rep):
 
 
 def _check_and_convert_ml_optimizer_params(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "ml_optimizer_params"
     obj = params[obj_name]
 
     ml_optimizer_name = _check_and_convert_ml_optimizer_name(params)
     ml_optimizer_cls = _generic_ml_optimizer_name_to_cls_map[ml_optimizer_name]
 
     accepted_types = (dict, type(None))
+
+    current_func_name = "_check_and_convert_ml_optimizer_params"
 
     if isinstance(obj, accepted_types[-1]):
         ml_optimizer_params = ml_optimizer_cls().get_core_attrs(deep_copy=False)
@@ -493,7 +490,7 @@ def _check_and_convert_ml_optimizer_params(params):
 
 
 def _pre_serialize_ml_optimizer_params(ml_optimizer_params):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = ml_optimizer_params
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -512,7 +509,7 @@ _default_ml_optimizer_params = None
 
 
 
-class Generic(_Base):
+class Generic(BaseMLOptimizer):
     r"""A generic wrapper to a PyTorch optimizer class.
 
     The current class is a subclass of
@@ -598,7 +595,7 @@ class Generic(_Base):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
-        _Base.__init__(self, ctor_params)
+        BaseMLOptimizer.__init__(self, ctor_params)
 
         return None
 
@@ -622,8 +619,7 @@ class Generic(_Base):
 
 
 def _check_and_convert_ml_optimizer(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "ml_optimizer"
     obj = params[obj_name]
 
     accepted_types = (Generic, type(None))
@@ -645,7 +641,7 @@ def _check_and_convert_ml_optimizer(params):
 
 
 def _pre_serialize_ml_optimizer(ml_optimizer):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = ml_optimizer
     serializable_rep = obj_to_pre_serialize.pre_serialize()
     
     return serializable_rep
@@ -667,10 +663,10 @@ _default_ml_optimizer = None
 ## Define error messages ##
 ###########################
 
-_base_err_msg_1 = \
+_base_ml_optimizer_err_msg_1 = \
     ("Cannot construct instances of the class "
-     "`emicroml.modelling.optimizers._Base`, only subclasses of itself defined "
-     "in the `emicroml.modelling.optimizers` module.")
+     "`emicroml.modelling.optimizers.BaseMLOptimizer`, only subclasses of "
+     "itself defined in the `emicroml.modelling.optimizers` module.")
 
 _check_and_convert_ml_optimizer_params_err_msg_1 = \
     ("The object ``ml_optimizer_params`` does not specify a valid set of "

@@ -142,7 +142,7 @@ path_to_data_dir_1 = converted_cmd_line_args["path_to_data_dir_1"]
 
 
 
-pattern = "ml_dataset_[0-9]*\.h5"
+pattern = r"ml_dataset_[0-9]*\.h5"
 path_to_input_ml_datasets = (path_to_data_dir_1
                              + "/ml_datasets"
                              + "/ml_datasets_for_training_and_validation")

@@ -21,14 +21,6 @@
 ## Load libraries/packages/modules ##
 #####################################
 
-# For accessing attributes of functions.
-import inspect
-
-# For randomly selecting items in dictionaries.
-import random
-
-
-
 # For validating and converting objects.
 import czekitout.check
 import czekitout.convert
@@ -42,6 +34,9 @@ import fancytypes
 # For validating, pre-serializing, and de-pre-serializing learning rate
 # schedulers.
 import emicroml.modelling.lr.schedulers
+
+# For reusing module-wide constants.
+import emicroml.modelling.optimizers
 
 
 
@@ -83,8 +78,7 @@ def _de_pre_serialize_lr_schedulers(serializable_rep):
 
 
 def _check_and_convert_phase_in_which_to_update_lr(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "phase_in_which_to_update_lr"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     obj = czekitout.convert.to_str_from_str_like(**kwargs)
 
@@ -101,7 +95,7 @@ def _check_and_convert_phase_in_which_to_update_lr(params):
 
 
 def _pre_serialize_phase_in_which_to_update_lr(phase_in_which_to_update_lr):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = phase_in_which_to_update_lr
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -115,9 +109,16 @@ def _de_pre_serialize_phase_in_which_to_update_lr(serializable_rep):
 
 
 
-_module_alias = schedulers
-_default_lr_schedulers = _module_alias._default_lr_schedulers
-_default_phase_in_which_to_update_lr = "validation"
+_module_alias_1 = \
+    schedulers
+_module_alias_2 = \
+    emicroml.modelling.optimizers
+_default_lr_schedulers = \
+    _module_alias_1._default_lr_schedulers
+_default_phase_in_which_to_update_lr = \
+    "validation"
+_default_skip_validation_and_conversion = \
+    _module_alias_2._default_skip_validation_and_conversion
 
 
 
@@ -206,7 +207,9 @@ class LRSchedulerManager(fancytypes.PreSerializableAndUpdatable):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
-        fancytypes.PreSerializableAndUpdatable.__init__(self, ctor_params)
+        kwargs = ctor_params
+        kwargs["skip_cls_tests"] = True
+        fancytypes.PreSerializableAndUpdatable.__init__(self, **kwargs)
 
         self.execute_post_core_attrs_update_actions()
 
@@ -230,8 +233,39 @@ class LRSchedulerManager(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def update(self, new_core_attr_subset_candidate):
-        super().update(new_core_attr_subset_candidate)
+    @classmethod
+    def get_validation_and_conversion_funcs(cls):
+        validation_and_conversion_funcs = \
+            cls._validation_and_conversion_funcs_.copy()
+
+        return validation_and_conversion_funcs
+
+
+    
+    @classmethod
+    def get_pre_serialization_funcs(cls):
+        pre_serialization_funcs = \
+            cls._pre_serialization_funcs_.copy()
+
+        return pre_serialization_funcs
+
+
+    
+    @classmethod
+    def get_de_pre_serialization_funcs(cls):
+        de_pre_serialization_funcs = \
+            cls._de_pre_serialization_funcs_.copy()
+
+        return de_pre_serialization_funcs
+
+
+
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
         self.execute_post_core_attrs_update_actions()
 
         return None
@@ -328,8 +362,7 @@ class LRSchedulerManager(fancytypes.PreSerializableAndUpdatable):
 
 
 def _check_and_convert_lr_scheduler_manager(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "lr_scheduler_manager"
     obj = params[obj_name]
 
     accepted_types = (LRSchedulerManager, type(None))
@@ -350,7 +383,7 @@ def _check_and_convert_lr_scheduler_manager(params):
 
 
 def _pre_serialize_lr_scheduler_manager(lr_scheduler_manager):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = lr_scheduler_manager
     serializable_rep = obj_to_pre_serialize.pre_serialize()
     
     return serializable_rep

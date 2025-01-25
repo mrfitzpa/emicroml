@@ -14,6 +14,7 @@ docs/_build/
 models/
 examples/modelling/cbed/simulations/MoS2_backup/
 *_backup_*
+test_data/
 
 # Ignore select files
 .coverage
@@ -34,6 +35,8 @@ scratch_param.txt
 *_img.txt
 *_img
 *_pattern.txt
+.coverage
+profiling_script.py
 
 # Ignore generated output coverage files.
 tests/coverage*

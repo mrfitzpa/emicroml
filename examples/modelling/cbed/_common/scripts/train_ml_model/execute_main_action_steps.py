@@ -125,10 +125,10 @@ mini_batch_size_set = (64,)
 
 
 num_steps_in_first_lr_annealing_cycle_set = (20,)
-lambda_norm_set = (1e-4,)
-max_lr_set = (1e-2,)
+lambda_norm_set = (5e-5,)
+max_lr_set = (5e-3,)
 min_lr_in_first_annealing_cycle_set = (1e-4,)
-num_lr_annealing_cycles_set = (4,)
+num_lr_annealing_cycles_set = (2,)
 multiplicative_decay_factor_set = (0.5,)
 
 M_1 = len(architecture_set)
@@ -151,10 +151,8 @@ for ml_dataset_type in ml_dataset_types:
     kwargs = {"path_to_ml_dataset": path_to_ml_dataset,
               "entire_ml_dataset_is_to_be_cached": True,
               "ml_data_values_are_to_be_checked": True,
-              "max_num_ml_data_instances_per_chunk": 32,
-              "auxiliary_device_name": device_name}
+              "max_num_ml_data_instances_per_chunk": 32}
     ml_dataset = module_alias_1.MLDataset(**kwargs)
-    ml_dataset.disk_overlap_class_weights
     
     if ml_dataset_type == "training":
         ml_training_dataset = ml_dataset
@@ -269,8 +267,6 @@ ml_model_ctor_params = {"num_pixels_across_each_cbed_pattern": \
 if ml_model_task == "cbed/distortion/estimation":
     ml_model_ctor_params["architecture"] = \
         architecture
-    ml_model_ctor_params["max_num_disks_in_any_cbed_pattern"] = \
-        ml_training_dataset.max_num_disks_in_any_cbed_pattern
     ml_model_ctor_params["normalization_weights"] = \
         ml_training_dataset.normalization_weights
     ml_model_ctor_params["normalization_biases"] = \

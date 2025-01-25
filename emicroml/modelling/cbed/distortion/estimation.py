@@ -28,7 +28,7 @@ import time
 
 # Contains the majority of the implementation code for this module, which is
 # also shared with other modules.
-import emicrocml.modelling.cbed.distortion._common
+import emicroml.modelling.cbed.distortion._common
 
 
 
@@ -52,14 +52,14 @@ __all__ = ["DefaultDistortionModelGenerator",
            "MLModelTrainer",
            "MLModelTester",
            "load_ml_model_from_file",
-           "load_ml_model_from_dict"]
+           "load_ml_model_from_state_dict"]
 
 
 
 _module_alias = \
-    emicrocml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.distortion._common
 _default_reference_pt = \
-    _module_alias._reference_pt
+    _module_alias._default_reference_pt
 _default_rng_seed = \
     _module_alias._default_rng_seed
 _default_sampling_grid_dims_in_pixels = \
@@ -73,7 +73,7 @@ _default_skip_validation_and_conversion = \
 
 
 
-_module_alias = emicrocml.modelling.cbed.distortion._common
+_module_alias = emicroml.modelling.cbed.distortion._common
 _cls_alias = _module_alias._DefaultDistortionModelGenerator
 class DefaultDistortionModelGenerator(_cls_alias):
     r"""The default class of random distortion model generators.
@@ -227,7 +227,7 @@ class DefaultDistortionModelGenerator(_cls_alias):
         kwargs = {key: val
                   for key, val in locals().items()
                   if (key not in ("self", "__class__"))}
-        module_alias = emicrocml.modelling.cbed.distortion._common
+        module_alias = emicroml.modelling.cbed.distortion._common
         cls_alias = module_alias._DefaultDistortionModelGenerator
         cls_alias.__init__(self, **kwargs)
 
@@ -235,7 +235,7 @@ class DefaultDistortionModelGenerator(_cls_alias):
 
 
 _module_alias = \
-    emicrocml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.distortion._common
 _default_num_pixels_across_each_cbed_pattern = \
     _module_alias._default_num_pixels_across_each_cbed_pattern
 _default_max_num_disks_in_any_cbed_pattern = \
@@ -243,7 +243,7 @@ _default_max_num_disks_in_any_cbed_pattern = \
 
 
 
-_module_alias = emicrocml.modelling.cbed.distortion._common
+_module_alias = emicroml.modelling.cbed.distortion._common
 _cls_alias = _module_alias._DefaultCBEDPatternGenerator
 class DefaultCBEDPatternGenerator(_cls_alias):
     r"""The default class of random "fake" CBED pattern generators.
@@ -360,18 +360,16 @@ class DefaultCBEDPatternGenerator(_cls_alias):
         kwargs = {key: val
                   for key, val in locals().items()
                   if (key not in ("self", "__class__"))}
-        module_alias = emicrocml.modelling.cbed.distortion._common
+        module_alias = emicroml.modelling.cbed.distortion._common
         cls_alias = module_alias._DefaultCBEDPatternGenerator
         cls_alias.__init__(self, **kwargs)
-
-        self._post_base_update()
 
         return None
 
 
 
 _module_alias = \
-    emicrocml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.distortion._common
 _default_num_cbed_patterns = \
     _module_alias._default_num_cbed_patterns
 _default_cbed_pattern_generator = \
@@ -756,15 +754,17 @@ def generate_and_save_ml_dataset(
         larger the value, the larger the memory requirements.
 
     """
-    kwargs = locals()
-    kwargs["start_time"] = time.time()
+    params = locals()
+    params["start_time"] = time.time()
 
-    func_name = "_check_and_convert_" + inspect.stack()[0][3] + "_params"
-    func_alias = globals()[func_name]
+    global_symbol_table = globals()
+
+    func_name = "_check_and_convert_generate_and_save_ml_dataset_params"
+    func_alias = global_symbol_table[func_name]
     params = func_alias(params)
 
-    func_name = func_name[18:]
-    func_alias = globals()[func_name]
+    func_name = func_name[18:-7]
+    func_alias = global_symbol_table[func_name]
     kwargs = params
     func_alias(**kwargs)
 
@@ -773,10 +773,12 @@ def generate_and_save_ml_dataset(
 
 
 def _check_and_convert_generate_and_save_ml_dataset_params(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
-    params = func_alias(params)
+    module_alias = \
+        emicroml.modelling.cbed.distortion._common
+    func_alias = \
+        module_alias._check_and_convert_generate_and_save_ml_dataset_params
+    params = \
+        func_alias(params)
 
     return params
 
@@ -789,9 +791,8 @@ def _generate_and_save_ml_dataset(max_num_disks_in_any_cbed_pattern,
                                   output_filename,
                                   start_time):
     kwargs = locals()
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._generate_and_save_ml_dataset
     func_alias(**kwargs)
 
     return None
@@ -799,7 +800,7 @@ def _generate_and_save_ml_dataset(max_num_disks_in_any_cbed_pattern,
 
 
 _module_alias = \
-    emicrocml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.distortion._common
 _default_output_ml_dataset_filename = \
     _module_alias._default_output_ml_dataset_filename
 _default_rm_input_ml_dataset_files = \
@@ -823,12 +824,12 @@ def combine_ml_dataset_files(
 
     The input HDF5 files and the output HDF5 file are assumed to have the same
     file structure as an HDF5 file generated by the function
-    :func:`emicrocml.modelling.cbed.distortion.generate_and_save_ml_dataset`.
+    :func:`emicroml.modelling.cbed.distortion.generate_and_save_ml_dataset`.
     See the documentation of said function for a description of the file
     structure. Moreover, the input HDF5 files are assumed to have been created
     in a manner that is consistent with the way HDF5 files are generated by the
     function
-    :func:`emicrocml.modelling.cbed.distortion.generate_and_save_ml_dataset`.
+    :func:`emicroml.modelling.cbed.distortion.generate_and_save_ml_dataset`.
 
     As discussed in the aforementioned documentation, some of the HDF5 datasets
     are normalizable. Prior to combining all the copies of the input ML data
@@ -854,15 +855,17 @@ def combine_ml_dataset_files(
         update. The larger the value, the larger the memory requirements.
 
     """
-    kwargs = locals()
-    kwargs["start_time"] = time.time()
+    params = locals()
+    params["start_time"] = time.time()
 
-    func_name = "_check_and_convert_" + inspect.stack()[0][3] + "_params"
-    func_alias = globals()[func_name]
+    global_symbol_table = globals()
+
+    func_name = "_check_and_convert_combine_ml_dataset_files_params"
+    func_alias = global_symbol_table[func_name]
     params = func_alias(params)
 
-    func_name = func_name[18:]
-    func_alias = globals()[func_name]
+    func_name = func_name[18:-7]
+    func_alias = global_symbol_table[func_name]
     kwargs = params
     func_alias(**kwargs)
 
@@ -871,9 +874,8 @@ def combine_ml_dataset_files(
 
 
 def _check_and_convert_combine_ml_dataset_files_params(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._check_and_convert_combine_ml_dataset_files_params
     params = func_alias(params)
 
     return params
@@ -886,9 +888,8 @@ def _combine_ml_dataset_files(max_num_ml_data_instances_per_file_update,
                               rm_input_ml_dataset_files,
                               start_time):
     kwargs = locals()
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._combine_ml_dataset_files
     func_alias(**kwargs)
 
     return None
@@ -896,7 +897,7 @@ def _combine_ml_dataset_files(max_num_ml_data_instances_per_file_update,
 
 
 _module_alias = \
-    emicrocml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.distortion._common
 _default_output_ml_dataset_filename_1 = \
     _module_alias._default_output_ml_dataset_filename_1
 _default_output_ml_dataset_filename_2 = \
@@ -934,15 +935,15 @@ def split_ml_dataset_file(
 
     The input HDF5 file and the output HDF5 files are assumed to have the same
     file structure as an HDF5 file generated by the function
-    :func:`emicrocml.modelling.cbed.distortion.generate_and_save_ml_dataset`.
+    :func:`emicroml.modelling.cbed.distortion.generate_and_save_ml_dataset`.
     See the documentation of said function for a description of the file
     structure. Moreover, the input HDF5 file is assumed to have been created in
     a manner that is consistent with the way HDF5 files are generated by the
     function
-    :func:`emicrocml.modelling.cbed.distortion.generate_and_save_ml_dataset`.
+    :func:`emicroml.modelling.cbed.distortion.generate_and_save_ml_dataset`.
 
     Unlike the combining of ML datasets, as implemented in
-    :func:`emicrocml.modelling.cbed.distortion.combine_ml_dataset_files`, no
+    :func:`emicroml.modelling.cbed.distortion.combine_ml_dataset_files`, no
     renormalization is performed in the process of splitting a machine learning
     dataset.
 
@@ -1046,15 +1047,17 @@ def split_ml_dataset_file(
         larger the value, the larger the memory requirements.
 
     """
-    kwargs = locals()
-    kwargs["start_time"] = time.time()
+    params = locals()
+    params["start_time"] = time.time()
 
-    func_name = "_check_and_convert_" + inspect.stack()[0][3] + "_params"
-    func_alias = globals()[func_name]
+    global_symbol_table = globals()
+
+    func_name = "_check_and_convert_split_ml_dataset_file_params"
+    func_alias = global_symbol_table[func_name]
     params = func_alias(params)
 
-    func_name = func_name[18:]
-    func_alias = globals()[func_name]
+    func_name = func_name[18:-7]
+    func_alias = global_symbol_table[func_name]
     kwargs = params
     func_alias(**kwargs)
 
@@ -1063,9 +1066,8 @@ def split_ml_dataset_file(
 
 
 def _check_and_convert_split_ml_dataset_file_params(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._check_and_convert_split_ml_dataset_file_params
     params = func_alias(params)
 
     return params
@@ -1082,9 +1084,8 @@ def _split_ml_dataset_file(output_ml_dataset_filename_1,
                            rm_input_ml_dataset_file,
                            start_time):
     kwargs = locals()
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._split_ml_dataset_file
     func_alias(**kwargs)
 
     return None
@@ -1092,7 +1093,7 @@ def _split_ml_dataset_file(output_ml_dataset_filename_1,
 
 
 _module_alias = \
-    emicrocml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.distortion._common
 _default_max_num_ml_data_instances_per_chunk = \
     _module_alias._default_max_num_ml_data_instances_per_chunk
 _default_entire_ml_dataset_is_to_be_cached = \
@@ -1102,7 +1103,7 @@ _default_ml_data_values_are_to_be_checked = \
 
 
 
-_module_alias = emicrocml.modelling.cbed.distortion._common
+_module_alias = emicroml.modelling.cbed.distortion._common
 _cls_alias = _module_alias._MLDataset
 class MLDataset(_cls_alias):
     r"""A wrapper to the PyTorch dataset class 
@@ -1121,12 +1122,12 @@ class MLDataset(_cls_alias):
         The relative or absolute filename of the HDF5 file in which the ML
         dataset is stored. The input HDF5 file is assumed to have the same file
         structure as an HDF5 file generated by the function
-        :func:`emicrocml.modelling.cbed.distortion.generate_and_save_ml_dataset`.
+        :func:`emicroml.modelling.cbed.distortion.generate_and_save_ml_dataset`.
         See the documentation of said function for a description of the file
         structure. Moreover, the input HDF5 file is assumed to have been created
         in a manner that is consistent with the way HDF5 files are generated by
         the function
-        :func:`emicrocml.modelling.cbed.distortion.generate_and_save_ml_dataset`.
+        :func:`emicroml.modelling.cbed.distortion.generate_and_save_ml_dataset`.
     entire_ml_dataset_is_to_be_cached : `bool`, optional
         If ``entire_ml_dataset_is_to_be_cached`` is set to ``True``, then as
         long as there is sufficient memory, the entire ML dataset is read from
@@ -1194,7 +1195,7 @@ class MLDataset(_cls_alias):
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
         
-        module_alias = emicrocml.modelling.cbed.distortion._common
+        module_alias = emicroml.modelling.cbed.distortion._common
         cls_alias = module_alias._MLDataset
         kwargs = ctor_params
         cls_alias.__init__(self, **kwargs)
@@ -1243,7 +1244,7 @@ def ml_data_dict_to_distortion_models(ml_data_dict,
         data instances are unnormalized. If the normalizable features of the ML
         data instances are not normalized, they can be unnormalized using the
         function
-        :func:`emicrocml.modelling.cbed.distortion.unnormalize_normalizable_elems_in_ml_data_dict`
+        :func:`emicroml.modelling.cbed.distortion.unnormalize_normalizable_elems_in_ml_data_dict`
         prior to using the current function.
     sampling_grid_dims_in_pixels : `array_like` (`int`, shape=(2,)), optional
         The dimensions of the sampling grid, in units of pixels, used for
@@ -1283,14 +1284,16 @@ def ml_data_dict_to_distortion_models(ml_data_dict,
         The distortion models.
 
     """
-    kwargs = locals()
+    params = locals()
 
-    func_name = "_check_and_convert_" + inspect.stack()[0][3] + "_params"
-    func_alias = globals()[func_name]
+    global_symbol_table = globals()
+
+    func_name = "_check_and_convert_ml_data_dict_to_distortion_models_params"
+    func_alias = global_symbol_table[func_name]
     params = func_alias(params)
 
-    func_name = func_name[18:]
-    func_alias = globals()[func_name]
+    func_name = func_name[18:-7]
+    func_alias = global_symbol_table[func_name]
     kwargs = params
     distortion_models = func_alias(**kwargs)
 
@@ -1299,10 +1302,12 @@ def ml_data_dict_to_distortion_models(ml_data_dict,
 
 
 def _check_and_convert_ml_data_dict_to_distortion_models_params(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
-    params = func_alias(params)
+    module_alias = \
+        emicroml.modelling.cbed.distortion._common
+    func_alias = \
+        module_alias._check_and_convert_ml_data_dict_to_distortion_models_params
+    params = \
+        func_alias(params)
 
     return params
 
@@ -1313,9 +1318,8 @@ def _ml_data_dict_to_distortion_models(ml_data_dict,
                                        device_name,
                                        least_squares_alg_params):
     kwargs = locals()
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._ml_data_dict_to_distortion_models
     distortion_models = func_alias(**kwargs)
     
     return distortion_models
@@ -1380,7 +1384,7 @@ def ml_data_dict_to_signals(ml_data_dict,
         data instances are unnormalized. If the normalizable features of the ML
         data instances are not normalized, they can be unnormalized using the
         function
-        :func:`emicrocml.modelling.cbed.distortion.unnormalize_normalizable_elems_in_ml_data_dict`
+        :func:`emicroml.modelling.cbed.distortion.unnormalize_normalizable_elems_in_ml_data_dict`
         prior to using the current function.
     sampling_grid_dims_in_pixels : `array_like` (`int`, shape=(2,)), optional
         The dimensions of the sampling grid, in units of pixels, used for
@@ -1412,14 +1416,16 @@ def ml_data_dict_to_signals(ml_data_dict,
         where each Hyperspy signal represents a ML data instance.
 
     """
-    kwargs = locals()
+    params = locals()
 
-    func_name = "_check_and_convert_" + inspect.stack()[0][3] + "_params"
-    func_alias = globals()[func_name]
+    global_symbol_table = globals()
+
+    func_name = "_check_and_convert_ml_data_dict_to_signals_params"
+    func_alias = global_symbol_table[func_name]
     params = func_alias(params)
 
-    func_name = func_name[18:]
-    func_alias = globals()[func_name]
+    func_name = func_name[18:-7]
+    func_alias = global_symbol_table[func_name]
     kwargs = params
     signals = func_alias(**kwargs)
 
@@ -1428,9 +1434,8 @@ def ml_data_dict_to_signals(ml_data_dict,
 
 
 def _check_and_convert_ml_data_dict_to_signals_params(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._check_and_convert_ml_data_dict_to_signals_params
     params = func_alias(params)
 
     return params
@@ -1442,9 +1447,8 @@ def _ml_data_dict_to_signals(ml_data_dict,
                              device_name,
                              least_squares_alg_params):
     kwargs = locals()
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._ml_data_dict_to_signals
     signals = func_alias(**kwargs)
     
     return signals
@@ -1455,9 +1459,8 @@ def _check_and_convert_ml_training_dataset(params):
     key = "accepted_nontrivial_cls_of_obj_alias_of_ml_dataset"
     params[key] = MLDataset
 
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._check_and_convert_ml_training_dataset
     ml_training_dataset = func_alias(params)
 
     return ml_training_dataset
@@ -1465,10 +1468,9 @@ def _check_and_convert_ml_training_dataset(params):
 
 
 def _pre_serialize_ml_training_dataset(ml_training_dataset):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    obj_to_pre_serialize = ml_training_dataset
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._pre_serialize_ml_training_dataset
     serializable_rep = func_alias(obj_to_pre_serialize)
     
     return serializable_rep
@@ -1489,9 +1491,8 @@ def _check_and_convert_ml_validation_dataset(params):
     key = "accepted_nontrivial_cls_of_obj_alias_of_ml_dataset"
     params[key] = MLDataset
     
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._check_and_convert_ml_validation_dataset
     ml_validation_dataset = func_alias(params)
 
     return ml_validation_dataset
@@ -1499,10 +1500,9 @@ def _check_and_convert_ml_validation_dataset(params):
 
 
 def _pre_serialize_ml_validation_dataset(ml_validation_dataset):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    obj_to_pre_serialize = ml_validation_dataset
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._pre_serialize_ml_validation_dataset
     serializable_rep = func_alias(obj_to_pre_serialize)
     
     return serializable_rep
@@ -1523,9 +1523,8 @@ def _check_and_convert_ml_testing_dataset(params):
     key = "accepted_nontrivial_cls_of_obj_alias_of_ml_dataset"
     params[key] = MLDataset
     
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._check_and_convert_ml_testing_dataset
     ml_testing_dataset = func_alias(params)
 
     return ml_testing_dataset
@@ -1533,10 +1532,9 @@ def _check_and_convert_ml_testing_dataset(params):
 
 
 def _pre_serialize_ml_testing_dataset(ml_testing_dataset):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    obj_to_pre_serialize = ml_testing_dataset
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._pre_serialize_ml_testing_dataset
     serializable_rep = func_alias(obj_to_pre_serialize)
     
     return serializable_rep
@@ -1553,7 +1551,7 @@ def _de_pre_serialize_ml_testing_dataset(serializable_rep):
 
 
 
-_module_alias = emicrocml.modelling.cbed.distortion._common
+_module_alias = emicroml.modelling.cbed.distortion._common
 _default_ml_training_dataset = _module_alias._default_ml_training_dataset
 _default_ml_validation_dataset = _module_alias._default_ml_validation_dataset
 _default_ml_testing_dataset = _module_alias._default_ml_testing_dataset
@@ -1561,7 +1559,7 @@ _default_mini_batch_size = _module_alias._default_mini_batch_size
 
 
 
-_module_alias = emicrocml.modelling.cbed.distortion._common
+_module_alias = emicroml.modelling.cbed.distortion._common
 _cls_alias = _module_alias._MLDatasetManager
 class MLDatasetManager(_cls_alias):
     r"""A machine learning dataset manager.
@@ -1625,20 +1623,20 @@ class MLDatasetManager(_cls_alias):
         copies or conversions are made in this case.
 
     """
-    _validation_and_conversion_funcs = \
-        {**_cls_alias._validation_and_conversion_funcs,
+    _validation_and_conversion_funcs_ = \
+        {**_cls_alias._validation_and_conversion_funcs_,
          "ml_training_dataset": _check_and_convert_ml_training_dataset,
          "ml_validation_dataset": _check_and_convert_ml_validation_dataset,
          "ml_testing_dataset": _check_and_convert_ml_testing_dataset}
 
-    _pre_serialization_funcs = \
-        {**_cls_alias._pre_serialization_funcs,
+    _pre_serialization_funcs_ = \
+        {**_cls_alias._pre_serialization_funcs_,
          "ml_training_dataset": _pre_serialize_ml_training_dataset,
          "ml_validation_dataset": _pre_serialize_ml_validation_dataset,
          "ml_testing_dataset": _pre_serialize_ml_testing_dataset}
 
-    _de_pre_serialization_funcs = \
-        {**_cls_alias._de_pre_serialization_funcs,
+    _de_pre_serialization_funcs_ = \
+        {**_cls_alias._de_pre_serialization_funcs_,
          "ml_training_dataset": _de_pre_serialize_ml_training_dataset,
          "ml_validation_dataset": _de_pre_serialize_ml_validation_dataset,
          "ml_testing_dataset": _de_pre_serialize_ml_testing_dataset}
@@ -1660,7 +1658,7 @@ class MLDatasetManager(_cls_alias):
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
         
-        module_alias = emicrocml.modelling.cbed.distortion._common
+        module_alias = emicroml.modelling.cbed.distortion._common
         cls_alias = module_alias._MLDatasetManager
         kwargs = ctor_params
         cls_alias.__init__(self, **kwargs)
@@ -1673,9 +1671,8 @@ def _check_and_convert_ml_dataset_manager(params):
     key = "ml_dataset_manager_cls"
     params[key] = MLDatasetManager
     
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._check_and_convert_ml_dataset_manager
     ml_dataset_manager = func_alias(params)
 
     return ml_dataset_manager
@@ -1683,10 +1680,9 @@ def _check_and_convert_ml_dataset_manager(params):
 
 
 def _pre_serialize_ml_dataset_manager(ml_dataset_manager):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    obj_to_pre_serialize = ml_dataset_manager
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._pre_serialize_ml_dataset_manager
     serializable_rep = func_alias(obj_to_pre_serialize)
     
     return serializable_rep
@@ -1701,7 +1697,7 @@ def _de_pre_serialize_ml_dataset_manager(serializable_rep):
 
 
 _module_alias = \
-    emicrocml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.distortion._common
 _default_num_pixels_across_each_cbed_pattern = \
     _module_alias._default_num_pixels_across_each_cbed_pattern
 _default_architecture = \
@@ -1717,11 +1713,12 @@ default_unnormalize_normalizable_elems_of_ml_predictions = \
 
 
 
-_module_alias = emicrocml.modelling.cbed.distortion._common
+_module_alias = emicroml.modelling.cbed.distortion._common
 _cls_alias = _module_alias._MLModel
 class _MLModel(_cls_alias):
     def __init__(self,
                  num_pixels_across_each_cbed_pattern,
+                 max_num_disks_in_any_cbed_pattern,
                  architecture,
                  mini_batch_norm_eps,
                  normalization_weights,
@@ -1729,10 +1726,9 @@ class _MLModel(_cls_alias):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
-        ctor_params["max_num_disks_in_any_cbed_pattern"] = 1
         ctor_params = self._check_and_convert_ctor_params(ctor_params)
         
-        module_alias = emicrocml.modelling.cbed.distortion._common
+        module_alias = emicroml.modelling.cbed.distortion._common
         cls_alias = module_alias._MLModel
         kwargs = ctor_params
         cls_alias.__init__(self, **kwargs)
@@ -1776,6 +1772,14 @@ class MLModel(_MLModel):
         :class:`emicroml.modelling.cbed.distortion.estimation.MLDataset`
         representing the aforementioned ML dataset. Moreover, the parameter is
         expected to be a positive integer that is divisible by ``2**5``.
+    max_num_disks_in_any_cbed_pattern : `int`, optional
+        The maximum possible number of CBED disks in any imaged CBED pattern
+        stored in the ML dataset used or to be used to train the ML model. This
+        parameter is expected to be equal to the instance attribute
+        :attr:`emicroml.modelling.cbed.distortion.estimation.MLDataset.max_num_disks_in_any_cbed_pattern`
+        of the instance of the class
+        :class:`emicroml.modelling.cbed.distortion.estimation.MLDataset`
+        representing the aforementioned ML dataset.
     architecture : `str`, optional
         This parameter specifies the network architecture of the ML model. At
         the moment, only one network architecture is available for this ML
@@ -1942,6 +1946,8 @@ class MLModel(_MLModel):
     def __init__(self,
                  num_pixels_across_each_cbed_pattern=\
                  _default_num_pixels_across_each_cbed_pattern,
+                 max_num_disks_in_any_cbed_pattern=\
+                 _default_max_num_disks_in_any_cbed_pattern,
                  architecture=\
                  _default_architecture,
                  mini_batch_norm_eps=\
@@ -2167,7 +2173,7 @@ class MLModel(_MLModel):
 
 
 _module_alias = \
-    emicrocml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.distortion._common
 _default_normalization_weights = \
     _module_alias._default_normalization_weights
 _default_normalization_biases = \
@@ -2248,14 +2254,17 @@ def normalize_normalizable_elems_in_ml_data_dict(
         ``ml_data_dict`` is not checked.
 
     """
-    kwargs = locals()
+    params = locals()
 
-    func_name = "_check_and_convert_" + inspect.stack()[0][3] + "_params"
-    func_alias = globals()[func_name]
+    global_symbol_table = globals()
+
+    func_name = ("_check_and_convert"
+                 "_normalize_normalizable_elems_in_ml_data_dict_params")
+    func_alias = global_symbol_table[func_name]
     params = func_alias(params)
 
-    func_name = func_name[18:]
-    func_alias = globals()[func_name]
+    func_name = func_name[18:-7]
+    func_alias = global_symbol_table[func_name]
     kwargs = params
     func_alias(**kwargs)
 
@@ -2265,8 +2274,9 @@ def normalize_normalizable_elems_in_ml_data_dict(
 
 def _check_and_convert_normalize_normalizable_elems_in_ml_data_dict_params(
         params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
+    current_func_name = ("_check_and_convert_normalize_normalizable_elems"
+                         "_in_ml_data_dict_params")
+    module_alias = emicroml.modelling.cbed.distortion._common
     func_alias = getattr(module_alias, current_func_name)
     params = func_alias(params)
 
@@ -2281,14 +2291,14 @@ def _normalize_normalizable_elems_in_ml_data_dict(check_ml_data_dict_first,
     kwargs = locals()
     del kwargs["check_ml_data_dict_first"]
     try:
-        current_func_name = inspect.stack()[0][3]
-        module_alias = emicrocml.modelling.cbed.distortion._common
-        func_alias = getattr(module_alias, current_func_name)
+        module_alias = emicroml.modelling.cbed.distortion._common
+        func_alias = module_alias._normalize_normalizable_elems_in_ml_data_dict
         func_alias(**kwargs)
         for key in ml_data_dict:
             ml_data_dict[key] = kwargs["ml_data_dict"][key]
     except:
-        func_name = "_check_and_convert_" + inspect.stack()[0][3] + "_params"
+        func_name = ("_check_and_convert_normalize_normalizable_elems"
+                     "_in_ml_data_dict_params")
         func_alias = globals()[func_name]
         func_alias(params)
 
@@ -2372,14 +2382,17 @@ def unnormalize_normalizable_elems_in_ml_data_dict(
         ``ml_data_dict`` is not checked.
 
     """
-    kwargs = locals()
+    params = locals()
 
-    func_name = "_check_and_convert_" + inspect.stack()[0][3] + "_params"
-    func_alias = globals()[func_name]
+    global_symbol_table = globals()
+
+    func_name = ("_check_and_convert_unnormalize_normalizable_elems"
+                 "_in_ml_data_dict_params")
+    func_alias = global_symbol_table[func_name]
     params = func_alias(params)
 
-    func_name = func_name[18:]
-    func_alias = globals()[func_name]
+    func_name = func_name[18:-7]
+    func_alias = global_symbol_table[func_name]
     kwargs = params
     func_alias(**kwargs)
 
@@ -2389,8 +2402,9 @@ def unnormalize_normalizable_elems_in_ml_data_dict(
 
 def _check_and_convert_unnormalize_normalizable_elems_in_ml_data_dict_params(
         params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
+    current_func_name = ("_check_and_convert_unnormalize_normalizable_elems"
+                         "_in_ml_data_dict_params")
+    module_alias = emicroml.modelling.cbed.distortion._common
     func_alias = getattr(module_alias, current_func_name)
     params = func_alias(params)
 
@@ -2405,14 +2419,15 @@ def _unnormalize_normalizable_elems_in_ml_data_dict(check_ml_data_dict_first,
     kwargs = locals()
     del kwargs["check_ml_data_dict_first"]
     try:
-        current_func_name = inspect.stack()[0][3]
-        module_alias = emicrocml.modelling.cbed.distortion._common
+        current_func_name = "_unnormalize_normalizable_elems_in_ml_data_dict"
+        module_alias = emicroml.modelling.cbed.distortion._common
         func_alias = getattr(module_alias, current_func_name)
         func_alias(**kwargs)
         for key in ml_data_dict:
             ml_data_dict[key] = kwargs["ml_data_dict"][key]
     except:
-        func_name = "_check_and_convert_" + inspect.stack()[0][3] + "_params"
+        func_name = ("_check_and_convert_unnormalize_normalizable_elems"
+                     "_in_ml_data_dict_params")
         func_alias = globals()[func_name]
         func_alias(params)
 
@@ -2421,7 +2436,7 @@ def _unnormalize_normalizable_elems_in_ml_data_dict(check_ml_data_dict_first,
 
 
 _module_alias = \
-    emicrocml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.distortion._common
 _default_lr_scheduler_manager = \
     _module_alias._default_lr_scheduler_manager
 _default_checkpoints = \
@@ -2433,7 +2448,7 @@ _default_misc_model_training_metadata = \
 
 
 
-_module_alias = emicrocml.modelling.cbed.distortion._common
+_module_alias = emicroml.modelling.cbed.distortion._common
 _cls_alias = _module_alias._MLModelTrainer
 class MLModelTrainer(_cls_alias):
     r"""A machine learning model trainer.
@@ -2633,16 +2648,16 @@ class MLModelTrainer(_cls_alias):
         copies or conversions are made in this case.
 
     """
-    _validation_and_conversion_funcs = \
-        {**_cls_alias._validation_and_conversion_funcs,
+    _validation_and_conversion_funcs_ = \
+        {**_cls_alias._validation_and_conversion_funcs_,
          "ml_dataset_manager": _check_and_convert_ml_dataset_manager}
 
-    _pre_serialization_funcs = \
-        {**_cls_alias._pre_serialization_funcs,
+    _pre_serialization_funcs_ = \
+        {**_cls_alias._pre_serialization_funcs_,
          "ml_dataset_manager": _pre_serialize_ml_dataset_manager}
 
-    _de_pre_serialization_funcs = \
-        {**_cls_alias._de_pre_serialization_funcs,
+    _de_pre_serialization_funcs_ = \
+        {**_cls_alias._de_pre_serialization_funcs_,
          "ml_dataset_manager": _de_pre_serialize_ml_dataset_manager}
 
 
@@ -2665,7 +2680,7 @@ class MLModelTrainer(_cls_alias):
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
         
-        module_alias = emicrocml.modelling.cbed.distortion._common
+        module_alias = emicroml.modelling.cbed.distortion._common
         cls_alias = module_alias._MLModelTrainer
         kwargs = ctor_params
         cls_alias.__init__(self, **kwargs)
@@ -2877,9 +2892,8 @@ def _check_and_convert_ml_model_trainer(params):
     key = "ml_model_trainer_cls"
     params[key] = MLModelTrainer
     
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._check_and_convert_ml_model_trainer
     ml_model_trainer = func_alias(params)
 
     return ml_model_trainer
@@ -2887,10 +2901,9 @@ def _check_and_convert_ml_model_trainer(params):
 
 
 def _pre_serialize_ml_model_trainer(ml_model_trainer):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    obj_to_pre_serialize = ml_model_trainer
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._pre_serialize_ml_model_trainer
     serializable_rep = func_alias(obj_to_pre_serialize)
     
     return serializable_rep
@@ -2905,13 +2918,13 @@ def _de_pre_serialize_ml_model_trainer(serializable_rep):
 
 
 _module_alias = \
-    emicrocml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.distortion._common
 _default_misc_model_testing_metadata = \
     _module_alias._default_misc_model_testing_metadata
 
 
 
-_module_alias = emicrocml.modelling.cbed.distortion._common
+_module_alias = emicroml.modelling.cbed.distortion._common
 _cls_alias = _module_alias._MLModelTester
 class MLModelTester(_cls_alias):
     r"""A machine learning model tester.
@@ -2995,16 +3008,16 @@ class MLModelTester(_cls_alias):
         copies or conversions are made in this case.
 
     """
-    _validation_and_conversion_funcs = \
-        {**_cls_alias._validation_and_conversion_funcs,
+    _validation_and_conversion_funcs_ = \
+        {**_cls_alias._validation_and_conversion_funcs_,
          "ml_dataset_manager": _check_and_convert_ml_dataset_manager}
 
-    _pre_serialization_funcs = \
-        {**_cls_alias._pre_serialization_funcs,
+    _pre_serialization_funcs_ = \
+        {**_cls_alias._pre_serialization_funcs_,
          "ml_dataset_manager": _pre_serialize_ml_dataset_manager}
 
-    _de_pre_serialization_funcs = \
-        {**_cls_alias._de_pre_serialization_funcs,
+    _de_pre_serialization_funcs_ = \
+        {**_cls_alias._de_pre_serialization_funcs_,
          "ml_dataset_manager": _de_pre_serialize_ml_dataset_manager}
 
     
@@ -3021,7 +3034,7 @@ class MLModelTester(_cls_alias):
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
         
-        module_alias = emicrocml.modelling.cbed.distortion._common
+        module_alias = emicroml.modelling.cbed.distortion._common
         cls_alias = module_alias._MLModelTester
         kwargs = ctor_params
         cls_alias.__init__(self, **kwargs)
@@ -3149,9 +3162,8 @@ def _check_and_convert_ml_model_tester(params):
     key = "ml_model_tester_cls"
     params[key] = MLModelTester
     
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._check_and_convert_ml_model_tester
     ml_model_tester = func_alias(params)
 
     return ml_model_tester
@@ -3159,10 +3171,9 @@ def _check_and_convert_ml_model_tester(params):
 
 
 def _pre_serialize_ml_model_tester(ml_model_tester):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    obj_to_pre_serialize = ml_model_tester
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._pre_serialize_ml_model_tester
     serializable_rep = func_alias(obj_to_pre_serialize)
     
     return serializable_rep
@@ -3181,9 +3192,8 @@ def _check_and_convert_train_ml_model_params(params):
     params["ml_dataset_cls"] = MLDataset
     params["ml_model_cls"] = MLModel
 
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling.cbed.distortion._common
+    func_alias = module_alias._check_and_convert_train_ml_model_params
     params = func_alias(params)
 
     del params["ml_dataset_cls"]
@@ -3234,15 +3244,17 @@ def load_ml_model_from_file(ml_model_state_dict_filename,
         file path ``ml_model_state_dict_filename``.
 
     """
-    kwargs = locals()
-    kwargs["ml_model_cls"] = MLModel
+    params = locals()
+    params["ml_model_cls"] = MLModel
 
-    func_name = "_check_and_convert_" + inspect.stack()[0][3] + "_params"
-    func_alias = globals()[func_name]
+    global_symbol_table = globals()
+
+    func_name = "_check_and_convert_load_ml_model_from_file_params"
+    func_alias = global_symbol_table[func_name]
     params = func_alias(params)
 
-    func_name = func_name[18:]
-    func_alias = globals()[func_name]
+    func_name = func_name[18:-7]
+    func_alias = global_symbol_table[func_name]
     kwargs = params
     ml_model = func_alias(**kwargs)
 
@@ -3251,9 +3263,8 @@ def load_ml_model_from_file(ml_model_state_dict_filename,
 
 
 def _check_and_convert_load_ml_model_from_file_params(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._check_and_convert_load_ml_model_from_file_params
     params = func_alias(params)
 
     return params
@@ -3264,17 +3275,16 @@ def _load_ml_model_from_file(ml_model_state_dict_filename,
                              device_name,
                              ml_model_cls):
     kwargs = locals()
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._load_ml_model_from_file
     ml_model = func_alias(**kwargs)
 
     return ml_model
 
 
 
-def load_ml_model_from_dict(ml_model_state_dict,
-                            device_name=_default_device_name):
+def load_ml_model_from_state_dict(ml_model_state_dict,
+                                  device_name=_default_device_name):
     r"""Load a machine learning model from a dictionary
 
     The current function loads machine learning (ML) models, represented by the
@@ -3316,15 +3326,17 @@ def load_ml_model_from_dict(ml_model_state_dict,
         The ML model represented by the dictionary ``ml_model_state_dict``.
 
     """
-    kwargs = locals()
-    kwargs["ml_model_cls"] = MLModel
+    params = locals()
+    params["ml_model_cls"] = MLModel
 
-    func_name = "_check_and_convert_" + inspect.stack()[0][3] + "_params"
-    func_alias = globals()[func_name]
+    global_symbol_table = globals()
+
+    func_name = "_check_and_convert_load_ml_model_from_state_dict_params"
+    func_alias = global_symbol_table[func_name]
     params = func_alias(params)
 
-    func_name = func_name[18:]
-    func_alias = globals()[func_name]
+    func_name = func_name[18:-7]
+    func_alias = global_symbol_table[func_name]
     kwargs = params
     ml_model = func_alias(**kwargs)
 
@@ -3332,21 +3344,24 @@ def load_ml_model_from_dict(ml_model_state_dict,
 
 
 
-def _check_and_convert_load_ml_model_from_dict_params(params):
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
-    params = func_alias(params)
+def _check_and_convert_load_ml_model_from_state_dict_params(params):
+    module_alias = \
+        emicroml.modelling._common
+    func_alias = \
+        module_alias._check_and_convert_load_ml_model_from_state_dict_params
+    params = \
+        func_alias(params)
 
     return params
 
 
 
-def _load_ml_model_from_dict(ml_model_state_dict, device_name, ml_model_cls):
+def _load_ml_model_from_state_dict(ml_model_state_dict,
+                                   device_name,
+                                   ml_model_cls):
     kwargs = locals()
-    current_func_name = inspect.stack()[0][3]
-    module_alias = emicrocml.modelling.cbed.distortion._common
-    func_alias = getattr(module_alias, current_func_name)
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._load_ml_model_from_state_dict
     ml_model = func_alias(**kwargs)
 
     return ml_model
