@@ -2014,8 +2014,8 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         u_r_c_fg_ellipse = np.sqrt((u_x_c_fg_ellipse-u_x_c_bg_ellipse)**2
                                    + (u_y_c_fg_ellipse-u_y_c_bg_ellipse)**2)
         
-        u_phi_c_fg_ellipse = np.atan2(u_y_c_fg_ellipse-u_y_c_bg_ellipse,
-                                      u_x_c_fg_ellipse-u_x_c_bg_ellipse)
+        u_phi_c_fg_ellipse = np.arctan2(u_y_c_fg_ellipse-u_y_c_bg_ellipse,
+                                        u_x_c_fg_ellipse-u_x_c_bg_ellipse)
 
         u_r_c_peak_min = 0.5 * ((u_r_c_fg_ellipse+u_R_bg_ellipse)
                                 + u_R_fg_ellipse)
@@ -5027,7 +5027,7 @@ def _update_cached_obj_subset_1_of_coord_transform_set(
     powers_of_u_r = torch.pow(u_r[:, None, :, :],
                               exponents[None, :, None, None])
 
-    u_theta = torch.atan2(delta_u_y, delta_u_x)
+    u_theta = torch.arctan2(delta_u_y, delta_u_x)
     azimuthal_orders = torch.arange(0, 3, device=u_theta.device)
     scaled_u_thetas = torch.einsum("i, jkl -> jikl", azimuthal_orders, u_theta)
     cosines_of_scaled_u_thetas = torch.cos(scaled_u_thetas)
