@@ -161,10 +161,10 @@ unformatted_output_filename = (path_to_data_dir_1
 output_filename = unformatted_output_filename.format(ml_dataset_idx)
 
 kwargs = \
-    {"num_cbed_patterns":  2880,
+    {"num_cbed_patterns":  5760,
      "cbed_pattern_generator": cbed_pattern_generator,
      "output_filename": output_filename,
-     "max_num_ml_data_instances_per_file_update": 288}
+     "max_num_ml_data_instances_per_file_update": 576}
 if ml_model_task == "cbed/distortion/estimation":
     kwargs["max_num_disks_in_any_cbed_pattern"] = \
         max_num_disks_in_any_cbed_pattern

@@ -66,7 +66,7 @@ then
     fi
     pip install --no-index ${pkgs}
 
-    pkgs="fakecbed>=0.3.1 h5pywrappers"
+    pkgs="fakecbed>=0.3.2 h5pywrappers"
     pip install ${pkgs}
 
     
@@ -126,7 +126,7 @@ else
 
 
     pkgs="python=3.10 numpy numba hyperspy h5py pyFAI pytest ipympl jupyter"
-    pkgs=${pkgs}" 'fakecbed>=0.3.1' h5pywrappers"
+    pkgs=${pkgs}" 'fakecbed>=0.3.2' h5pywrappers"
     conda create -n ${virtual_env_name} ${pkgs} -y -c conda-forge
     conda activate ${virtual_env_name}
 

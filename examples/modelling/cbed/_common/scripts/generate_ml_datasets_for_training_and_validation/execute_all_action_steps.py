@@ -71,7 +71,7 @@ script_to_execute = (str(path_to_current_script.parents[1])
                      + "/generate_ml_dataset_for_training_and_validation"
                      + "/execute_all_action_steps.py")
 
-num_ml_datasets = 10
+num_ml_datasets = 5
 for ml_dataset_idx in range(num_ml_datasets):
     unformatted_cmd_str = ("python {} "
                            "--ml_model_task={} "
