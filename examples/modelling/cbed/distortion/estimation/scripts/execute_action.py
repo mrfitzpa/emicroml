@@ -76,9 +76,6 @@ If ``<action>`` equals ``train_ml_model_set``, then the script will
 ## Load libraries/packages/modules ##
 #####################################
 
-# For accessing attributes of functions.
-import inspect
-
 # For parsing command line arguments.
 import argparse
 
@@ -95,8 +92,6 @@ import os
 ###############################################
 
 def _parse_and_convert_cmd_line_args():
-    current_func_name = inspect.stack()[0][3]
-
     accepted_actions = \
         ("generate_ml_datasets_for_training_and_validation",
          "combine_ml_datasets_for_training_and_validation_then_split",
@@ -105,6 +100,8 @@ def _parse_and_convert_cmd_line_args():
          "generate_ml_datasets_for_ml_model_test_set_1",
          "combine_ml_datasets_for_ml_model_test_set_1",
          "run_ml_model_test_set_1")
+
+    current_func_name = "_parse_and_convert_cmd_line_args"
 
     try:
         parser = argparse.ArgumentParser()

@@ -62,9 +62,6 @@ script.
 ## Load libraries/packages/modules ##
 #####################################
 
-# For accessing attributes of functions.
-import inspect
-
 # For parsing command line arguments.
 import argparse
 
@@ -89,9 +86,9 @@ import emicroml.modelling.cbed.distortion.estimation
 ###############################################
 
 def _parse_and_convert_cmd_line_args():
-    current_func_name = inspect.stack()[0][3]
-
     accepted_ml_model_tasks = ("cbed/distortion/estimation",)
+
+    current_func_name = "_parse_and_convert_cmd_line_args"
 
     try:
         parser = argparse.ArgumentParser()

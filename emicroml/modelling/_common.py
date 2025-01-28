@@ -4093,6 +4093,7 @@ class _MLDataset(fancytypes.PreSerializableAndUpdatable):
     def execute_post_core_attrs_update_actions(self):
         self._clear_torch_ml_dataset()
         self._generate_and_store_normalization_weights_and_biases()
+        self._calc_and_store_num_ml_data_instances_in_ml_dataset()
 
         return None
 
@@ -4125,6 +4126,24 @@ class _MLDataset(fancytypes.PreSerializableAndUpdatable):
 
     def _generate_ml_data_normalization_weights_and_biases_loader(self):
         pass
+
+
+
+    def _calc_and_store_num_ml_data_instances_in_ml_dataset(self):
+        self_core_attrs = self.get_core_attrs(deep_copy=False)
+        
+        ml_data_normalization_weights_and_biases_loader = \
+            self._generate_ml_data_normalization_weights_and_biases_loader()
+        ml_data_normalizer = \
+            ml_data_normalization_weights_and_biases_loader._ml_data_normalizer
+
+        kwargs = \
+            {"ml_data_normalizer": ml_data_normalizer,
+             "input_ml_dataset_filename": self_core_attrs["path_to_ml_dataset"]}
+        self._num_ml_data_instances_in_ml_dataset = \
+            _calc_num_ml_data_instances_in_input_ml_dataset(**kwargs)
+
+        return None
 
 
 
@@ -4190,8 +4209,7 @@ class _MLDataset(fancytypes.PreSerializableAndUpdatable):
 
 
     def __len__(self):
-        torch_ml_dataset = self._get_torch_ml_dataset()
-        result = len(torch_ml_dataset)
+        result = self._num_ml_data_instances_in_ml_dataset
         
         return result
 

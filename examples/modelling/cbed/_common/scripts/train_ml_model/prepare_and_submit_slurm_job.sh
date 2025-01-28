@@ -44,7 +44,7 @@
 #SBATCH --cpus-per-task=8         # CPU cores/threads
 #SBATCH --gpus-per-node=v100l:1
 #SBATCH --mem=46G               # memory per node
-#SBATCH --time=00-71:59            # time (DD-HH:MM)
+#SBATCH --time=00-23:59            # time (DD-HH:MM)
 #SBATCH --mail-type=ALL
 
 

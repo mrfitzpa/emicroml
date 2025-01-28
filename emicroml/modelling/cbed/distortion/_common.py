@@ -1039,7 +1039,10 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         if no_peaks:
             peaks = tuple()
         else:
-            peaks = copy.deepcopy(undistorted_tds_model_1.core_attrs["peaks"])
+            undistorted_tds_model_1_core_attrs = \
+                undistorted_tds_model_1.get_core_attrs(deep_copy=False)
+
+            peaks = copy.deepcopy(undistorted_tds_model_1_core_attrs["peaks"])
 
             A_set = (rng.uniform(low=self._A_0_min, high=1.2*self._A_0_max),)
             for peak in peaks:

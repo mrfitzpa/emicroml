@@ -21,9 +21,6 @@
 ## Load libraries/packages/modules ##
 #####################################
 
-# For accessing attributes of functions.
-import inspect
-
 # For parsing command line arguments.
 import argparse
 
@@ -50,9 +47,9 @@ import emicroml.modelling.cbed.distortion.estimation
 ###############################################
 
 def _parse_and_convert_cmd_line_args():
-    current_func_name = inspect.stack()[0][3]
-
     accepted_ml_model_tasks = ("cbed/distortion/estimation",)
+
+    current_func_name = "_parse_and_convert_cmd_line_args"
 
     try:
         parser = argparse.ArgumentParser()
@@ -147,13 +144,13 @@ ml_dataset_types = ("training", "validation")
 for ml_dataset_type in ml_dataset_types:
     unformatted_path = path_to_data_dir_1 + "/ml_datasets/ml_dataset_for_{}.h5"
     path_to_ml_dataset = unformatted_path.format(ml_dataset_type)
-    
+
     kwargs = {"path_to_ml_dataset": path_to_ml_dataset,
               "entire_ml_dataset_is_to_be_cached": True,
               "ml_data_values_are_to_be_checked": True,
               "max_num_ml_data_instances_per_chunk": 32}
     ml_dataset = module_alias_1.MLDataset(**kwargs)
-    
+
     if ml_dataset_type == "training":
         ml_training_dataset = ml_dataset
     else:
@@ -164,14 +161,10 @@ for ml_dataset_type in ml_dataset_types:
 architecture = architecture_set[(ml_model_idx//M_2)%M_1]
 mini_batch_size = mini_batch_size_set[(ml_model_idx//M_2)%M_1]
 
-
-
 kwargs = {"ml_training_dataset": ml_training_dataset,
           "ml_validation_dataset": ml_validation_dataset,
           "mini_batch_size": mini_batch_size}
 ml_dataset_manager = module_alias_1.MLDatasetManager(**kwargs)
-
-
 
 checkpoints = None
 
@@ -277,8 +270,6 @@ if ml_model_task == "cbed/distortion/estimation":
 misc_model_training_metadata = {"ml_model_architecture": architecture,
                                 "rng_seed": rng_seed}
 
-
-
 kwargs = {"ml_dataset_manager": ml_dataset_manager,
           "device_name": device_name,
           "checkpoints": checkpoints,
@@ -287,13 +278,9 @@ kwargs = {"ml_dataset_manager": ml_dataset_manager,
           "misc_model_training_metadata": misc_model_training_metadata}
 ml_model_trainer = module_alias_1.MLModelTrainer(**kwargs)
 
-
-
 kwargs = ml_model_ctor_params
 ml_model = module_alias_1.MLModel(**kwargs)
 
 ml_model_param_groups = (ml_model.parameters(),)
-
-
 
 ml_model_trainer.train_ml_model(ml_model, ml_model_param_groups)
