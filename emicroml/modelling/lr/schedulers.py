@@ -806,11 +806,11 @@ class _TorchReduceOnPlateau(_cls_alias):
         if ml_loss_manager is not None:
             averaging_window_in_steps = self._averaging_window_in_steps
             
-            mini_batch_losses = ml_loss_manager.mini_batch_losses
+            mini_batch_losses = ml_loss_manager._mini_batch_losses
 
-            stop = (ml_loss_manager.training_mini_batch_instance_idx
+            stop = (ml_loss_manager._training_mini_batch_instance_idx
                     if (phase == "training")
-                    else ml_loss_manager.validation_mini_batch_instance_idx)
+                    else ml_loss_manager._validation_mini_batch_instance_idx)
 
             if stop >= averaging_window_in_steps:
                 start = max(0, stop-averaging_window_in_steps)
@@ -821,7 +821,8 @@ class _TorchReduceOnPlateau(_cls_alias):
                 
                 self._base_torch_lr_scheduler.step(metrics, epoch)
 
-        self._last_lr = self._base_torch_lr_scheduler._last_lr
+        torch_optimizer = self._base_torch_lr_scheduler.optimizer
+        self._last_lr = [group['lr'] for group in torch_optimizer.param_groups]
 
         return None
 
