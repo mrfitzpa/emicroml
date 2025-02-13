@@ -1160,31 +1160,46 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         cos = np.cos
         sin = np.sin
 
-        center = \
-            (reference_pt_of_distortion_model_generator[0]
-             - u_r_E*cos(u_phi_E),
-             reference_pt_of_distortion_model_generator[1]
-             - u_r_E*sin(u_phi_E))
-        center = \
-            (center[0].item(), center[1].item())
+        center = (reference_pt_of_distortion_model_generator[0]
+                  - u_r_E*cos(u_phi_E),
+                  reference_pt_of_distortion_model_generator[1]
+                  - u_r_E*sin(u_phi_E))
+        center = (center[0].item(), center[1].item())
 
-        mask_frame_of_distorted_then_resampled_images = \
-            distortion_model.mask_frame_of_distorted_then_resampled_images
-
-        loc = (0.5
-               + ((sum(mask_frame_of_distorted_then_resampled_images) == 0)
-                  * rng.choice((0.0, 1e6), p=(1/4, 1-1/4)).item()))
-        semi_major_axis = abs(rng.normal(loc=loc, scale=0.05))
+        kwargs = {"distortion_model": \
+                  distortion_model,
+                  "reference_pt_of_distortion_model_generator": \
+                  reference_pt_of_distortion_model_generator}
+        semi_major_axis = self._generate_semi_major_axis(**kwargs)
 
         kwargs = {"center": center,
                   "semi_major_axis": semi_major_axis,
-                  "eccentricity": abs(rng.normal(loc=0, scale=0.5)),
+                  "eccentricity": abs(rng.uniform(low=0, high=0.6)),
                   "rotation_angle": rng.uniform(low=0, high=2*np.pi),
                   "intra_shape_val": 1.0,
                   "skip_validation_and_conversion": True}
         undistorted_outer_illumination_shape = fakecbed.shapes.Ellipse(**kwargs)
 
         return undistorted_outer_illumination_shape
+
+
+
+    def _generate_semi_major_axis(
+            self, distortion_model, reference_pt_of_distortion_model_generator):
+        rng = self._rng
+
+        mask_frame_of_distorted_then_resampled_images = \
+            distortion_model.mask_frame_of_distorted_then_resampled_images
+
+        loc = (max(reference_pt_of_distortion_model_generator[0],
+                   1-reference_pt_of_distortion_model_generator[0],
+                   reference_pt_of_distortion_model_generator[1],
+                   1-reference_pt_of_distortion_model_generator[1])
+               + ((sum(mask_frame_of_distorted_then_resampled_images) == 0)
+                  * rng.choice((0.0, 1e6), p=(1/4, 1-1/4)).item()))
+        semi_major_axis = loc + rng.uniform(low=-loc/6, high=loc/6)
+
+        return semi_major_axis
 
 
 
@@ -1199,20 +1214,15 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
         radial_reference_pt_of_blob = \
             (reference_pt_of_distortion_model_generator[0]
-             - u_r_GB*cos(u_phi_GB),
+             - u_r_GB*cos(u_phi_GB).item(),
              reference_pt_of_distortion_model_generator[1]
-             - u_r_GB*sin(u_phi_GB))
-        radial_reference_pt_of_blob = \
-            (radial_reference_pt_of_blob[0].item(),
-             radial_reference_pt_of_blob[1].item())
+             - u_r_GB*sin(u_phi_GB).item())
 
-        mask_frame_of_distorted_then_resampled_images = \
-            distortion_model.mask_frame_of_distorted_then_resampled_images
-
-        loc = (0.5
-               + ((sum(mask_frame_of_distorted_then_resampled_images) == 0)
-                  * rng.choice((0.0, 1e6), p=(1/4, 1-1/4)).item()))
-        radial_amplitude = abs(rng.normal(loc=loc, scale=0.05))
+        kwargs = {"distortion_model": \
+                  distortion_model,
+                  "reference_pt_of_distortion_model_generator": \
+                  reference_pt_of_distortion_model_generator}
+        radial_amplitude = self._generate_radial_amplitude(**kwargs)
 
         num_amplitudes = rng.integers(low=2, high=4, endpoint=True).item()
         radial_amplitudes = (radial_amplitude,)
@@ -1241,26 +1251,34 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
+    def _generate_radial_amplitude(
+            self, distortion_model, reference_pt_of_distortion_model_generator):
+        kwargs = {"distortion_model": \
+                  distortion_model,
+                  "reference_pt_of_distortion_model_generator": \
+                  reference_pt_of_distortion_model_generator}
+        semi_major_axis = self._generate_semi_major_axis(**kwargs)
+        radial_amplitude = semi_major_axis
+
+        return radial_amplitude
+
+
+
     def _generate_undistorted_disks_and_misc_shapes(self,
                                                     undistorted_tds_model_1,
                                                     undistorted_tds_model_2):
-        orbitals_only = \
-            self._rng.choice((False, True), p=(5/6, 1-5/6)).item()
-
         method_alias = \
             self._generate_undistorted_disks_and_max_abs_amplitude_sums
         kwargs = \
             {"undistorted_tds_model_1": undistorted_tds_model_1,
-             "undistorted_tds_model_2": undistorted_tds_model_2,
-             "orbitals_only": orbitals_only}
+             "undistorted_tds_model_2": undistorted_tds_model_2}
         undistorted_disks, max_abs_amplitude_sums = \
             method_alias(**kwargs)
 
         kwargs = \
             {"undistorted_tds_model_1": undistorted_tds_model_1,
              "undistorted_disks": undistorted_disks,
-             "max_abs_amplitude_sums": max_abs_amplitude_sums,
-             "orbitals_only": orbitals_only}
+             "max_abs_amplitude_sums": max_abs_amplitude_sums}
         undistorted_misc_shapes = \
             self._generate_undistorted_misc_shapes(**kwargs)
 
@@ -1271,8 +1289,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
     def _generate_undistorted_disks_and_max_abs_amplitude_sums(
             self,
             undistorted_tds_model_1,
-            undistorted_tds_model_2,
-            orbitals_only):
+            undistorted_tds_model_2):
         undistorted_disk_supports = \
             self._generate_undistorted_disk_supports(undistorted_tds_model_1)
             
@@ -1283,8 +1300,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             method_alias = \
                 self._generate_intra_disk_shapes_and_max_abs_amplitude_sum
             kwargs = \
-                {"orbitals_only": orbitals_only,
-                 "undistorted_disk_support": undistorted_disk_support,
+                {"undistorted_disk_support": undistorted_disk_support,
                  "undistorted_tds_model_1": undistorted_tds_model_1,
                  "undistorted_tds_model_2": undistorted_tds_model_2}
             intra_disk_shapes, max_abs_amplitude_sum = \
@@ -1718,15 +1734,13 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
     def _generate_intra_disk_shapes_and_max_abs_amplitude_sum(
             self,
-            orbitals_only,
             undistorted_disk_support,
             undistorted_tds_model_1,
             undistorted_tds_model_2):
         method_alias = \
             self._generate_prescaled_intra_disk_shapes_and_amplitude_sums
         kwargs = \
-            {"orbitals_only": orbitals_only,
-             "undistorted_disk_support": undistorted_disk_support}
+            {"undistorted_disk_support": undistorted_disk_support}
         prescaled_intra_disk_shapes, prescaled_amplitude_sums = \
             method_alias(**kwargs)
 
@@ -1757,14 +1771,12 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_prescaled_intra_disk_shapes_and_amplitude_sums(
-            self, orbitals_only, undistorted_disk_support):
+            self, undistorted_disk_support):
         intra_disk_shape_wishlist_keys = \
             self._generate_intra_disk_shape_wishlist_keys()
 
-        kwargs = \
-            {"orbitals_only": orbitals_only}
         intra_disk_shape_wishlist = \
-            self._generate_intra_disk_shape_wishlist(**kwargs)
+            self._generate_intra_disk_shape_wishlist()
         
         unformatted_method_name_1 = "_generate_{}"
         unformatted_method_name_2 = "_generate_prescaled_amplitude_set_of_{}"
@@ -1810,26 +1822,18 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _generate_intra_disk_shape_wishlist(self, orbitals_only):
-        intra_disk_shape_wishlist_keys = \
-            self._generate_intra_disk_shape_wishlist_keys()
-
+    def _generate_intra_disk_shape_wishlist(self):
         intra_disk_shape_wishlist = \
-            {key: False for key in intra_disk_shape_wishlist_keys}
-        if orbitals_only:
-            intra_disk_shape_wishlist["orbital_set"] = \
-                True
-        else:
-            intra_disk_shape_wishlist["uniform_disk_set"] = \
-                self._rng.choice((True, False), p=(5/6, 1-5/6)).item()
-            intra_disk_shape_wishlist["nonuniform_lune_set"] = \
-                self._rng.choice((True, False), p=(1/3, 1-1/3)).item()
-            intra_disk_shape_wishlist["plane_wave_set"] = \
-                True
-            intra_disk_shape_wishlist["orbital_set"] = \
-                self._rng.choice((True, False), p=(1/2, 1-1/2)).item()
-            intra_disk_shape_wishlist["peak_set"] = \
-                self._rng.choice((True, False), p=(1/2, 1-1/2)).item()
+            {"uniform_disk_set": \
+             self._rng.choice((True, False), p=(5/6, 1-5/6)).item(),
+             "nonuniform_lune_set": \
+             self._rng.choice((True, False), p=(1/3, 1-1/3)).item(),
+             "plane_wave_set": \
+             True,
+             "orbital_set": \
+             self._rng.choice((True, False), p=(1/2, 1-1/2)).item(),
+             "peak_set": \
+             self._rng.choice((True, False), p=(1/2, 1-1/2)).item()}
 
         return intra_disk_shape_wishlist
 
@@ -2466,18 +2470,13 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
     def _generate_undistorted_misc_shapes(self,
                                           undistorted_tds_model_1,
                                           undistorted_disks,
-                                          max_abs_amplitude_sums,
-                                          orbitals_only):
-        if orbitals_only:
-            kwargs = \
-                {"undistorted_disks": undistorted_disks,
-                 "undistorted_tds_model_1": undistorted_tds_model_1,
-                 "max_abs_amplitude_sums": max_abs_amplitude_sums}
-            undistorted_misc_shapes = \
-                self._generate_undistorted_nonuniform_bands(**kwargs)
-        else:
-            undistorted_misc_shapes = \
-                tuple()
+                                          max_abs_amplitude_sums):
+        kwargs = \
+            {"undistorted_disks": undistorted_disks,
+             "undistorted_tds_model_1": undistorted_tds_model_1,
+             "max_abs_amplitude_sums": max_abs_amplitude_sums}
+        undistorted_misc_shapes = \
+            self._generate_undistorted_nonuniform_bands(**kwargs)
 
         return undistorted_misc_shapes
 
@@ -4085,7 +4084,7 @@ def _get_cbed_pattern_images_from_ml_data_dict(ml_data_dict, device_name):
               "name_of_obj_alias_of_numerical_data_container": \
               "ml_data_dict['{}']".format(key),
               "target_numerical_data_container_cls": \
-              np.ndarray,
+              torch.Tensor,
               "target_device": \
               _get_device(device_name)}
     cbed_pattern_images = convert_numerical_data_container(**kwargs)
@@ -4972,6 +4971,55 @@ class _MLModel(_cls_alias):
 
 
 
+def _calc_shifted_q(ml_data_dict, ml_model):
+    kwargs = locals()
+    q = _calc_q(**kwargs)
+
+    mean_q = q.mean(dim=(2, 3))
+    shifted_q = q - mean_q[:, :, None, None]
+
+    return shifted_q
+
+
+
+def _calc_q(ml_data_dict, ml_model):
+    kwargs = \
+        locals()
+    cached_objs_of_coord_transform_set = \
+        _calc_cached_objs_of_coord_transform_set(**kwargs)
+
+    u_x = \
+        cached_objs_of_coord_transform_set["u_x"]
+    u_y = \
+        cached_objs_of_coord_transform_set["u_y"]
+    cosines_of_scaled_u_thetas = \
+        cached_objs_of_coord_transform_set["cosines_of_scaled_u_thetas"]
+    sines_of_scaled_u_thetas = \
+        cached_objs_of_coord_transform_set["sines_of_scaled_u_thetas"]
+    radial_fourier_series = \
+        cached_objs_of_coord_transform_set["radial_fourier_series"]
+    tangential_fourier_series = \
+        cached_objs_of_coord_transform_set["tangential_fourier_series"]
+    
+    cos_u_theta = cosines_of_scaled_u_thetas[:, 1]
+    sin_u_theta = sines_of_scaled_u_thetas[:, 0]
+
+    output_tensor_shape = (cos_u_theta.shape[0], 2) + cos_u_theta.shape[1:]
+    q = torch.zeros(output_tensor_shape,
+                    dtype=cos_u_theta.dtype,
+                    device=cos_u_theta.device)
+
+    q[:, 0] = (u_x
+               + radial_fourier_series * cos_u_theta
+               - tangential_fourier_series * sin_u_theta)
+    q[:, 1] = (u_y
+               + radial_fourier_series * sin_u_theta
+               + tangential_fourier_series * cos_u_theta)
+
+    return q
+
+
+
 def _calc_cached_objs_of_coord_transform_set(ml_data_dict, ml_model):
     distortion_model_set_params = \
         _generate_distortion_model_set_params(ml_data_dict, ml_model)
@@ -5233,65 +5281,117 @@ def _generate_cached_obj_key_subset_2_of_coord_transform_set():
 
 
 
-def _calc_q(cached_objs_of_coord_transform_set):
-    u_x = \
-        cached_objs_of_coord_transform_set["u_x"]
-    u_y = \
-        cached_objs_of_coord_transform_set["u_y"]
-    cosines_of_scaled_u_thetas = \
-        cached_objs_of_coord_transform_set["cosines_of_scaled_u_thetas"]
-    sines_of_scaled_u_thetas = \
-        cached_objs_of_coord_transform_set["sines_of_scaled_u_thetas"]
-    radial_fourier_series = \
-        cached_objs_of_coord_transform_set["radial_fourier_series"]
-    tangential_fourier_series = \
-        cached_objs_of_coord_transform_set["tangential_fourier_series"]
-    
-    cos_u_theta = cosines_of_scaled_u_thetas[:, 1]
-    sin_u_theta = sines_of_scaled_u_thetas[:, 0]
-
-    output_tensor_shape = (cos_u_theta.shape[0], 2) + cos_u_theta.shape[1:]
-    q = torch.zeros(output_tensor_shape,
-                    dtype=cos_u_theta.dtype,
-                    device=cos_u_theta.device)
-
-    q[:, 0] = (u_x
-               + radial_fourier_series * cos_u_theta
-               - tangential_fourier_series * sin_u_theta)
-    q[:, 1] = (u_y
-               + radial_fourier_series * sin_u_theta
-               + tangential_fourier_series * cos_u_theta)
-
-    return q
+_module_alias = emicroml.modelling._common
+_cls_alias = _module_alias._MLMetricCalculator
+class _MLMetricCalculator(_cls_alias):
+    def __init__(self):
+        return None
 
 
 
-def _calc_q_masks(ml_inputs, q):
-    kwargs = {"ml_data_dict": ml_inputs}
-    mask_frames = _calc_mask_frames_from_cbed_pattern_images(**kwargs)
+    def _calc_metrics_of_current_mini_batch(
+            self,
+            ml_inputs,
+            ml_predictions,
+            ml_targets,
+            ml_model,
+            ml_dataset_manager,
+            mini_batch_indices_for_entire_training_session):
+        metrics_of_current_mini_batch = dict()
 
-    key = "cbed_pattern_images"
-    cbed_pattern_images = ml_inputs[key]
+        kwargs = {"ml_data_dict": ml_targets, "ml_model": ml_model}
+        target_shifted_q = _calc_shifted_q(**kwargs)
 
-    q_masks = torch.zeros_like(q, dtype=bool)
+        kwargs = {"ml_data_dict": ml_predictions, "ml_model": ml_model}
+        predicted_shifted_q = _calc_shifted_q(**kwargs)
 
-    for mask_frame_idx, mask_frame in enumerate(mask_frames):
-        L, R, B, T = mask_frame
-        N = cbed_pattern_images.shape[-1]
+        method_alias = self._calc_scalar_rejection_maes_of_distortion_fields
+        kwargs = {"target_shifted_q": target_shifted_q,
+                  "predicted_shifted_q": predicted_shifted_q}
+        scalar_rejection_maes_of_distortion_fields = method_alias(**kwargs)
 
-        x_min = L/N
-        x_max = 1-(R/N)
+        method_alias = self._calc_vec_mag_maes_of_distortion_fields
+        vec_mag_maes_of_distortion_fields = method_alias(**kwargs)
 
-        y_min = B/N
-        y_max = 1-(T/N)
+        method_alias = self._calc_epes_of_distortion_fields
+        epes_of_distortion_fields = method_alias(**kwargs)
 
-        q_masks[mask_frame_idx, 0] = ((x_min <= q[mask_frame_idx, 0])
-                                      & (q[mask_frame_idx, 0] <= x_max)
-                                      & (y_min <= q[mask_frame_idx, 1])
-                                      & (q[mask_frame_idx, 1] <= y_max))
-        q_masks[mask_frame_idx, 1] = q_masks[mask_frame_idx, 0]
+        scalar_rejection_maes_plus_vec_mag_maes_of_distortion_fields = \
+            (scalar_rejection_maes_of_distortion_fields +
+             vec_mag_maes_of_distortion_fields)
 
-    return q_masks
+        metrics_of_current_mini_batch = \
+            {"scalar_rejection_maes_of_distortion_fields": \
+             scalar_rejection_maes_of_distortion_fields,
+             "vec_mag_maes_of_distortion_fields": \
+             vec_mag_maes_of_distortion_fields,
+             "scalar_rejection_maes_plus_vec_mag_maes_of_distortion_fields": \
+             scalar_rejection_maes_plus_vec_mag_maes_of_distortion_fields,
+             "epes_of_distortion_fields": \
+             epes_of_distortion_fields}
+
+        return metrics_of_current_mini_batch
+
+
+
+    def _calc_scalar_rejection_maes_of_distortion_fields(self,
+                                                         target_shifted_q,
+                                                         predicted_shifted_q):
+        a = target_shifted_q
+        b = predicted_shifted_q
+
+        mag_a = torch.sqrt(a[:, 0]*a[:, 0] + a[:, 1]*a[:, 1])
+        mag_b = torch.sqrt(b[:, 0]*b[:, 0] + b[:, 1]*b[:, 1])
+
+        a_dot_b = a[:, 0]*b[:, 0] + a[:, 1]*b[:, 1]
+        phi_ab = torch.acos(a_dot_b / mag_a / mag_b)
+
+        eps = 1e-8
+        bool_mat = (phi_ab < (np.pi/2))
+
+        abs_scalar_rejection_errors = \
+            torch.abs(b[:, 0]*a[:, 1] - b[:, 1]*a[:, 0]) / (mag_b + eps)
+        abs_scalar_rejection_errors = \
+            (bool_mat*abs_scalar_rejection_errors
+             + (~bool_mat)*(2*mag_a - abs_scalar_rejection_errors))
+
+        scalar_rejection_maes_of_distortion_fields = \
+            abs_scalar_rejection_errors.mean(dim=(1, 2))
+
+        return scalar_rejection_maes_of_distortion_fields
+
+
+
+    def _calc_vec_mag_maes_of_distortion_fields(self,
+                                                target_shifted_q,
+                                                predicted_shifted_q):
+        a = target_shifted_q
+        b = predicted_shifted_q
+
+        mag_a = torch.sqrt(a[:, 0]*a[:, 0] + a[:, 1]*a[:, 1])
+        mag_b = torch.sqrt(b[:, 0]*b[:, 0] + b[:, 1]*b[:, 1])
+
+        calc_abs_errors = torch.nn.functional.l1_loss
+        abs_errors = calc_abs_errors(mag_a, mag_b, reduction="none")
+
+        vec_mag_maes_of_distortion_fields = abs_errors.mean(dim=(1, 2))
+
+        return vec_mag_maes_of_distortion_fields
+
+
+
+    def _calc_epes_of_distortion_fields(self,
+                                        target_shifted_q,
+                                        predicted_shifted_q):
+        calc_sq_errors = torch.nn.functional.mse_loss
+        sq_errors = calc_sq_errors(target_shifted_q,
+                                   predicted_shifted_q,
+                                   reduction="none")
+
+        epes_of_distortion_fields = \
+            torch.sqrt(sq_errors[:, 0] + sq_errors[:, 1]).mean(dim=(1, 2))
+
+        return epes_of_distortion_fields
 
 
 
@@ -5303,39 +5403,31 @@ class _MLLossCalculator(_cls_alias):
 
 
 
-    def _calc_losses_of_current_mini_batch(self,
-                                           ml_inputs,
-                                           ml_predictions,
-                                           ml_targets,
-                                           ml_model,
-                                           ml_dataset_manager,
-                                           phase,
-                                           training_mini_batch_instance_idx,
-                                           validation_mini_batch_instance_idx,
-                                           testing_mini_batch_instance_idx):
-        losses_of_current_mini_batch = dict()
+    def _calc_losses_of_current_mini_batch(
+            self,
+            ml_inputs,
+            ml_predictions,
+            ml_targets,
+            ml_model,
+            ml_dataset_manager,
+            phase,
+            ml_metric_manager,
+            mini_batch_indices_for_entire_training_session):
+        metrics_of_current_mini_batch = \
+            ml_metric_manager._metrics_of_current_mini_batch
 
-        kwargs = {"ml_model": ml_model,
-                  "ml_inputs": ml_inputs,
-                  "ml_targets": ml_targets,
-                  "ml_predictions": ml_predictions,
-                  "phase": phase}
-        distortion_model_losses = self._calc_distortion_model_losses(**kwargs)
+        losses_of_current_mini_batch = {"total": 0.0}
 
-        losses_of_current_mini_batch = {"distortion_model": \
-                                        distortion_model_losses}
+        key_set_1 = ("scalar_rejection_maes_of_distortion_fields",
+                     "vec_mag_maes_of_distortion_fields")
 
-        if phase == "testing":
-            key = "distortion_model"
-            partial_losses = losses_of_current_mini_batch[key]
-            total_losses = torch.zeros_like(partial_losses)
-        else:
-            total_losses = 0.0
-        
-        for key in losses_of_current_mini_batch:
-            partial_losses = losses_of_current_mini_batch[key]
-            total_losses += partial_losses
-        losses_of_current_mini_batch["total"] = total_losses
+        for key_1 in key_set_1:
+            key_2 = \
+                "total"
+            losses_of_current_mini_batch[key_1] = \
+                metrics_of_current_mini_batch[key_1].mean()
+            losses_of_current_mini_batch[key_2] += \
+                losses_of_current_mini_batch[key_1]
 
         return losses_of_current_mini_batch
 
@@ -5347,29 +5439,11 @@ class _MLLossCalculator(_cls_alias):
                                       ml_targets,
                                       ml_predictions,
                                       phase):
-        kwargs = \
-            {"ml_data_dict": ml_targets, "ml_model": ml_model}
-        cached_objs_of_target_coord_transform_set = \
-            _calc_cached_objs_of_coord_transform_set(**kwargs)
+        kwargs = {"ml_data_dict": ml_targets, "ml_model": ml_model}
+        target_shifted_q = _calc_shifted_q(**kwargs)
 
-        kwargs = {"cached_objs_of_coord_transform_set": \
-                  cached_objs_of_target_coord_transform_set}
-        target_q = _calc_q(**kwargs)
-
-        mean_target_q = target_q.mean(dim=(2, 3))
-        target_shifted_q = target_q - mean_target_q[:, :, None, None]
-
-        kwargs = \
-            {"ml_data_dict": ml_predictions, "ml_model": ml_model}
-        cached_objs_of_predicted_coord_transform_set = \
-            _calc_cached_objs_of_coord_transform_set(**kwargs)
-
-        kwargs = {"cached_objs_of_coord_transform_set": \
-                  cached_objs_of_predicted_coord_transform_set}
-        predicted_q = _calc_q(**kwargs)
-
-        mean_predicted_q = predicted_q.mean(dim=(2, 3))
-        predicted_shifted_q = predicted_q - mean_predicted_q[:, :, None, None]
+        kwargs = {"ml_data_dict": ml_predictions, "ml_model": ml_model}
+        predicted_shifted_q = _calc_shifted_q(**kwargs)
 
         calc_se_losses = torch.nn.functional.mse_loss
         se_losses = calc_se_losses(target_shifted_q,
@@ -5423,11 +5497,14 @@ class _MLModelTrainer(_cls_alias):
 
 
     
-    def execute_post_core_attrs_update_actions(self):
-        super().execute_post_core_attrs_update_actions()
-
+    def train_ml_model(self, ml_model, ml_model_param_groups):
+        self._ml_metric_calculator = _MLMetricCalculator()
         self._ml_loss_calculator = _MLLossCalculator()
-                
+
+        kwargs = {"ml_model": ml_model,
+                  "ml_model_param_groups": ml_model_param_groups}
+        super().train_ml_model(**kwargs)
+
         return None
 
 
@@ -5479,11 +5556,12 @@ class _MLModelTester(_cls_alias):
 
 
     
-    def execute_post_core_attrs_update_actions(self):
-        super().execute_post_core_attrs_update_actions()
+    def test_ml_model(self, ml_model):
+        self._ml_metric_calculator = _MLMetricCalculator()
 
-        self._ml_loss_calculator = _MLLossCalculator()
-                
+        kwargs = {"ml_model": ml_model}
+        super().test_ml_model(**kwargs)
+
         return None
 
 

@@ -1479,14 +1479,12 @@ class _MLDataShapeAnalyzer():
 
     def _hdf5_dataset_path_to_shape_map_for_ml_dataset_combo(
             self, input_ml_dataset_filenames):
-        method_alias_names = \
+        method_names = \
             ("_hdf5_dataset_path_to_shape_map_of_ml_dataset_file",
              "_check_hdf5_dataset_path_to_shape_maps_of_two_ml_dataset_files",
              "_hdf5_dataset_path_to_shape_map_of_ml_dataset_file_as_if_resized")
         method_aliases = \
-            tuple(getattr(self, method_alias_name)
-                  for method_alias_name
-                  in method_alias_names)
+            tuple(getattr(self, method_name) for method_name in method_names)
 
         num_input_ml_datasets = len(input_ml_dataset_filenames)
         total_num_ml_data_instances = 0
@@ -1725,12 +1723,11 @@ class _MLDataShapeAnalyzer():
 
     def _hdf5_dataset_path_to_shape_maps_for_ml_dataset_split(
             self, input_ml_dataset_filename, split_ratio):
-        method_alias_names = \
+        method_names = \
             ("_hdf5_dataset_path_to_shape_map_of_ml_dataset_file",
              "_hdf5_dataset_path_to_shape_map_of_ml_dataset_file_as_if_resized")
         method_aliases = \
-            (getattr(self, method_alias_names[0]),
-             getattr(self, method_alias_names[1]))
+            (getattr(self, method_names[0]), getattr(self, method_names[1]))
 
         kwargs = {"path_to_ml_dataset": input_ml_dataset_filename}
         hdf5_dataset_path_to_shape_map = method_aliases[0](**kwargs)
@@ -2612,9 +2609,9 @@ def _combine_ml_dataset_files(input_ml_dataset_filenames,
     current_func_name = "_combine_ml_dataset_files"
 
     try:
-        method_alias_name = ("_check_dtypes_of_hdf5_datasets"
+        method_name = ("_check_dtypes_of_hdf5_datasets"
                              "_of_ml_dataset_files")
-        method_alias = getattr(ml_data_type_validator, method_alias_name)
+        method_alias = getattr(ml_data_type_validator, method_name)
         method_alias(paths_to_ml_datasets=input_ml_dataset_filenames)
 
         func_name = ("_initialize_output_file"
@@ -2632,9 +2629,9 @@ def _combine_ml_dataset_files(input_ml_dataset_filenames,
                   axes_labels_of_hdf5_datasets_of_ml_dataset_file}
         func_alias(**kwargs)
 
-        method_alias_name = ("_copy_and_renormalize_all_input_data"
+        method_name = ("_copy_and_renormalize_all_input_data"
                              "_and_save_to_output_file")
-        method_alias = getattr(ml_data_renormalizer, method_alias_name)
+        method_alias = getattr(ml_data_renormalizer, method_name)
         method_alias(output_ml_dataset_filename, rm_input_ml_dataset_files)
     except:
         unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
@@ -2892,9 +2889,9 @@ def _split_ml_dataset_file(ml_data_splitter,
     current_func_name = "_split_ml_dataset_file"
 
     try:
-        method_alias_name = ("_check_dtypes_of_hdf5_datasets"
+        method_name = ("_check_dtypes_of_hdf5_datasets"
                              "_of_ml_dataset_file")
-        method_alias = getattr(ml_data_type_validator, method_alias_name)
+        method_alias = getattr(ml_data_type_validator, method_name)
         method_alias(path_to_ml_dataset=input_ml_dataset_filename)
         
         func_name = ("_initialize_output_files_to_which_to_copy_contents"
@@ -2911,9 +2908,9 @@ def _split_ml_dataset_file(ml_data_splitter,
                   axes_labels_of_hdf5_datasets_of_ml_dataset_file}
         func_alias(**kwargs)
 
-        method_alias_name = ("_copy_and_split_input_data"
+        method_name = ("_copy_and_split_input_data"
                              "_and_save_to_output_files")
-        method_alias = getattr(ml_data_splitter, method_alias_name)
+        method_alias = getattr(ml_data_splitter, method_name)
         method_alias(output_ml_dataset_filenames, rm_input_ml_dataset_file)
     except:
         unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
@@ -3601,10 +3598,9 @@ class _TorchMLDataset(torch.utils.data.Dataset):
             if hdf5_dataset.shape is not None:
                 hdf5_datasubset = hdf5_dataset[:]                
                 if ml_data_values_are_to_be_checked:
-                    method_alias_name = ("_check_values_of_hdf5_datasubset"
+                    method_name = ("_check_values_of_hdf5_datasubset"
                                          "_of_ml_dataset_file")
-                    method_alias = getattr(ml_data_value_validator,
-                                           method_alias_name)
+                    method_alias = getattr(ml_data_value_validator, method_name)
                     method_alias(hdf5_dataset, hdf5_datasubset)
 
             hdf5_dataset.file.close()
@@ -5675,13 +5671,231 @@ class _NoPoolResNet(torch.nn.Module):
 
 
 
+class _MLMetricCalculator():
+    def __init__(self):
+        return None
+
+
+
+    def _calc_metrics_of_current_mini_batch(
+            self,
+            ml_inputs,
+            ml_predictions,
+            ml_targets,
+            ml_model,
+            ml_dataset_manager,
+            mini_batch_indices_for_entire_training_session):
+        pass
+
+
+
+class _MLMetricManager():
+    def __init__(self,
+                 ml_metric_calculator,
+                 ml_model,
+                 ml_dataset_manager,
+                 lr_scheduler_manager,
+                 output_data_filename):
+        self._ml_metric_calculator = ml_metric_calculator
+        self._ml_model = ml_model
+        self._ml_dataset_manager = ml_dataset_manager
+
+        ml_dataset_manager_core_attrs = \
+            ml_dataset_manager.get_core_attrs(deep_copy=False)
+        self._mini_batch_size = \
+            ml_dataset_manager_core_attrs["mini_batch_size"]
+
+        phases = ("training", "validation", "testing")
+        self._ml_data_instance_metrics = dict()
+        self._mini_batch_indices_for_entire_training_session = dict()
+        self._single_dim_slices = dict()
+
+        for phase in phases:
+            self._ml_data_instance_metrics[phase] = dict()
+            self._mini_batch_indices_for_entire_training_session[phase] = 0
+            self._single_dim_slices[phase] = slice(0, 0)
+
+        kwargs = \
+            {"lr_scheduler_manager": lr_scheduler_manager}
+        self._total_ml_data_instance_counts = \
+            self._calc_total_ml_data_instance_counts(**kwargs)
+
+        self._output_data_filename = output_data_filename
+
+        return None
+
+
+
+    def _calc_total_ml_data_instance_counts(self, lr_scheduler_manager):
+        total_num_lr_steps = \
+            lr_scheduler_manager._total_num_steps
+        phase_in_which_to_update_lr = \
+            lr_scheduler_manager._phase_in_which_to_update_lr
+
+        total_ml_data_instance_counts = dict()
+        phases = ("training", "validation", "testing")
+        
+        for phase in phases:
+            method_name = "_get_torch_ml_{}_dataloader".format(phase)
+            method_alias = getattr(self._ml_dataset_manager, method_name)
+            torch_ml_dataloader = method_alias()
+
+            if ((torch_ml_dataloader is None)
+                or ((lr_scheduler_manager is not None) and (phase == "testing"))
+                or ((lr_scheduler_manager is None) and (phase != "testing"))):
+                total_ml_data_instance_counts[phase] = 0
+            else:
+                torch_ml_dataset = torch_ml_dataloader.dataset
+                
+                if phase_in_which_to_update_lr == "training":
+                    if phase == "training":
+                        total_ml_data_instance_counts[phase] = \
+                            ((((total_num_lr_steps+1)
+                               // len(torch_ml_dataloader))
+                              * len(torch_ml_dataset))
+                             + (((total_num_lr_steps+1)
+                                 % len(torch_ml_dataloader))
+                                * self._mini_batch_size))
+                        total_num_epochs = \
+                            ((total_ml_data_instance_counts[phase]
+                              // len(torch_ml_dataset))
+                             + ((total_ml_data_instance_counts[phase]
+                                 % len(torch_ml_dataset)) != 0))
+                    else:
+                        total_ml_data_instance_counts[phase] = \
+                            (((phase == "validation")*(total_num_epochs-1) + 1)
+                             * len(torch_ml_dataset))
+                else:
+                    total_ml_data_instance_counts[phase] = \
+                        (((phase != "testing")*total_num_lr_steps + 1)
+                         * len(torch_ml_dataset))
+
+        return total_ml_data_instance_counts
+
+
+
+    def _update_ml_data_instance_metrics(self,
+                                         ml_inputs,
+                                         ml_predictions,
+                                         ml_targets,
+                                         phase):
+        kwargs = \
+            {key: val
+             for key, val in locals().items()
+             if (key not in ("self", "__class__", "phase"))}
+        self._metrics_of_current_mini_batch = \
+            self._calc_metrics_of_current_mini_batch(**kwargs)
+
+        single_dim_slices = \
+            self._single_dim_slices
+        ml_data_instance_metrics = \
+            self._ml_data_instance_metrics
+        metrics_of_current_mini_batch = \
+            self._metrics_of_current_mini_batch
+        mini_batch_indices_for_entire_training_session = \
+            self._mini_batch_indices_for_entire_training_session
+        total_ml_data_instance_counts = \
+            self._total_ml_data_instance_counts
+
+        key_set_1 = (phase,)
+        key_set_2 = tuple(metrics_of_current_mini_batch.keys())
+
+        for key_1 in key_set_1:
+            key_2 = key_set_2[0]
+
+            start = single_dim_slices[key_1].stop
+            stop = start + torch.numel(metrics_of_current_mini_batch[key_2])
+            single_dim_slice = slice(start, stop)
+            single_dim_slices[key_1] = single_dim_slice
+
+            for key_2 in key_set_2:
+                if key_2 not in ml_data_instance_metrics[key_1]:
+                    ml_data_instance_metrics[key_1][key_2] = \
+                        np.zeros((total_ml_data_instance_counts[key_1],))
+
+                ml_data_instance_metric_subset = \
+                    metrics_of_current_mini_batch[key_2].cpu().detach().numpy()
+
+                ml_data_instance_metrics[key_1][key_2][single_dim_slice] += \
+                    ml_data_instance_metric_subset
+
+            mini_batch_indices_for_entire_training_session[key_1] += 1
+
+        return None
+
+
+
+    def _calc_metrics_of_current_mini_batch(self,
+                                            ml_inputs,
+                                            ml_predictions,
+                                            ml_targets):
+        ml_metric_calculator = self._ml_metric_calculator
+
+        kwargs = \
+            {"ml_inputs": \
+             ml_inputs,
+             "ml_predictions": \
+             ml_predictions,
+             "ml_targets": \
+             ml_targets,
+             "ml_model": \
+             self._ml_model,
+             "ml_dataset_manager": \
+             self._ml_dataset_manager,
+             "mini_batch_indices_for_entire_training_session": \
+             self._mini_batch_indices_for_entire_training_session}
+        metrics_of_current_mini_batch = \
+            ml_metric_calculator._calc_metrics_of_current_mini_batch(**kwargs)
+
+        return metrics_of_current_mini_batch
+
+
+
+    def _save_ml_data_instance_metrics(self):
+        ml_data_instance_metrics = self._ml_data_instance_metrics
+        filename = self._output_data_filename
+
+        for key_1 in ml_data_instance_metrics:
+            if self._total_ml_data_instance_counts[key_1] == 0:
+                continue
+            for key_2 in ml_data_instance_metrics[key_1]:
+                unformatted_path_in_file = "ml_data_instance_metrics/{}/{}"
+                path_in_file = unformatted_path_in_file.format(key_1, key_2)
+                kwargs = {"filename": filename, "path_in_file": path_in_file}
+                hdf5_dataset_id = h5pywrappers.obj.ID(**kwargs)
+
+                kwargs = {"dataset": ml_data_instance_metrics[key_1][key_2],
+                          "dataset_id": hdf5_dataset_id,
+                          "write_mode": "a"}
+                h5pywrappers.dataset.save(**kwargs)
+
+                kwargs = {"obj_id": hdf5_dataset_id, "attr_name": "dim_0"}
+                attr_id = h5pywrappers.attr.ID(**kwargs)
+
+                attr = "{} ml data instance idx".format(key_1)
+                kwargs = {"attr": attr, "attr_id": attr_id, "write_mode": "a"}
+                h5pywrappers.attr.save(**kwargs)
+
+        return None
+
+
+
 class _MLLossCalculator():
     def __init__(self):
         return None
 
 
 
-    def _calc_losses_of_current_mini_batch(self):
+    def _calc_losses_of_current_mini_batch(
+            self,
+            ml_inputs,
+            ml_predictions,
+            ml_targets,
+            ml_model,
+            ml_dataset_manager,
+            phase,
+            ml_metric_manager,
+            mini_batch_indices_for_entire_training_session):
         pass
 
 
@@ -5697,28 +5911,20 @@ class _MLLossManager():
         self._ml_model = ml_model
         self._ml_dataset_manager = ml_dataset_manager
 
-        self._mini_batch_losses = {"training": dict(), "validation": dict()}
-        self._ml_testing_data_instance_losses = dict()
-        
-        self._training_mini_batch_instance_idx = 0
-        self._validation_mini_batch_instance_idx = 0
-        self._testing_mini_batch_instance_idx = 0
+        phases = ("training", "validation")
+        self._mini_batch_losses = dict()
+        self._mini_batch_indices_for_entire_training_session = dict()
+        self._mini_batch_indices_for_current_epoch = dict()
 
-        self._training_mini_batch_count_of_current_epoch = 0
-        self._validation_mini_batch_count_of_current_epoch = 0
-
-        kwargs = \
-            {"lr_scheduler_manager": lr_scheduler_manager,
-             "ml_dataset_manager": ml_dataset_manager}
-        self._total_num_training_mini_batches = \
-            self._calc_total_num_training_mini_batches(**kwargs)
-        self._total_num_validation_mini_batches = \
-            self._calc_total_num_validation_mini_batches(**kwargs)
+        for phase in phases:
+            self._mini_batch_losses[phase] = dict()
+            self._mini_batch_indices_for_entire_training_session[phase] = 0
+            self._mini_batch_indices_for_current_epoch[phase] = 0
 
         kwargs = \
-            {"ml_dataset_manager": ml_dataset_manager}
-        self._total_num_ml_testing_data_instances = \
-            self._calc_total_num_ml_testing_data_instances(**kwargs)
+            {"lr_scheduler_manager": lr_scheduler_manager}
+        self._total_mini_batch_counts = \
+            self._calc_total_mini_batch_counts(**kwargs)
 
         self._output_data_filename = output_data_filename
 
@@ -5726,96 +5932,46 @@ class _MLLossManager():
 
 
 
-    def _calc_total_num_training_mini_batches(self,
-                                              lr_scheduler_manager,
-                                              ml_dataset_manager):
-        if lr_scheduler_manager is None:
-            total_num_training_mini_batches = \
-                0
-        else:
-            total_num_lr_steps = \
-                lr_scheduler_manager._total_num_steps
-            phase_in_which_to_update_lr = \
-                lr_scheduler_manager._phase_in_which_to_update_lr
+    def _calc_total_mini_batch_counts(self, lr_scheduler_manager):
+        total_num_lr_steps = \
+            lr_scheduler_manager._total_num_steps
+        phase_in_which_to_update_lr = \
+            lr_scheduler_manager._phase_in_which_to_update_lr
 
-            if phase_in_which_to_update_lr == "training":
-                total_num_training_mini_batches = \
-                    total_num_lr_steps+1
+        total_mini_batch_counts = dict()
+        phases = ("training", "validation")
+        
+        for phase in phases:
+            method_name = "_get_torch_ml_{}_dataloader".format(phase)
+            method_alias = getattr(self._ml_dataset_manager, method_name)
+            torch_ml_dataloader = method_alias()
+
+            if torch_ml_dataloader is None:
+                total_mini_batch_counts[phase] = 0
             else:
-                torch_ml_training_dataloader = \
-                    ml_dataset_manager._get_torch_ml_training_dataloader()
-                num_training_mini_batches_per_epoch = \
-                    len(torch_ml_training_dataloader)
-                total_num_training_mini_batches = \
-                    (total_num_lr_steps+1)*num_training_mini_batches_per_epoch
-
-        return total_num_training_mini_batches
-
-
-
-    def _calc_total_num_validation_mini_batches(self,
-                                                lr_scheduler_manager,
-                                                ml_dataset_manager):
-        if lr_scheduler_manager is None:
-            total_num_validation_mini_batches = \
-                0
-        else:
-            torch_ml_validation_dataloader = \
-                ml_dataset_manager._get_torch_ml_validation_dataloader()
-
-            if torch_ml_validation_dataloader is None:
-                total_num_validation_mini_batches = \
-                    None
-            else:
-                total_num_lr_steps = \
-                    lr_scheduler_manager._total_num_steps
-                phase_in_which_to_update_lr = \
-                    lr_scheduler_manager._phase_in_which_to_update_lr
-                num_validation_mini_batches_per_epoch = \
-                    len(torch_ml_validation_dataloader)
-
-                torch_ml_training_dataloader = \
-                    ml_dataset_manager._get_torch_ml_training_dataloader()
-
                 if phase_in_which_to_update_lr == "training":
-                    total_num_training_mini_batches = \
-                        total_num_lr_steps+1
-                    num_training_mini_batches_per_epoch = \
-                        len(torch_ml_training_dataloader)
-                    num_epochs = \
-                        ((total_num_training_mini_batches
-                          // num_training_mini_batches_per_epoch)
-                         + ((total_num_training_mini_batches
-                             % num_training_mini_batches_per_epoch) != 0))
-                    total_num_validation_mini_batches = \
-                        num_epochs*num_validation_mini_batches_per_epoch
+                    if phase == "training":
+                        total_mini_batch_counts[phase] = \
+                            total_num_lr_steps+1
+                        total_num_epochs = \
+                            ((total_mini_batch_counts[phase]
+                              // len(torch_ml_dataloader))
+                             + ((total_mini_batch_counts[phase]
+                                 % len(torch_ml_dataloader)) != 0))
+                    else:
+                        total_mini_batch_counts[phase] = \
+                            total_num_epochs*len(torch_ml_dataloader)
                 else:
-                    total_num_validation_mini_batches = \
-                        ((total_num_lr_steps+1)
-                         *num_validation_mini_batches_per_epoch)
+                    total_mini_batch_counts[phase] = \
+                        (total_num_lr_steps+1) * len(torch_ml_dataloader)
 
-        return total_num_validation_mini_batches
-
-
-
-    def _calc_total_num_ml_testing_data_instances(self, ml_dataset_manager):
-        torch_ml_testing_dataloader = \
-            ml_dataset_manager._get_torch_ml_testing_dataloader()
-
-        if torch_ml_testing_dataloader is None:
-            total_num_ml_testing_data_instances = \
-                None
-        else:
-            total_num_ml_testing_data_instances = \
-                len(torch_ml_testing_dataloader.dataset)
-
-        return total_num_ml_testing_data_instances
+        return total_mini_batch_counts
 
 
 
-    def _reset_current_epoch_mini_batch_counts(self):
-        self._training_mini_batch_count_of_current_epoch = 0
-        self._validation_mini_batch_count_of_current_epoch = 0
+    def _reset_mini_batch_indices_for_current_epoch(self):
+        for phase in self._mini_batch_indices_for_current_epoch:
+            self._mini_batch_indices_for_current_epoch[phase] = 0
 
         return None
 
@@ -5825,13 +5981,17 @@ class _MLLossManager():
                                   ml_inputs,
                                   ml_predictions,
                                   ml_targets,
-                                  phase):
+                                  phase,
+                                  ml_metric_manager):
         kwargs = \
             {key: val
              for key, val in locals().items()
              if (key not in ("self", "__class__"))}
         self._losses_of_current_mini_batch = \
             self._calc_losses_of_current_mini_batch(**kwargs)
+
+        metrics_of_current_mini_batch = \
+            ml_metric_manager._metrics_of_current_mini_batch
 
         key_set_1 = (phase,)
         key_set_2 = tuple(self._losses_of_current_mini_batch.keys())
@@ -5839,77 +5999,23 @@ class _MLLossManager():
         for key_1 in key_set_1:
             for key_2 in key_set_2:
                 if key_2 not in self._mini_batch_losses[key_1]:
-                    if key_1 == "training":
-                        num_elems_in_zero_array = \
-                            self._total_num_training_mini_batches
-                    else:
-                        num_elems_in_zero_array = \
-                            self._total_num_validation_mini_batches
+                    self._mini_batch_losses[key_1][key_2] = \
+                        np.zeros((self._total_mini_batch_counts[key_1],))
 
-                    zero_array_shape = (num_elems_in_zero_array,)
-                    zero_array = np.zeros(zero_array_shape)
-                    self._mini_batch_losses[key_1][key_2] = zero_array
-
-                array_idx = (self._training_mini_batch_instance_idx
-                             if (key_1 == "training")
-                             else self._validation_mini_batch_instance_idx)
-
+                array_idx = \
+                    self._mini_batch_indices_for_entire_training_session[key_1]
                 self._mini_batch_losses[key_1][key_2][array_idx] += \
                     self._losses_of_current_mini_batch[key_2].item()
 
-                if key_1 == "validation":
+                if key_1 != "training":
                     del self._losses_of_current_mini_batch[key_2]
 
-        if phase == "training":
-            self._training_mini_batch_instance_idx += 1
-            self._training_mini_batch_count_of_current_epoch += 1
-        else:
-            self._validation_mini_batch_instance_idx += 1
-            self._validation_mini_batch_count_of_current_epoch += 1
+            self._mini_batch_indices_for_entire_training_session[key_1] += 1
+            self._mini_batch_indices_for_current_epoch[key_1] += 1
 
-        return None
-
-
-
-    def _update_ml_testing_data_instance_losses(self,
-                                                ml_inputs,
-                                                ml_predictions,
-                                                ml_targets):
-        kwargs = \
-            {key: val
-             for key, val in locals().items()
-             if (key not in ("self", "__class__"))}
-        kwargs["phase"] = \
-            "testing"
-        self._losses_of_current_mini_batch = \
-            self._calc_losses_of_current_mini_batch(**kwargs)
-
-        ml_dataset_manager_core_attrs = \
-            self._ml_dataset_manager.get_core_attrs(deep_copy=False)
-        mini_batch_size = \
-            ml_dataset_manager_core_attrs["mini_batch_size"]
-
-        key_set = tuple(self._losses_of_current_mini_batch.keys())
-
-        for key in key_set:
-            if key not in self._ml_testing_data_instance_losses:
-                zero_array_shape = (self._total_num_ml_testing_data_instances,)
-                zero_array = np.zeros(zero_array_shape)
-                self._ml_testing_data_instance_losses[key] = zero_array
-
-            ml_testing_data_instance_loss_subset = \
-                self._losses_of_current_mini_batch[key].cpu().detach().numpy()
-
-            start = self._testing_mini_batch_instance_idx*mini_batch_size
-            stop = start + len(ml_testing_data_instance_loss_subset)
-            single_dim_slice = slice(start, stop)
-
-            self._ml_testing_data_instance_losses[key][single_dim_slice] += \
-                ml_testing_data_instance_loss_subset
-
-            del self._losses_of_current_mini_batch[key]
-
-        self._testing_mini_batch_instance_idx += 1
+        key_set_3 = tuple(metrics_of_current_mini_batch.keys())
+        for key_3 in key_set_3:
+            del metrics_of_current_mini_batch[key_3]
 
         return None
 
@@ -5919,28 +6025,20 @@ class _MLLossManager():
                                            ml_inputs,
                                            ml_predictions,
                                            ml_targets,
-                                           phase):
-        ml_loss_calculator = self._ml_loss_calculator
-
+                                           phase,
+                                           ml_metric_manager):
         kwargs = \
-            {"ml_inputs": \
-             ml_inputs,
-             "ml_predictions": \
-             ml_predictions,
-             "ml_targets": \
-             ml_targets,
-             "ml_model": \
-             self._ml_model,
-             "ml_dataset_manager": \
-             self._ml_dataset_manager,
-             "phase": \
-             phase,
-             "training_mini_batch_instance_idx": \
-             self._training_mini_batch_instance_idx,
-             "validation_mini_batch_instance_idx": \
-             self._validation_mini_batch_instance_idx,
-             "testing_mini_batch_instance_idx": \
-             self._testing_mini_batch_instance_idx}
+            {key: val
+             for key, val in locals().items()
+             if (key not in ("self", "__class__"))}
+        kwargs["ml_model"] = \
+            self._ml_model
+        kwargs["ml_dataset_manager"] = \
+            self._ml_dataset_manager
+        kwargs["mini_batch_indices_for_entire_training_session"] = \
+            self._mini_batch_indices_for_entire_training_session
+        ml_loss_calculator = \
+            self._ml_loss_calculator
         losses_of_current_mini_batch = \
             ml_loss_calculator._calc_losses_of_current_mini_batch(**kwargs)
 
@@ -5960,12 +6058,8 @@ class _MLLossManager():
 
 
     def _calc_avg_total_mini_batch_loss_of_current_epoch(self, phase):
-        stop = (self._training_mini_batch_instance_idx
-                if (phase == "training")
-                else self._validation_mini_batch_instance_idx)
-        start = (stop-self._training_mini_batch_count_of_current_epoch
-                 if (phase == "training")
-                 else stop-self._validation_mini_batch_count_of_current_epoch)
+        stop = self._mini_batch_indices_for_entire_training_session[phase]
+        start = stop - self._mini_batch_indices_for_current_epoch[phase]
         single_dim_slice = slice(start, stop)
 
         total_mini_batch_losses_of_current_epoch = \
@@ -5982,6 +6076,8 @@ class _MLLossManager():
         filename = self._output_data_filename
 
         for key_1 in mini_batch_losses:
+            if self._total_mini_batch_counts[key_1] == 0:
+                continue
             for key_2 in mini_batch_losses[key_1]:
                 unformatted_path_in_file = "mini_batch_losses/{}/{}"
                 path_in_file = unformatted_path_in_file.format(key_1, key_2)
@@ -5999,32 +6095,6 @@ class _MLLossManager():
                 attr = "{} mini batch instance idx".format(key_1)
                 kwargs = {"attr": attr, "attr_id": attr_id, "write_mode": "a"}
                 h5pywrappers.attr.save(**kwargs)
-
-        return None
-
-
-
-    def _save_ml_testing_data_instance_losses(self):
-        ml_testing_data_instance_losses = self._ml_testing_data_instance_losses
-        filename = self._output_data_filename
-
-        for key in ml_testing_data_instance_losses:
-            unformatted_path_in_file = "ml_testing_data_instance_losses/{}"
-            path_in_file = unformatted_path_in_file.format(key)
-            kwargs = {"filename": filename, "path_in_file": path_in_file}
-            hdf5_dataset_id = h5pywrappers.obj.ID(**kwargs)
-
-            kwargs = {"dataset": self._ml_testing_data_instance_losses[key],
-                      "dataset_id": hdf5_dataset_id,
-                      "write_mode": "a"}
-            h5pywrappers.dataset.save(**kwargs)
-
-            kwargs = {"obj_id": hdf5_dataset_id, "attr_name": "dim_0"}
-            attr_id = h5pywrappers.attr.ID(**kwargs)
-
-            attr = "ml testing data instance idx"
-            kwargs = {"attr": attr, "attr_id": attr_id, "write_mode": "a"}
-            h5pywrappers.attr.save(**kwargs)
 
         return None
 
@@ -6278,6 +6348,8 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
         self._start_time = None
         self._ml_model = None
         self._ml_model_cls = None
+        self._ml_metric_calculator = None
+        self._ml_metric_manager = None
         self._ml_loss_calculator = None
         self._ml_loss_manager = None
         self._training_has_not_finished = None
@@ -6339,6 +6411,8 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
 
         self._print_train_ml_model_starting_msg()
 
+        self._generate_and_store_ml_metric_manager()
+
         self._generate_and_store_ml_loss_manager()
 
         self._initialize_lr_schedules(ml_model_param_groups)
@@ -6347,6 +6421,8 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
 
         self._execute_training_and_validation_cycles()
 
+        self._ml_metric_manager._save_ml_data_instance_metrics()
+
         self._ml_loss_manager._save_mini_batch_losses()
 
         self._save_lr_schedules()
@@ -6354,6 +6430,8 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
         self._print_train_ml_model_end_msg()
 
         self._ml_model = None
+        self._ml_metric_calculator = None
+        self._ml_metric_manager = None
         self._ml_loss_calculator = None
         self._ml_loss_manager = None
 
@@ -6417,6 +6495,23 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
                                          path_to_ml_dataset_for_validation)
         
         print(msg)
+
+        return None
+
+
+
+    def _generate_and_store_ml_metric_manager(self):
+        kwargs = {"ml_metric_calculator": \
+                  self._ml_metric_calculator,
+                  "ml_model": \
+                  self._ml_model,
+                  "ml_dataset_manager": \
+                  self._ml_dataset_manager,
+                  "lr_scheduler_manager": \
+                  self._lr_scheduler_manager,
+                  "output_data_filename": \
+                  self._ml_model_training_summary_output_data_filename}
+        self._ml_metric_manager = _MLMetricManager(**kwargs)
 
         return None
 
@@ -6514,9 +6609,10 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
         msg = "Starting epoch #{}...\n".format(epoch)
         print(msg)
 
+        ml_metric_manager = self._ml_metric_manager
         ml_loss_manager = self._ml_loss_manager
 
-        ml_loss_manager._reset_current_epoch_mini_batch_counts()
+        ml_loss_manager._reset_mini_batch_indices_for_current_epoch()
         self._execute_training_phase_of_cycle(epoch)
         self._execute_validation_phase_of_cycle(epoch)
         elapsed_time = time.time() - start_time
@@ -6607,12 +6703,15 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
                                                      lr_scheduler_idx)
                 raise ValueError(err_msg)
 
-        ml_predictions = self._ml_model(ml_inputs)
+        kwargs = {"ml_inputs": ml_inputs,
+                  "ml_predictions": self._ml_model(ml_inputs),
+                  "ml_targets": ml_targets,
+                  "phase": "training"}
+        self._ml_metric_manager._update_ml_data_instance_metrics(**kwargs)
+
+        kwargs["ml_metric_manager"] = self._ml_metric_manager
+        self._ml_loss_manager._update_mini_batch_losses(**kwargs)
         
-        self._ml_loss_manager._update_mini_batch_losses(ml_inputs,
-                                                        ml_predictions,
-                                                        ml_targets,
-                                                        phase="training")
         self._ml_loss_manager._perform_backpropagation()
 
         for lr_scheduler_idx, lr_scheduler in enumerate(lr_schedulers):
@@ -6730,11 +6829,14 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
                 raise ValueError(err_msg)
             
         with torch.no_grad():
-            ml_predictions = self._ml_model(ml_inputs)
-            self._ml_loss_manager._update_mini_batch_losses(ml_inputs,
-                                                            ml_predictions,
-                                                            ml_targets,
-                                                            phase="validation")
+            kwargs = {"ml_inputs": ml_inputs,
+                      "ml_predictions": self._ml_model(ml_inputs),
+                      "ml_targets": ml_targets,
+                      "phase": "validation"}
+            self._ml_metric_manager._update_ml_data_instance_metrics(**kwargs)
+
+            kwargs["ml_metric_manager"] = self._ml_metric_manager
+            self._ml_loss_manager._update_mini_batch_losses(**kwargs)
 
         elapsed_time = time.time() - start_time            
         unformatted_msg = ("Validation mini_batch #{} has been processed for "
@@ -6919,8 +7021,8 @@ class _MLModelTester(fancytypes.PreSerializableAndUpdatable):
         self._start_time = None
         self._ml_model = None
         self._ml_model_cls = None
-        self._ml_loss_calculator = None
-        self._ml_loss_manager = None
+        self._ml_metric_calculator = None
+        self._ml_metric_manager = None
         self._testing_has_not_finished = None
                 
         return None
@@ -6979,19 +7081,19 @@ class _MLModelTester(fancytypes.PreSerializableAndUpdatable):
 
         self._print_test_ml_model_starting_msg()
 
-        self._generate_and_store_ml_loss_manager()
+        self._generate_and_store_ml_metric_manager()
 
         self._initialize_ml_model_testing_summary_output_data_file()
 
         self._process_testing_mini_batches()
 
-        self._ml_loss_manager._save_ml_testing_data_instance_losses()
+        self._ml_metric_manager._save_ml_data_instance_metrics()
 
         self._print_test_ml_model_end_msg()
 
         self._ml_model = None
-        self._ml_loss_calculator = None
-        self._ml_loss_manager = None
+        self._ml_metric_calculator = None
+        self._ml_metric_manager = None
 
         return None
 
@@ -7029,9 +7131,9 @@ class _MLModelTester(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _generate_and_store_ml_loss_manager(self):
-        kwargs = {"ml_loss_calculator": \
-                  self._ml_loss_calculator,
+    def _generate_and_store_ml_metric_manager(self):
+        kwargs = {"ml_metric_calculator": \
+                  self._ml_metric_calculator,
                   "ml_model": \
                   self._ml_model,
                   "ml_dataset_manager": \
@@ -7040,7 +7142,7 @@ class _MLModelTester(fancytypes.PreSerializableAndUpdatable):
                   None,
                   "output_data_filename": \
                   self._ml_model_testing_summary_output_data_filename}
-        self._ml_loss_manager = _MLLossManager(**kwargs)
+        self._ml_metric_manager = _MLMetricManager(**kwargs)
 
         return None
 
@@ -7059,7 +7161,7 @@ class _MLModelTester(fancytypes.PreSerializableAndUpdatable):
         h5pywrappers.json.document.save(**kwargs)
 
         total_num_ml_testing_data_instances = \
-            self._ml_loss_manager._total_num_ml_testing_data_instances
+            self._ml_metric_manager._total_ml_data_instance_counts["testing"]
 
         kwargs = {"filename": filename,
                   "path_in_file": "total_num_ml_testing_data_instances"}
@@ -7100,12 +7202,13 @@ class _MLModelTester(fancytypes.PreSerializableAndUpdatable):
         with torch.no_grad():
             ml_predictions = self._ml_model(ml_inputs)
 
-            ml_loss_manager = self._ml_loss_manager
+            ml_metric_manager = self._ml_metric_manager
 
             kwargs = {"ml_inputs": ml_inputs,
                       "ml_predictions": ml_predictions,
-                      "ml_targets": ml_targets}
-            ml_loss_manager._update_ml_testing_data_instance_losses(**kwargs)
+                      "ml_targets": ml_targets,
+                      "phase": "testing"}
+            ml_metric_manager._update_ml_data_instance_metrics(**kwargs)
 
         elapsed_time = time.time() - start_time            
         unformatted_msg = ("Testing mini_batch #{} has been processed; "
