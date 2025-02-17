@@ -41,6 +41,7 @@ import torch
 # List of public objects in module.
 __all__ = ["BaseMLOptimizer",
            "AdamW",
+           "SGD",
            "Generic"]
 
 
@@ -421,8 +422,198 @@ class AdamW(BaseMLOptimizer):
 
 
 
+def _check_and_convert_momentum_factor(params):
+    obj_name = "momentum_factor"
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    momentum_factor = czekitout.convert.to_nonnegative_float(**kwargs)
+
+    return momentum_factor
+
+
+
+def _pre_serialize_momentum_factor(momentum_factor):
+    obj_to_pre_serialize = momentum_factor
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_momentum_factor(serializable_rep):
+    momentum_factor = serializable_rep
+
+    return momentum_factor
+
+
+
+def _check_and_convert_momentum_dampening_factor(params):
+    obj_name = "momentum_dampening_factor"
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    momentum_dampening_factor = czekitout.convert.to_nonnegative_float(**kwargs)
+
+    return momentum_dampening_factor
+
+
+
+def _pre_serialize_momentum_dampening_factor(momentum_dampening_factor):
+    obj_to_pre_serialize = momentum_dampening_factor
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_momentum_dampening_factor(serializable_rep):
+    momentum_dampening_factor = serializable_rep
+
+    return momentum_dampening_factor
+
+
+
+def _check_and_convert_enable_nesterov_momentum(params):
+    obj_name = "enable_nesterov_momentum"
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    enable_nesterov_momentum = czekitout.convert.to_bool(**kwargs)
+
+    return enable_nesterov_momentum
+
+
+
+def _pre_serialize_enable_nesterov_momentum(enable_nesterov_momentum):
+    obj_to_pre_serialize = enable_nesterov_momentum
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_enable_nesterov_momentum(serializable_rep):
+    enable_nesterov_momentum = serializable_rep
+
+    return enable_nesterov_momentum
+
+
+
+_default_momentum_factor = 0
+_default_momentum_dampening_factor = 0
+_default_enable_nesterov_momentum = False
+
+
+
+class SGD(BaseMLOptimizer):
+    r"""A wrapper to the PyTorch optimizer class :class:`torch.optim.SGD`.
+
+    The current class is a subclass of
+    :class:`fancytypes.PreSerializableAndUpdatable`.
+
+    An optimizer represented by an instance of the current class can only be
+    associated with one machine learning model fitting parameter group, which is
+    specified elsewhere.
+
+    Parameters
+    ----------
+    base_lr : `float`, optional
+        Same as the parameter ``lr`` for the class :class:`torch.optim.SGD`.
+    weight_decay : `float`, optional
+        Same as the parameter ``weight_decay`` for the class 
+        :class:`torch.optim.SGD`.
+    momentum_factor : `float`, optional
+        Same as the parameter ``momentum`` for the class
+        :class:`torch.optim.SGD`.
+    momentum_dampening_factor : `float`, optional
+        Same as the parameter ``dampening`` for the class
+        :class:`torch.optim.SGD`.
+    enable_nesterov_momentum : `bool`, optional
+        Same as the parameter ``nesterov`` for the class
+        :class:`torch.optim.SGD`.
+    skip_validation_and_conversion : `bool`, optional
+        Let ``validation_and_conversion_funcs`` and ``core_attrs`` denote the
+        attributes :attr:`~fancytypes.Checkable.validation_and_conversion_funcs`
+        and :attr:`~fancytypes.Checkable.core_attrs` respectively, both of which
+        being `dict` objects.
+
+        Let ``params_to_be_mapped_to_core_attrs`` denote the `dict`
+        representation of the constructor parameters excluding the parameter
+        ``skip_validation_and_conversion``, where each `dict` key ``key`` is a
+        different constructor parameter name, excluding the name
+        ``"skip_validation_and_conversion"``, and
+        ``params_to_be_mapped_to_core_attrs[key]`` would yield the value of the
+        constructor parameter with the name given by ``key``.
+
+        If ``skip_validation_and_conversion`` is set to ``False``, then for each
+        key ``key`` in ``params_to_be_mapped_to_core_attrs``,
+        ``core_attrs[key]`` is set to ``validation_and_conversion_funcs[key]
+        (params_to_be_mapped_to_core_attrs)``.
+
+        Otherwise, if ``skip_validation_and_conversion`` is set to ``True``,
+        then ``core_attrs`` is set to
+        ``params_to_be_mapped_to_core_attrs.copy()``. This option is desired
+        primarily when the user wants to avoid potentially expensive deep copies
+        and/or conversions of the `dict` values of
+        ``params_to_be_mapped_to_core_attrs``, as it is guaranteed that no
+        copies or conversions are made in this case.
+
+    """
+    ctor_param_names = ("base_lr",
+                        "weight_decay",
+                        "momentum_factor",
+                        "momentum_dampening_factor",
+                        "enable_nesterov_momentum")
+    kwargs = {"namespace_as_dict": globals(),
+              "ctor_param_names": ctor_param_names}
+
+    _validation_and_conversion_funcs_ = \
+        fancytypes.return_validation_and_conversion_funcs(**kwargs)
+    _pre_serialization_funcs_ = \
+        fancytypes.return_pre_serialization_funcs(**kwargs)
+    _de_pre_serialization_funcs_ = \
+        fancytypes.return_de_pre_serialization_funcs(**kwargs)
+
+    del ctor_param_names, kwargs
+
+    
+
+    def __init__(self,
+                 base_lr=\
+                 _default_base_lr,
+                 weight_decay=\
+                 _default_weight_decay,
+                 momentum_factor=\
+                 _default_momentum_factor,
+                 momentum_dampening_factor=\
+                 _default_momentum_dampening_factor,
+                 enable_nesterov_momentum=\
+                 _default_enable_nesterov_momentum,
+                 skip_validation_and_conversion=\
+                 _default_skip_validation_and_conversion):
+        ctor_params = {key: val
+                       for key, val in locals().items()
+                       if (key not in ("self", "__class__"))}
+        BaseMLOptimizer.__init__(self, ctor_params)
+
+        return None
+
+
+
+    def _generate_torch_ml_optimizer(self, ml_model_param_group):
+        self_core_attrs = self.get_core_attrs(deep_copy=False)
+
+        module_alias = torch.optim
+        kwargs = {"params": ml_model_param_group,
+                  "lr": self_core_attrs["base_lr"],
+                  "weight_decay": self_core_attrs["weight_decay"],
+                  "momentum": self_core_attrs["momentum_factor"],
+                  "dampening": self_core_attrs["momentum_dampening_factor"],
+                  "nesterov": self_core_attrs["enable_nesterov_momentum"]}
+        torch_ml_optimizer = module_alias.SGD(**kwargs)
+
+        return torch_ml_optimizer
+
+
+
 _generic_ml_optimizer_name_to_cls_map = \
-    {"adam_w": AdamW}
+    {"adam_w": AdamW,
+     "sgd": SGD}
 
 
 
@@ -534,6 +725,10 @@ class Generic(BaseMLOptimizer):
         * If ``ml_optimizer_name`` is set to ``"adam_w"``, then
           ``specific_wrapper_cls`` is the class
           :class:`emicroml.modelling.optimizers.AdamW`.
+
+        * If ``ml_optimizer_name`` is set to ``"sgd"``, then
+          ``specific_wrapper_cls`` is the class
+          :class:`emicroml.modelling.optimizers.SGD`.
 
     ml_optimizer_params : `dict` | `None`, optional
         ``ml_optimizer_params`` specifies the parameters of 

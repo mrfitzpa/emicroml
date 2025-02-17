@@ -109,7 +109,8 @@ path_to_data_dir_1 = converted_cmd_line_args["path_to_data_dir_1"]
 if ml_model_task == "cbed/distortion/estimation":
     module_alias_1 = emicroml.modelling.cbed.distortion.estimation
     architecture_set = ("no_pool_resnet_39",)
-    rng_seed = 18200 + 1000*ml_model_idx
+    # rng_seed = 18200 + 1000*ml_model_idx
+    rng_seed = 20000
 
 
 
@@ -120,6 +121,14 @@ torch.manual_seed(seed=rng_seed)
 mini_batch_size_set = (64,)
 
 
+
+weight_decay = 1e-4
+momentum_factor = 0.9
+max_lr_set = tuple(2**(-n) for n in range(1, 11))
+num_epochs_during_warmup = 15
+num_epochs_after_warmup = 225
+num_lr_annealing_cycles_set = (2,)
+multiplicative_decay_factor_set = (0.5,)
 
 # num_epochs_after_warmup = 60
 # lambda_norm_set = (10**(-5), 10**(-4.5), 10**(-4))
@@ -132,18 +141,18 @@ mini_batch_size_set = (64,)
 # num_lr_annealing_cycles_set = (2, 2, 2, 2)
 # multiplicative_decay_factor_set = (0.5, 0.5, 0.5, 0.5)
 
-num_steps_in_first_lr_annealing_cycle_set = (20,)
-lambda_norm_set = (5e-5,)
-max_lr_set = (5e-3,)
-min_lr_in_first_annealing_cycle_set = (1e-4,)
-num_lr_annealing_cycles_set = (2,)
-multiplicative_decay_factor_set = (0.5,)
+# num_steps_in_first_lr_annealing_cycle_set = (20,)
+# lambda_norm_set = (5e-5,)
+# max_lr_set = (5e-3,)
+# min_lr_in_first_annealing_cycle_set = (1e-4,)
+# num_lr_annealing_cycles_set = (2,)
+# multiplicative_decay_factor_set = (0.5,)
 
 M_1 = len(architecture_set)
-M_2 = len(lambda_norm_set)
+M_2 = len(max_lr_set)
 
-num_steps_in_first_lr_annealing_cycle = \
-    num_steps_in_first_lr_annealing_cycle_set[(ml_model_idx//M_2)%M_1]
+# num_steps_in_first_lr_annealing_cycle = \
+#     num_steps_in_first_lr_annealing_cycle_set[(ml_model_idx//M_2)%M_1]
 
 
 
@@ -183,35 +192,56 @@ checkpoints = None
 
 max_lr = \
     max_lr_set[ml_model_idx%M_2]
-min_lr_in_first_annealing_cycle = \
-    min_lr_in_first_annealing_cycle_set[ml_model_idx%M_2]
+# min_lr_in_first_annealing_cycle = \
+#     min_lr_in_first_annealing_cycle_set[ml_model_idx%M_2]
 
-T = num_steps_in_first_lr_annealing_cycle
+# T = num_steps_in_first_lr_annealing_cycle
 # T = 20
-B = len(ml_training_dataset)
-b = mini_batch_size
+# B = len(ml_training_dataset)
+# b = mini_batch_size
 
-lambda_norm = lambda_norm_set[ml_model_idx%M_2]
+# lambda_norm = lambda_norm_set[ml_model_idx%M_2]
 
-weight_decay = lambda_norm * ((b / B / T)**0.5)
+# weight_decay = lambda_norm * ((b / B / T)**0.5)
 
 
 
 module_alias_2 = emicroml.modelling.optimizers
 
-ml_optimizer_params = {"base_lr": max_lr, "weight_decay": weight_decay}
+ml_optimizer_params = {"base_lr": max_lr,
+                       "weight_decay": weight_decay,
+                       "momentum_factor": momentum_factor}
 
-kwargs = {"ml_optimizer_name": "adam_w",
+kwargs = {"ml_optimizer_name": "sgd",
           "ml_optimizer_params": ml_optimizer_params}
 ml_optimizer = module_alias_2.Generic(**kwargs)
+
+# ml_optimizer_params = {"base_lr": max_lr, "weight_decay": weight_decay}
+
+# kwargs = {"ml_optimizer_name": "adam_w",
+#           "ml_optimizer_params": ml_optimizer_params}
+# ml_optimizer = module_alias_2.Generic(**kwargs)
 
 
 
 module_alias_3 = emicroml.modelling.lr.schedulers
 
+num_training_ml_data_instances = \
+    len(ml_training_dataset)
+num_training_mini_batch_instances_per_epoch = \
+    ((num_training_ml_data_instances//mini_batch_size)
+     + ((num_training_ml_data_instances%mini_batch_size) != 0))
+
+total_num_steps_in_lr_warmup = \
+    (num_epochs_during_warmup
+     * num_training_mini_batch_instances_per_epoch)
+# total_num_steps_in_lr_warmup = \
+#     0
+
 lr_scheduler_params = {"ml_optimizer": ml_optimizer,
-                       "total_num_steps": 4,
-                       "start_scale_factor": 1/mini_batch_size,
+                       "total_num_steps": total_num_steps_in_lr_warmup,
+                       # "start_scale_factor": 1/mini_batch_size,
+                       "start_scale_factor": 1e-5/max_lr,
                        "end_scale_factor": 1.0}
 kwargs = {"lr_scheduler_name": "linear",
           "lr_scheduler_params": lr_scheduler_params}
@@ -221,10 +251,16 @@ num_lr_annealing_cycles = num_lr_annealing_cycles_set[ml_model_idx%M_2]
 cycle_period_scale_factor = 2
 multiplicative_decay_factor = multiplicative_decay_factor_set[ml_model_idx%M_2]
 
+# total_num_steps_in_lr_annealing_schedule = \
+#     sum(T * (cycle_period_scale_factor**cycle_idx)
+#         for cycle_idx
+#         in range(num_lr_annealing_cycles))
+
 total_num_steps_in_lr_annealing_schedule = \
-    sum(T * (cycle_period_scale_factor**cycle_idx)
-        for cycle_idx
-        in range(num_lr_annealing_cycles))
+    (num_epochs_after_warmup
+     * num_training_mini_batch_instances_per_epoch)
+num_steps_in_first_lr_annealing_cycle = \
+    total_num_steps_in_lr_annealing_schedule
 
 lr_scheduler_params = {"ml_optimizer": \
                        ml_optimizer,
@@ -235,7 +271,9 @@ lr_scheduler_params = {"ml_optimizer": \
                        "cycle_period_scale_factor": \
                        cycle_period_scale_factor,
                        "min_lr_in_first_cycle": \
-                       min_lr_in_first_annealing_cycle,
+                       max_lr/10,
+                       # "min_lr_in_first_cycle": \
+                       # min_lr_in_first_annealing_cycle,
                        "multiplicative_decay_factor": \
                        multiplicative_decay_factor}
 kwargs = {"lr_scheduler_name": "cosine_annealing_with_warm_restarts",
@@ -275,7 +313,8 @@ generic_lr_scheduler = module_alias_3.Generic(**kwargs)
 
 module_alias_4 = emicroml.modelling.lr
 kwargs = {"lr_schedulers": (generic_lr_scheduler,),
-          "phase_in_which_to_update_lr": "validation"}
+          # "phase_in_which_to_update_lr": "validation"}
+          "phase_in_which_to_update_lr": "training"}
 lr_scheduler_manager = module_alias_4.LRSchedulerManager(**kwargs)
 
 
