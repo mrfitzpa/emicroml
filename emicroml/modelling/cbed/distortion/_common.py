@@ -571,7 +571,10 @@ class _DefaultDistortionModelGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-_building_block_counts_in_stages_of_no_pool_resnet_39 = (1, 2, 3, 5, 2)
+_building_block_counts_in_stages_of_distoptica_net = \
+    (3, 5, 2)
+_building_block_counts_in_stages_of_no_pool_resnet_39 = \
+    (1, 2) + _building_block_counts_in_stages_of_distoptica_net
 
 
 
@@ -583,7 +586,8 @@ def _check_and_convert_num_pixels_across_each_cbed_pattern(params):
     num_pixels_across_each_cbed_pattern = func_alias(**kwargs)
 
     max_num_downsampling_steps_in_any_encoder_used_in_ml_model = \
-        len(_building_block_counts_in_stages_of_no_pool_resnet_39)
+        (emicroml.modelling._common._DistopticaNetEntryFlow._num_downsamplings
+         + len(_building_block_counts_in_stages_of_distoptica_net))
 
     current_func_name = "_check_and_convert_num_pixels_across_each_cbed_pattern"
 
@@ -4578,6 +4582,7 @@ class _MLDatasetManager(_cls_alias):
                  ml_validation_dataset,
                  ml_testing_dataset,
                  mini_batch_size,
+                 rng_seed,
                  skip_validation_and_conversion):
         ctor_params = {key: val
                        for key, val in locals().items()
@@ -4622,6 +4627,116 @@ def _initialize_layer_weights_according_to_activation_func(activation_func,
         func_alias(**kwargs)
 
     return None
+
+
+
+class _DistopticaNet(torch.nn.Module):
+    def __init__(self,
+                 num_pixels_across_each_cbed_pattern,
+                 mini_batch_norm_eps):
+        super().__init__()
+
+        self._num_pixels_across_each_cbed_pattern = \
+            num_pixels_across_each_cbed_pattern
+        self._mini_batch_norm_eps = \
+            mini_batch_norm_eps
+        
+        self._distoptica_net = self._generate_distoptica_net()
+
+        return None
+
+
+
+    def _generate_distoptica_net(self):
+        num_filters_in_first_conv_layer = \
+            64
+        building_block_counts_in_stages = \
+            _building_block_counts_in_stages_of_distoptica_net
+        num_downsamplings = \
+            len(building_block_counts_in_stages)
+        num_nodes_in_second_last_layer = \
+            (num_filters_in_first_conv_layer * (2**num_downsamplings))
+
+        module_alias = emicroml.modelling._common
+        kwargs = {"num_input_channels": \
+                  1,
+                  "num_filters_in_first_conv_layer": \
+                  num_filters_in_first_conv_layer,
+                  "kernel_size_of_first_conv_layer": \
+                  7,
+                  "max_kernel_size_of_resnet_building_blocks": \
+                  3,
+                  "building_block_counts_in_stages": \
+                  building_block_counts_in_stages,
+                  "return_intermediate_tensor_subset_upon_call_to_forward": \
+                  False,
+                  "height_of_input_tensor_in_pixels": \
+                  self._num_pixels_across_each_cbed_pattern,
+                  "width_of_input_tensor_in_pixels": \
+                  self._num_pixels_across_each_cbed_pattern,
+                  "num_nodes_in_second_last_layer": \
+                  num_nodes_in_second_last_layer,
+                  "num_nodes_in_last_layer": \
+                  8,
+                  "mini_batch_norm_eps": \
+                  self._mini_batch_norm_eps}
+        distoptica_net = module_alias._DistopticaNet(**kwargs)
+
+        return distoptica_net
+
+
+
+    def forward(self, ml_inputs):
+        enhanced_cbed_pattern_images = \
+            self._get_and_enhance_cbed_pattern_images(ml_inputs)
+
+        intermediate_tensor = enhanced_cbed_pattern_images
+        intermediate_tensor, _ = self._distoptica_net(intermediate_tensor)
+
+        ml_predictions = dict()
+        keys = ("quadratic_radial_distortion_amplitudes",
+                "spiral_distortion_amplitudes",
+                "elliptical_distortion_vectors",
+                "parabolic_distortion_vectors",
+                "distortion_centers")
+
+        stop = 0
+
+        for key_idx, key in enumerate(keys):
+            start = stop
+            stop = start + 1 + ("amplitudes" not in key)
+
+            multi_dim_slice = ((slice(None), start)
+                                if ("amplitudes" in key)
+                                else (slice(None), slice(start, stop)))
+            
+            output_tensor = intermediate_tensor[multi_dim_slice]
+            ml_predictions[key] = output_tensor
+
+        return ml_predictions
+
+
+
+    def _get_and_enhance_cbed_pattern_images(self, ml_inputs):
+        cbed_pattern_images = \
+            torch.unsqueeze(ml_inputs["cbed_pattern_images"], dim=1)
+
+        gamma = \
+            0.3        
+        enhanced_cbed_pattern_images = \
+            torch.pow(cbed_pattern_images, gamma)
+        enhanced_cbed_pattern_images = \
+            kornia.enhance.equalize(enhanced_cbed_pattern_images)
+
+        kwargs = {"input": enhanced_cbed_pattern_images,
+                  "min": 0,
+                  "max": 1}
+        enhanced_cbed_pattern_images = torch.clip(**kwargs)
+
+        enhanced_cbed_pattern_images = \
+            kornia.enhance.equalize(enhanced_cbed_pattern_images)
+
+        return enhanced_cbed_pattern_images
 
 
 
@@ -4740,7 +4855,7 @@ def _check_and_convert_architecture(params):
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     architecture = czekitout.convert.to_str_from_str_like(**kwargs)
 
-    kwargs["accepted_strings"] = ("no_pool_resnet_39",)
+    kwargs["accepted_strings"] = ("no_pool_resnet_39", "distoptica_net")
     czekitout.check.if_one_of_any_accepted_strings(**kwargs)
 
     return architecture
@@ -4870,7 +4985,7 @@ def _generate_default_normalization_biases():
 _module_alias = \
     emicroml.modelling._common
 _default_architecture = \
-    "no_pool_resnet_39"
+    "distoptica_net"
 _default_mini_batch_norm_eps = \
     _module_alias._default_mini_batch_norm_eps
 _default_normalization_weights = \
@@ -4973,7 +5088,9 @@ class _MLModel(_cls_alias):
                                     architecture,
                                     num_pixels_across_each_cbed_pattern,
                                     mini_batch_norm_eps):
-        if architecture == "no_pool_resnet_39":
+        if architecture == "distoptica_net":
+            base_model_cls = _DistopticaNet
+        else:
             base_model_cls = _NoPoolResNet39
 
         self._base_model = base_model_cls(num_pixels_across_each_cbed_pattern,

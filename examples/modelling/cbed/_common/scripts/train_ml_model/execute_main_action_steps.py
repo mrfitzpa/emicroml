@@ -24,6 +24,9 @@
 # For parsing command line arguments.
 import argparse
 
+# For setting Python's seed.
+import random
+
 
 
 # For avoiding errors related to the ``mkl-service`` package. Note that
@@ -108,13 +111,16 @@ path_to_data_dir_1 = converted_cmd_line_args["path_to_data_dir_1"]
 
 if ml_model_task == "cbed/distortion/estimation":
     module_alias_1 = emicroml.modelling.cbed.distortion.estimation
-    architecture_set = ("no_pool_resnet_39",)
+    architecture_set = ("distoptica_net",)
+    # architecture_set = ("no_pool_resnet_39",)
     # rng_seed = 18200 + 1000*ml_model_idx
     rng_seed = 20000
 
 
 
 torch.manual_seed(seed=rng_seed)
+random.seed(a=rng_seed)
+np.random.seed(seed=rng_seed)
 
 
 
@@ -196,7 +202,8 @@ architecture = architecture_set[(ml_model_idx//M_2)%M_1]
 
 kwargs = {"ml_training_dataset": ml_training_dataset,
           "ml_validation_dataset": ml_validation_dataset,
-          "mini_batch_size": mini_batch_size}
+          "mini_batch_size": mini_batch_size,
+          "rng_seed": rng_seed}
 ml_dataset_manager = module_alias_1.MLDatasetManager(**kwargs)
 
 # checkpoints = None

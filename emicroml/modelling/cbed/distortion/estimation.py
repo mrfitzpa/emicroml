@@ -1652,6 +1652,8 @@ class MLDatasetManager(_cls_alias):
                  _default_ml_testing_dataset,
                  mini_batch_size=\
                  _default_mini_batch_size,
+                 rng_seed=\
+                 _default_rng_seed,
                  skip_validation_and_conversion=\
                  _default_skip_validation_and_conversion):
         ctor_params = {key: val

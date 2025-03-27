@@ -2854,6 +2854,21 @@ def _check_and_convert_rng_seed(params):
 
 
 
+def _pre_serialize_rng_seed(rng_seed):
+    obj_to_pre_serialize = rng_seed
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_rng_seed(serializable_rep):
+    rng_seed = serializable_rep
+    
+    return rng_seed
+
+
+
 def _check_and_convert_rm_input_ml_dataset_file(params):
     obj_name = "rm_input_ml_dataset_file"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
@@ -4564,7 +4579,8 @@ _default_mini_batch_size = 32
 
 
 class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
-    ctor_param_names = ("mini_batch_size",)
+    ctor_param_names = ("mini_batch_size",
+                        "rng_seed")
     kwargs = {"namespace_as_dict": globals(),
               "ctor_param_names": ctor_param_names}
 
@@ -4594,6 +4610,13 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
         self._clear_torch_ml_training_dataloader()
         self._clear_torch_ml_validation_dataloader()
         self._clear_torch_ml_testing_dataloader()
+
+        self_core_attrs = self.get_core_attrs(deep_copy=False)
+        rng_seed = self_core_attrs["rng_seed"]
+            
+        generator = torch.Generator()
+        generator.manual_seed(rng_seed)
+        self._generator = generator
 
         return None
 
@@ -4711,7 +4734,8 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
 
             kwargs = {"dataset": torch_ml_training_dataset,
                       "batch_size": mini_batch_size,
-                      "shuffle": True}
+                      "shuffle": True,
+                      "generator": self._generator}
             torch_ml_training_dataloader = torch_ml_dataloader_cls(**kwargs)
         else:
             torch_ml_training_dataloader = None
@@ -4739,9 +4763,9 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
 
             kwargs = {"dataset": torch_ml_validation_dataset,
                       "batch_size": mini_batch_size,
-                      "shuffle": True}
+                      "shuffle": True,
+                      "generator": self._generator}
             torch_ml_validation_dataloader = torch_ml_dataloader_cls(**kwargs)
-            torch_ml_validation_dataloader = torch_ml_validation_dataloader
         else:
             torch_ml_validation_dataloader = None
 
@@ -5196,7 +5220,8 @@ class _BasicResNetBuildingBlock(torch.nn.Module):
         intermediate_tensor_1 = self._conv_layers[1](intermediate_tensor_1)
         intermediate_tensor_1 = self._mini_batch_norms[1](intermediate_tensor_1)
 
-        if self._num_input_channels == self._num_output_channels:
+        if ((self._num_input_channels == self._num_output_channels)
+            and (not self._first_conv_layer_performs_downsampling)):
             intermediate_tensor_2 = \
                 input_tensor
         else:
@@ -5264,6 +5289,468 @@ class _BasicResNetStage(torch.nn.Sequential):
             resnet_building_blocks += (resnet_building_block,)
 
         return resnet_building_blocks
+
+
+
+class _DistopticaNetEntryFlow(torch.nn.Module):
+    _num_downsamplings = 2
+
+    def __init__(self,
+                 num_input_channels,
+                 num_filters_in_first_conv_layer,
+                 kernel_size_of_first_conv_layer,
+                 max_kernel_size_of_resnet_building_blocks,
+                 mini_batch_norm_eps):
+        super().__init__()
+
+        self._num_input_channels = \
+            num_input_channels
+        self._num_filters_in_first_conv_layer = \
+            num_filters_in_first_conv_layer
+        self._kernel_size_of_first_conv_layer = \
+            kernel_size_of_first_conv_layer
+        self._max_kernel_size_of_resnet_building_blocks = \
+            max_kernel_size_of_resnet_building_blocks
+        self._mini_batch_norm_eps = \
+            mini_batch_norm_eps
+
+        self._num_output_channels = num_filters_in_first_conv_layer
+
+        self._first_conv_layer = self._generate_first_conv_layer()
+        self._first_mini_batch_norm = self._generate_first_mini_batch_norm()
+        self._downsampling_blocks = self._generate_downsampling_blocks()
+        self._resnet_stage = self._generate_resnet_stage()
+
+        return None
+
+
+
+    def _generate_first_conv_layer(self):
+        kwargs = {"in_channels": self._num_input_channels,
+                  "out_channels": self._num_filters_in_first_conv_layer,
+                  "kernel_size": self._kernel_size_of_first_conv_layer,
+                  "stride": 1,
+                  "padding": (self._kernel_size_of_first_conv_layer-1)//2,
+                  "padding_mode": "zeros",
+                  "bias": False}
+        conv_layer = torch.nn.Conv2d(**kwargs)
+
+        self._initialize_first_conv_layer_weights(conv_layer)
+
+        return conv_layer
+
+
+
+    def _initialize_first_conv_layer_weights(self, conv_layer):
+        kwargs = {"activation_func": torch.nn.ReLU(), "layer": conv_layer}
+        _initialize_layer_weights_according_to_activation_func(**kwargs)
+
+        return None
+
+
+
+    def _generate_first_mini_batch_norm(self):
+        kwargs = {"num_features": self._first_conv_layer.out_channels,
+                  "eps": self._mini_batch_norm_eps}
+        mini_batch_norm = torch.nn.BatchNorm2d(**kwargs)
+
+        torch.nn.init.constant_(mini_batch_norm.weight, 1)
+        torch.nn.init.constant_(mini_batch_norm.bias, 0)
+
+        return mini_batch_norm
+
+
+
+    def _generate_downsampling_blocks(self):
+        downsampling_blocks = tuple()
+
+        num_downsamplings = self._num_downsamplings
+
+        for _ in range(num_downsamplings):
+            kwargs = {"num_input_channels": \
+                      self._num_filters_in_first_conv_layer,
+                      "num_output_channels": \
+                      self._num_filters_in_first_conv_layer,
+                      "max_kernel_size": \
+                      self._max_kernel_size_of_resnet_building_blocks,
+                      "first_conv_layer_performs_downsampling": \
+                      True,
+                      "final_activation_func": \
+                      torch.nn.ReLU(),
+                      "mini_batch_norm_eps": \
+                      self._mini_batch_norm_eps}
+            downsampling_block = _BasicResNetBuildingBlock(**kwargs)
+            downsampling_blocks += (downsampling_block,)
+
+        downsampling_blocks = torch.nn.ModuleList(downsampling_blocks)
+
+        return downsampling_blocks
+
+
+
+    def _generate_resnet_stage(self):
+        kwargs = {"num_input_channels": \
+                  self._num_filters_in_first_conv_layer,
+                  "max_kernel_size": \
+                  self._max_kernel_size_of_resnet_building_blocks,
+                  "num_building_blocks": \
+                  2,
+                  "final_activation_func": \
+                  torch.nn.ReLU(),
+                  "mini_batch_norm_eps": \
+                  self._mini_batch_norm_eps}
+        resnet_stage = _BasicResNetStage(**kwargs)
+
+        return resnet_stage
+
+
+
+    def forward(self, input_tensor):
+        intermediate_tensor = self._first_conv_layer(input_tensor)
+        intermediate_tensor = self._first_mini_batch_norm(intermediate_tensor)
+        intermediate_tensor = torch.nn.functional.relu(intermediate_tensor)
+        
+        intermediate_tensor = self._downsampling_blocks[0](intermediate_tensor)
+        intermediate_tensor = self._downsampling_blocks[1](intermediate_tensor)
+        
+        output_tensor = self._resnet_stage(intermediate_tensor)
+
+        return output_tensor
+
+
+
+class _DistopticaNetMiddleFlow(torch.nn.Module):
+    def __init__(self,
+                 distoptica_net_entry_flow,
+                 building_block_counts_in_stages,
+                 return_intermediate_tensor_subset_upon_call_to_forward,
+                 mini_batch_norm_eps):
+        super().__init__()
+
+        self._building_block_counts_in_stages = \
+            building_block_counts_in_stages
+        self._return_intermediate_tensor_subset_upon_call_to_forward = \
+            return_intermediate_tensor_subset_upon_call_to_forward
+        self._mini_batch_norm_eps = \
+            mini_batch_norm_eps
+
+        self._num_input_channels = \
+            distoptica_net_entry_flow._num_output_channels
+        self._max_kernel_size = \
+            distoptica_net_entry_flow._max_kernel_size_of_resnet_building_blocks
+        self._downsampling_blocks = \
+            self._generate_downsampling_blocks()
+        self._num_downsamplings = \
+            len(self._downsampling_blocks)
+        self._resnet_stages = \
+            self._generate_resnet_stages()
+        self._num_output_channels = \
+            self._resnet_stages[-1]._num_output_channels
+
+        return None
+
+
+
+    def _generate_downsampling_blocks(self):
+        num_stages = len(self._building_block_counts_in_stages)
+        downsampling_block_indices = range(num_stages)
+
+        kwargs = {"num_input_channels": self._num_input_channels,
+                  "max_kernel_size": self._max_kernel_size,
+                  "first_conv_layer_performs_downsampling": True,
+                  "final_activation_func": torch.nn.ReLU(),
+                  "mini_batch_norm_eps": self._mini_batch_norm_eps}
+
+        resnet_building_block_cls = _BasicResNetBuildingBlock
+        kwargs["num_output_channels"] = 2*self._num_input_channels
+
+        downsampling_blocks = tuple()
+        for downsampling_block_idx in downsampling_block_indices:
+            downsampling_block = resnet_building_block_cls(**kwargs)
+            downsampling_blocks += (downsampling_block,)
+
+            kwargs["num_input_channels"] = kwargs["num_output_channels"]
+            kwargs["num_output_channels"] *= 2
+
+        downsampling_blocks = torch.nn.ModuleList(downsampling_blocks)
+
+        return downsampling_blocks
+
+
+
+    def _generate_resnet_stages(self):
+        num_stages = len(self._building_block_counts_in_stages)
+
+        resnet_stages = tuple()
+        
+        kwargs = {"num_input_channels": \
+                  self._downsampling_blocks[0]._num_output_channels,
+                  "max_kernel_size": \
+                  self._max_kernel_size,
+                  "final_activation_func": \
+                  torch.nn.ReLU(),
+                  "mini_batch_norm_eps": \
+                  self._mini_batch_norm_eps}
+
+        for stage_idx in range(num_stages):
+            kwargs["num_building_blocks"] = \
+                self._building_block_counts_in_stages[stage_idx]
+
+            resnet_stage = _BasicResNetStage(**kwargs)
+            resnet_stages += (resnet_stage,)
+
+            kwargs["num_input_channels"] *= 2
+
+        resnet_stages = torch.nn.ModuleList(resnet_stages)
+
+        return resnet_stages
+
+
+
+    def forward(self, input_tensor):
+        intermediate_tensor_subset = tuple()
+
+        zip_obj = zip(self._downsampling_blocks, self._resnet_stages)
+
+        intermediate_tensor = input_tensor
+        for downsampling_block, resnet_stage in zip_obj:
+            intermediate_tensor = downsampling_block(intermediate_tensor)
+            intermediate_tensor = resnet_stage(intermediate_tensor)
+            if self._return_intermediate_tensor_subset_upon_call_to_forward:
+                intermediate_tensor_subset += (intermediate_tensor,)
+
+        intermediate_tensor_subset = intermediate_tensor_subset[:-1]
+        output_tensor = intermediate_tensor
+
+        return output_tensor, intermediate_tensor_subset
+
+
+
+class _DistopticaNetExitFlow(torch.nn.Module):
+    def __init__(self,
+                 distoptica_net_middle_flow,
+                 height_of_input_tensor_in_pixels,
+                 width_of_input_tensor_in_pixels,
+                 num_nodes_in_second_last_layer,
+                 num_nodes_in_last_layer,
+                 mini_batch_norm_eps):
+        super().__init__()
+
+        self._height_of_input_tensor_in_pixels = \
+            height_of_input_tensor_in_pixels
+        self._width_of_input_tensor_in_pixels = \
+            width_of_input_tensor_in_pixels
+        self._num_nodes_in_second_last_layer = \
+            num_nodes_in_second_last_layer
+        self._num_nodes_in_last_layer = \
+            num_nodes_in_last_layer
+        self._mini_batch_norm_eps = \
+            mini_batch_norm_eps
+
+        self._num_input_channels = \
+            distoptica_net_middle_flow._num_output_channels
+        self._fc_layers = \
+            self._generate_fc_layers(distoptica_net_middle_flow)        
+        self._mini_batch_norm = \
+            self._generate_mini_batch_norm()
+
+        return None
+
+
+
+    def _generate_fc_layers(self, distoptica_net_middle_flow):
+        total_num_downsamplings = \
+            (_DistopticaNetEntryFlow._num_downsamplings
+             + distoptica_net_middle_flow._num_downsamplings)
+
+        num_nodes_in_third_last_layer = (self._height_of_input_tensor_in_pixels
+                                         * self._width_of_input_tensor_in_pixels
+                                         * self._num_input_channels
+                                         // 2**(2*total_num_downsamplings))
+
+        fc_layers = tuple()
+
+        kwargs = {"in_features": num_nodes_in_third_last_layer,
+                  "out_features": self._num_nodes_in_second_last_layer,
+                  "bias": False}
+        fc_layer = torch.nn.Linear(**kwargs)
+        fc_layers += (fc_layer,)
+
+        kwargs = {"in_features": self._num_nodes_in_second_last_layer,
+                  "out_features": self._num_nodes_in_last_layer,
+                  "bias": True}
+        fc_layer = torch.nn.Linear(**kwargs)
+        fc_layers += (fc_layer,)
+
+        self._initialize_fc_layer_weights(fc_layers)
+
+        fc_layers = torch.nn.ModuleList(fc_layers)
+
+        return fc_layers
+
+
+
+    def _initialize_fc_layer_weights(self, fc_layers):
+        for fc_layer_idx, fc_layer in enumerate(fc_layers):
+            activation_func = (torch.nn.ReLU()
+                               if (fc_layer_idx == 0)
+                               else torch.nn.Identity())
+            kwargs = {"activation_func": activation_func, "layer": fc_layer}
+            _initialize_layer_weights_according_to_activation_func(**kwargs)
+
+            if fc_layer_idx == 1:
+                torch.nn.init.constant_(fc_layer.bias, 0)
+
+        return None
+
+
+
+    def _generate_mini_batch_norm(self):
+        kwargs = {"num_features": self._fc_layers[0].out_features,
+                  "eps": self._mini_batch_norm_eps}
+        mini_batch_norm = torch.nn.BatchNorm1d(**kwargs)
+
+        torch.nn.init.constant_(mini_batch_norm.weight, 1)
+        torch.nn.init.constant_(mini_batch_norm.bias, 0)
+
+        return mini_batch_norm
+
+
+
+    def forward(self, input_tensor):
+        intermediate_tensor = torch.flatten(input_tensor, start_dim=1)
+        intermediate_tensor = self._fc_layers[0](intermediate_tensor)
+        intermediate_tensor = self._mini_batch_norm(intermediate_tensor)
+        intermediate_tensor = torch.nn.functional.relu(intermediate_tensor)
+        output_tensor = self._fc_layers[1](intermediate_tensor)
+            
+        return output_tensor
+
+
+
+class _DistopticaNet(torch.nn.Module):
+    def __init__(self,
+                 num_input_channels,
+                 num_filters_in_first_conv_layer,
+                 kernel_size_of_first_conv_layer,
+                 max_kernel_size_of_resnet_building_blocks,
+                 building_block_counts_in_stages,
+                 return_intermediate_tensor_subset_upon_call_to_forward,
+                 height_of_input_tensor_in_pixels,
+                 width_of_input_tensor_in_pixels,
+                 num_nodes_in_second_last_layer,
+                 num_nodes_in_last_layer,
+                 mini_batch_norm_eps):
+        super().__init__()
+
+        self._num_input_channels = \
+            num_input_channels
+        self._num_filters_in_first_conv_layer = \
+            num_filters_in_first_conv_layer
+        self._kernel_size_of_first_conv_layer = \
+            kernel_size_of_first_conv_layer
+        self._max_kernel_size_of_resnet_building_blocks = \
+            max_kernel_size_of_resnet_building_blocks
+        self._building_block_counts_in_stages = \
+            building_block_counts_in_stages
+        self._height_of_input_tensor_in_pixels = \
+            height_of_input_tensor_in_pixels
+        self._width_of_input_tensor_in_pixels = \
+            width_of_input_tensor_in_pixels
+        self._num_nodes_in_second_last_layer = \
+            num_nodes_in_second_last_layer
+        self._num_nodes_in_last_layer = \
+            num_nodes_in_last_layer
+        self._return_intermediate_tensor_subset_upon_call_to_forward = \
+            return_intermediate_tensor_subset_upon_call_to_forward
+        self._mini_batch_norm_eps = \
+            mini_batch_norm_eps
+
+        self._entry_flow = self._generate_entry_flow()
+        self._middle_flow = self._generate_middle_flow()
+        self._exit_flow = self._generate_exit_flow()
+
+        self._num_downsamplings = (self._entry_flow._num_downsamplings
+                                   + self._middle_flow._num_downsamplings)
+
+        return None
+
+
+
+    def _generate_entry_flow(self):
+        kwargs = {"num_input_channels": \
+                  self._num_input_channels,
+                  "num_filters_in_first_conv_layer": \
+                  self._num_filters_in_first_conv_layer,
+                  "kernel_size_of_first_conv_layer": \
+                  self._kernel_size_of_first_conv_layer,
+                  "max_kernel_size_of_resnet_building_blocks": \
+                  self._max_kernel_size_of_resnet_building_blocks,
+                  "mini_batch_norm_eps": \
+                  self._mini_batch_norm_eps}
+        entry_flow = _DistopticaNetEntryFlow(**kwargs)
+
+        return entry_flow
+
+
+
+    def _generate_middle_flow(self):
+        kwargs = {"distoptica_net_entry_flow": \
+                  self._entry_flow,
+                  "building_block_counts_in_stages": \
+                  self._building_block_counts_in_stages,
+                  "return_intermediate_tensor_subset_upon_call_to_forward": \
+                  self._return_intermediate_tensor_subset_upon_call_to_forward,
+                  "mini_batch_norm_eps": \
+                  self._mini_batch_norm_eps}
+        middle_flow = _DistopticaNetMiddleFlow(**kwargs)
+
+        return middle_flow
+
+
+
+    def _generate_exit_flow(self):
+        kwargs = {"distoptica_net_middle_flow": \
+                  self._middle_flow,
+                  "height_of_input_tensor_in_pixels": \
+                  self._height_of_input_tensor_in_pixels,
+                  "width_of_input_tensor_in_pixels": \
+                  self._width_of_input_tensor_in_pixels,
+                  "num_nodes_in_second_last_layer": \
+                  self._num_nodes_in_second_last_layer,
+                  "num_nodes_in_last_layer": \
+                  self._num_nodes_in_last_layer,
+                  "mini_batch_norm_eps": \
+                  self._mini_batch_norm_eps}
+        exit_flow = _DistopticaNetExitFlow(**kwargs)
+
+        return exit_flow
+
+
+
+    def forward(self, input_tensor):
+        intermediate_tensor = self._entry_flow(input_tensor)
+
+        intermediate_tensor_subset = tuple()
+        if self._return_intermediate_tensor_subset_upon_call_to_forward:
+            intermediate_tensor_subset += (intermediate_tensor,)
+
+        middle_flow_output_and_intermediate_tensors = \
+            self._middle_flow(intermediate_tensor)
+
+        middle_flow_intermediate_tensor_subset = \
+            middle_flow_output_and_intermediate_tensors[1]
+        intermediate_tensor_subset += \
+            middle_flow_intermediate_tensor_subset
+
+        middle_flow_output_tensor = \
+            middle_flow_output_and_intermediate_tensors[0]
+        intermediate_tensor = \
+            middle_flow_output_tensor
+        output_tensor = \
+            self._exit_flow(intermediate_tensor)
+            
+        return output_tensor, intermediate_tensor_subset
 
 
 
