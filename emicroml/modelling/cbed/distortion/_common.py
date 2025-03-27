@@ -918,11 +918,14 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_cbed_pattern_params(self):
-        mask_frame, undistorted_tds_model_1, undistorted_tds_model_2 = \
-            self._generate_mask_frame_and_undistorted_tds_models()
+        undistorted_tds_model_1, undistorted_tds_model_2 = \
+            self._generate_undistorted_tds_models()
 
         distortion_model = \
             self._generate_distortion_model(undistorted_tds_model_1)
+        
+        mask_frame = \
+            self._generate_mask_frame(distortion_model)
 
         kwargs = \
             {"undistorted_tds_model_1": undistorted_tds_model_1,
@@ -965,28 +968,13 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _generate_mask_frame_and_undistorted_tds_models(self):
-        mask_frame = \
-            self._generate_mask_frame()
+    def _generate_undistorted_tds_models(self):
         undistorted_tds_model_1 = \
             self._generate_undistorted_tds_model_1()
         undistorted_tds_model_2 = \
             self._generate_undistorted_tds_model_2(undistorted_tds_model_1)
 
-        return mask_frame, undistorted_tds_model_1, undistorted_tds_model_2
-
-
-
-    def _generate_mask_frame(self):
-        N = self._num_pixels_across_each_cbed_pattern
-
-        kwargs = {"low": self._min_fractional_mask_frame_width,
-                  "high": self._max_fractional_mask_frame_width,
-                  "size": 4}
-        mask_frame = np.round(self._rng.uniform(**kwargs) * N).astype(int)
-        mask_frame = tuple(mask_frame.tolist())
-
-        return mask_frame
+        return undistorted_tds_model_1, undistorted_tds_model_2
 
 
 
@@ -1002,7 +990,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         sigma_0 = rng.uniform(low=0, high=1/2)
 
         peaks = tuple()
-        kwargs = {"val_at_center": 0}
+        kwargs = {"val_at_center": rng.uniform(low=0.4*A_0, high=0.6*A_0)}
         for peak_idx in range(num_peaks):
             center = pt_0 + rng.uniform(low=-1/20, high=1/20, size=2)
             center = tuple(elem.item() for elem in center)
@@ -1020,8 +1008,6 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             kwargs["skip_validation_and_conversion"] = True
             peak = fakecbed.shapes.Peak(**kwargs)
             peaks += (peak,)
-
-            kwargs["val_at_center"] = rng.uniform(low=0.4*A_0, high=0.6*A_0)
 
         kwargs = {"peaks": peaks,
                   "constant_bg": 0,
@@ -1044,7 +1030,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
             peaks = copy.deepcopy(undistorted_tds_model_1_core_attrs["peaks"])
 
-            A_set = (rng.uniform(low=self._A_0_min, high=1.2*self._A_0_max),)
+            A_set = (rng.uniform(low=self._A_0_min, high=self._A_0_max),)
             for peak in peaks:
                 peak_core_attrs = peak.get_core_attrs(deep_copy=False)
                 A_set += (peak_core_attrs["val_at_center"],)
@@ -1095,6 +1081,28 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         distortion_model = self._distortion_model_generator.generate()
 
         return distortion_model
+
+
+
+    def _generate_mask_frame(self, distortion_model):
+        mask_frame_of_distorted_then_resampled_images = \
+            distortion_model.mask_frame_of_distorted_then_resampled_images
+        quadruple_1 = \
+            np.array(mask_frame_of_distorted_then_resampled_images)
+
+        N = self._num_pixels_across_each_cbed_pattern
+
+        kwargs = \
+            {"low": self._min_fractional_mask_frame_width,
+             "high": self._max_fractional_mask_frame_width,
+             "size": 4}
+        quadruple_2 = \
+            np.round(self._rng.uniform(**kwargs) * N).astype(int)
+
+        mask_frame = tuple((quadruple_1>=quadruple_2)*quadruple_1
+                           + (quadruple_1<quadruple_2)*quadruple_2)
+
+        return mask_frame
 
 
 
@@ -1196,7 +1204,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                    reference_pt_of_distortion_model_generator[1],
                    1-reference_pt_of_distortion_model_generator[1])
                + ((sum(mask_frame_of_distorted_then_resampled_images) == 0)
-                  * rng.choice((0.0, 1e6), p=(1/4, 1-1/4)).item()))
+                  * rng.choice((0.0, 1e6), p=(3/4, 1-3/4)).item()))
         semi_major_axis = loc + rng.uniform(low=-loc/6, high=loc/6)
 
         return semi_major_axis
@@ -2471,12 +2479,19 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                                           undistorted_tds_model_1,
                                           undistorted_disks,
                                           max_abs_amplitude_sums):
-        kwargs = \
-            {"undistorted_disks": undistorted_disks,
-             "undistorted_tds_model_1": undistorted_tds_model_1,
-             "max_abs_amplitude_sums": max_abs_amplitude_sums}
-        undistorted_misc_shapes = \
-            self._generate_undistorted_nonuniform_bands(**kwargs)
+        no_misc_shapes_are_present = self._rng.choice((False, True),
+                                                      p=(1/2, 1-1/2)).item()
+
+        if no_misc_shapes_are_present:
+            undistorted_misc_shapes = \
+                tuple()
+        else:
+            kwargs = \
+                {"undistorted_disks": undistorted_disks,
+                 "undistorted_tds_model_1": undistorted_tds_model_1,
+                 "max_abs_amplitude_sums": max_abs_amplitude_sums}
+            undistorted_misc_shapes = \
+                self._generate_undistorted_nonuniform_bands(**kwargs)
 
         return undistorted_misc_shapes
 
@@ -2488,7 +2503,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                                                max_abs_amplitude_sums):
         num_disks = len(undistorted_disks)
         
-        num_bands = self._rng.integers(low=0, high=num_disks).item()
+        num_bands = self._rng.integers(low=1, high=max(num_disks, 2)).item()
 
         kwargs = \
             {"undistorted_disks": undistorted_disks, "num_bands": num_bands}
@@ -2640,8 +2655,12 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         A_unnormalized_decay_peak = undistorted_tds_model_1.eval(**kwargs)[0, 0]
         A_unnormalized_decay_peak = A_unnormalized_decay_peak.item()
 
+        scale_factor = (A_unnormalized_decay_peak
+                        if (A_unnormalized_decay_peak != 0)
+                        else 1)
+
         abs_A_band_min = abs(max_abs_amplitude_sum
-                             / A_unnormalized_decay_peak
+                             / scale_factor
                              / 3)
         abs_A_band_max = 2*abs_A_band_min
         abs_A_band = self._rng.uniform(low=abs_A_band_min, high=abs_A_band_max)
@@ -5316,6 +5335,9 @@ class _MLMetricCalculator(_cls_alias):
         method_alias = self._calc_epes_of_distortion_fields
         epes_of_distortion_fields = method_alias(**kwargs)
 
+        method_alias = self._calc_rmlces_of_distortion_fields
+        rmlces_of_distortion_fields = method_alias(**kwargs)
+
         scalar_rejection_maes_plus_vec_mag_maes_of_distortion_fields = \
             (scalar_rejection_maes_of_distortion_fields +
              vec_mag_maes_of_distortion_fields)
@@ -5328,7 +5350,9 @@ class _MLMetricCalculator(_cls_alias):
              "scalar_rejection_maes_plus_vec_mag_maes_of_distortion_fields": \
              scalar_rejection_maes_plus_vec_mag_maes_of_distortion_fields,
              "epes_of_distortion_fields": \
-             epes_of_distortion_fields}
+             epes_of_distortion_fields,
+             "rmlces_of_distortion_fields": \
+             rmlces_of_distortion_fields}
 
         return metrics_of_current_mini_batch
 
@@ -5395,6 +5419,21 @@ class _MLMetricCalculator(_cls_alias):
 
 
 
+    def _calc_rmlces_of_distortion_fields(self,
+                                          target_shifted_q,
+                                          predicted_shifted_q):
+        diff = target_shifted_q - predicted_shifted_q
+        mlces = 4*(diff
+                   + torch.nn.functional.softplus(-2*diff)
+                   - torch.log(2.0*torch.ones_like(diff))).mean(dim=(1, 2, 3))
+        rmlces = torch.sqrt(mlces)
+
+        rmlces_of_distortion_fields = rmlces
+
+        return rmlces_of_distortion_fields
+
+
+
 _module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLLossCalculator
 class _MLLossCalculator(_cls_alias):
@@ -5418,8 +5457,10 @@ class _MLLossCalculator(_cls_alias):
 
         losses_of_current_mini_batch = {"total": 0.0}
 
-        key_set_1 = ("scalar_rejection_maes_of_distortion_fields",
-                     "vec_mag_maes_of_distortion_fields")
+        # key_set_1 = ("rmlces_of_distortion_fields",)
+        key_set_1 = ("epes_of_distortion_fields",)
+        # key_set_1 = ("scalar_rejection_maes_of_distortion_fields",
+        #              "vec_mag_maes_of_distortion_fields")
 
         for key_1 in key_set_1:
             key_2 = \

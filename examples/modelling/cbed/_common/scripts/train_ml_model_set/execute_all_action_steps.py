@@ -70,7 +70,7 @@ unformatted_cmd_str = ("python {} "
                        "--use_slurm={}")
 
 if ml_model_task == "cbed/distortion/estimation":
-    num_ml_models_to_train = 10
+    num_ml_models_to_train = 1
 
 for ml_model_idx in range(num_ml_models_to_train):
     cmd_str = unformatted_cmd_str.format(script_to_execute,
