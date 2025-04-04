@@ -119,8 +119,12 @@ if ml_model_task == "cbed/distortion/estimation":
 
 
 torch.manual_seed(seed=rng_seed)
+torch.cuda.manual_seed_all(seed=rng_seed)
 random.seed(a=rng_seed)
 np.random.seed(seed=rng_seed)
+
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 
 
@@ -129,13 +133,13 @@ mini_batch_size_set = (64,)
 weight_decay_set = (1.5e-2,)
 max_lr_set = (5e-3,)
 initial_lr_set = (1e-8,)*len(max_lr_set)
-reduction_factor_set = (1/2,)
+reduction_factor_set = (1/2,)*len(max_lr_set)
 min_lr_in_first_annealing_cycle_set = (1e-8,)*len(max_lr_set)
 num_lr_annealing_cycles_set = (1,)*len(max_lr_set)
 num_epochs_in_first_lr_annealing_cycle_set = (40,)*len(max_lr_set)
 multiplicative_decay_factor_set = (0.5,)*len(max_lr_set)
 num_epochs_during_warmup_set = (5,)*len(max_lr_set)
-num_epochs_after_warmup_set = (100,)*len(max_lr_set)
+num_epochs_after_warmup_set = (80,)*len(max_lr_set)
 
 M_1 = len(architecture_set)
 M_2 = len(max_lr_set)
