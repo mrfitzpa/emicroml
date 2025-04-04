@@ -572,9 +572,9 @@ class _DefaultDistortionModelGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 _building_block_counts_in_stages_of_distoptica_net = \
-    (3, 5, 2)
+    (5, 6, 4, 3)
 _building_block_counts_in_stages_of_no_pool_resnet_39 = \
-    (1, 2) + _building_block_counts_in_stages_of_distoptica_net
+    (1, 2, 3, 5, 2)
 
 
 

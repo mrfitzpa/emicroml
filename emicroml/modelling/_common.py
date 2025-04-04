@@ -4574,6 +4574,15 @@ def _de_pre_serialize_mini_batch_size(serializable_rep):
 
 
 
+def _seed_worker(worker_id):
+    rng_seed = torch.initial_seed() % 2**32
+    np.random.seed(rng_seed)
+    random.seed(rng_seed)
+
+    return None
+
+
+
 _default_mini_batch_size = 32
 
 
@@ -4735,6 +4744,7 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
             kwargs = {"dataset": torch_ml_training_dataset,
                       "batch_size": mini_batch_size,
                       "shuffle": True,
+                      "worker_init_fn": _seed_worker,
                       "generator": self._generator}
             torch_ml_training_dataloader = torch_ml_dataloader_cls(**kwargs)
         else:
@@ -4764,6 +4774,7 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
             kwargs = {"dataset": torch_ml_validation_dataset,
                       "batch_size": mini_batch_size,
                       "shuffle": True,
+                      "worker_init_fn": _seed_worker,
                       "generator": self._generator}
             torch_ml_validation_dataloader = torch_ml_dataloader_cls(**kwargs)
         else:
