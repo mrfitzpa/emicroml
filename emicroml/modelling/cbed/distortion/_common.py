@@ -5040,14 +5040,14 @@ class _MLModel(_cls_alias):
 
 
 
-# def _calc_shifted_q(ml_data_dict, ml_model):
-#     kwargs = locals()
-#     q = _calc_q(**kwargs)
+def _calc_shifted_q(ml_data_dict, ml_model):
+    kwargs = locals()
+    q = _calc_q(**kwargs)
 
-#     mean_q = q.mean(dim=(2, 3))
-#     shifted_q = q - mean_q[:, :, None, None]
+    mean_q = q.mean(dim=(2, 3))
+    shifted_q = q - mean_q[:, :, None, None]
 
-#     return shifted_q
+    return shifted_q
 
 
 
@@ -5350,28 +5350,28 @@ def _generate_cached_obj_key_subset_2_of_coord_transform_set():
 
 
 
-def _calc_q_masks(ml_inputs, q):
-    key = "cbed_pattern_images"
-    cbed_pattern_images = ml_inputs[key]
+# def _calc_q_masks(ml_inputs, q):
+#     key = "cbed_pattern_images"
+#     cbed_pattern_images = ml_inputs[key]
 
-    q_masks = torch.zeros_like(q, dtype=bool)
+#     q_masks = torch.zeros_like(q, dtype=bool)
 
-    num_q_masks = q_masks.shape[0]
+#     num_q_masks = q_masks.shape[0]
 
-    for cbed_pattern_idx in range(num_q_masks):
-        x_min = 0
-        x_max = 1
+#     for cbed_pattern_idx in range(num_q_masks):
+#         x_min = 0
+#         x_max = 1
 
-        y_min = 0
-        y_max = 1
+#         y_min = 0
+#         y_max = 1
 
-        q_masks[cbed_pattern_idx, 0] = ((x_min <= q[cbed_pattern_idx, 0])
-                                        & (q[cbed_pattern_idx, 0] <= x_max)
-                                        & (y_min <= q[cbed_pattern_idx, 1])
-                                        & (q[cbed_pattern_idx, 1] <= y_max))
-        q_masks[cbed_pattern_idx, 1] = q_masks[cbed_pattern_idx, 0]
+#         q_masks[cbed_pattern_idx, 0] = ((x_min <= q[cbed_pattern_idx, 0])
+#                                         & (q[cbed_pattern_idx, 0] <= x_max)
+#                                         & (y_min <= q[cbed_pattern_idx, 1])
+#                                         & (q[cbed_pattern_idx, 1] <= y_max))
+#         q_masks[cbed_pattern_idx, 1] = q_masks[cbed_pattern_idx, 0]
 
-    return q_masks
+#     return q_masks
 
 
 
@@ -5393,40 +5393,40 @@ class _MLMetricCalculator(_cls_alias):
             mini_batch_indices_for_entire_training_session):
         metrics_of_current_mini_batch = dict()
 
-        kwargs = {"ml_data_dict": ml_targets, "ml_model": ml_model}
-        target_q = _calc_q(**kwargs)
-
-        mean_target_q = target_q.mean(dim=(2, 3))
-        target_shifted_q = target_q - mean_target_q[:, :, None, None]
-
-        kwargs = {"ml_inputs": ml_inputs, "q": target_q}
-        target_q_masks = _calc_q_masks(**kwargs)
-
-        kwargs = {"ml_data_dict": ml_predictions, "ml_model": ml_model}
-        predicted_q = _calc_q(**kwargs)
-
-        mean_predicted_q = predicted_q.mean(dim=(2, 3))
-        predicted_shifted_q = predicted_q - mean_predicted_q[:, :, None, None]
-        
-        method_alias = self._calc_epes_of_distortion_fields
-        kwargs = {"target_shifted_q": target_shifted_q,
-                  "predicted_shifted_q": predicted_shifted_q,
-                  "target_q_masks": target_q_masks}
-        epes_of_distortion_fields = method_alias(**kwargs)
-
-        metrics_of_current_mini_batch = {"epes_of_distortion_fields": \
-                                         epes_of_distortion_fields}
-
         # kwargs = {"ml_data_dict": ml_targets, "ml_model": ml_model}
-        # target_shifted_q = _calc_shifted_q(**kwargs)
+        # target_q = _calc_q(**kwargs)
+
+        # mean_target_q = target_q.mean(dim=(2, 3))
+        # target_shifted_q = target_q - mean_target_q[:, :, None, None]
+
+        # kwargs = {"ml_inputs": ml_inputs, "q": target_q}
+        # target_q_masks = _calc_q_masks(**kwargs)
 
         # kwargs = {"ml_data_dict": ml_predictions, "ml_model": ml_model}
-        # predicted_shifted_q = _calc_shifted_q(**kwargs)
+        # predicted_q = _calc_q(**kwargs)
 
+        # mean_predicted_q = predicted_q.mean(dim=(2, 3))
+        # predicted_shifted_q = predicted_q - mean_predicted_q[:, :, None, None]
+        
         # method_alias = self._calc_epes_of_distortion_fields
         # kwargs = {"target_shifted_q": target_shifted_q,
-        #           "predicted_shifted_q": predicted_shifted_q}
+        #           "predicted_shifted_q": predicted_shifted_q,
+        #           "target_q_masks": target_q_masks}
         # epes_of_distortion_fields = method_alias(**kwargs)
+
+        # metrics_of_current_mini_batch = {"epes_of_distortion_fields": \
+        #                                  epes_of_distortion_fields}
+
+        kwargs = {"ml_data_dict": ml_targets, "ml_model": ml_model}
+        target_shifted_q = _calc_shifted_q(**kwargs)
+
+        kwargs = {"ml_data_dict": ml_predictions, "ml_model": ml_model}
+        predicted_shifted_q = _calc_shifted_q(**kwargs)
+
+        method_alias = self._calc_epes_of_distortion_fields
+        kwargs = {"target_shifted_q": target_shifted_q,
+                  "predicted_shifted_q": predicted_shifted_q}
+        epes_of_distortion_fields = method_alias(**kwargs)
 
         # method_alias = self._calc_scalar_rejection_maes_of_distortion_fields
         # scalar_rejection_maes_of_distortion_fields = method_alias(**kwargs)
@@ -5441,15 +5441,18 @@ class _MLMetricCalculator(_cls_alias):
         #     (scalar_rejection_maes_of_distortion_fields +
         #      vec_mag_maes_of_distortion_fields)
 
+        metrics_of_current_mini_batch = {"epes_of_distortion_fields": \
+                                         epes_of_distortion_fields}
+
         # metrics_of_current_mini_batch = \
-        #     {"scalar_rejection_maes_of_distortion_fields": \
+        #     {"epes_of_distortion_fields": \
+        #      epes_of_distortion_fields,
+        #      "scalar_rejection_maes_of_distortion_fields": \
         #      scalar_rejection_maes_of_distortion_fields,
         #      "vec_mag_maes_of_distortion_fields": \
         #      vec_mag_maes_of_distortion_fields,
         #      "scalar_rejection_maes_plus_vec_mag_maes_of_distortion_fields": \
         #      scalar_rejection_maes_plus_vec_mag_maes_of_distortion_fields,
-        #      "epes_of_distortion_fields": \
-        #      epes_of_distortion_fields,
         #      "rmlces_of_distortion_fields": \
         #      rmlces_of_distortion_fields}
 
@@ -5505,20 +5508,29 @@ class _MLMetricCalculator(_cls_alias):
 
     def _calc_epes_of_distortion_fields(self,
                                         target_shifted_q,
-                                        predicted_shifted_q,
-                                        target_q_masks):
+                                        predicted_shifted_q):
         calc_sq_errors = torch.nn.functional.mse_loss
-        masked_sq_errors = target_q_masks * calc_sq_errors(target_shifted_q,
-                                                           predicted_shifted_q,
-                                                           reduction="none")
+        masked_sq_errors = calc_sq_errors(target_shifted_q,
+                                          predicted_shifted_q,
+                                          reduction="none")
 
         euclidean_distances = torch.sqrt(masked_sq_errors[:, 0]
                                          + masked_sq_errors[:, 1])
 
-        epes = (euclidean_distances.sum(dim=(1, 2))
-                / (target_q_masks.sum(dim=(1, 2, 3)) / 2))
+        epes_of_distortion_fields = euclidean_distances.mean(dim=(1, 2))
 
-        epes_of_distortion_fields = epes
+        # calc_sq_errors = torch.nn.functional.mse_loss
+        # masked_sq_errors = target_q_masks * calc_sq_errors(target_shifted_q,
+        #                                                    predicted_shifted_q,
+        #                                                    reduction="none")
+
+        # euclidean_distances = torch.sqrt(masked_sq_errors[:, 0]
+        #                                  + masked_sq_errors[:, 1])
+
+        # epes = (euclidean_distances.sum(dim=(1, 2))
+        #         / (target_q_masks.sum(dim=(1, 2, 3)) / 2))
+
+        # epes_of_distortion_fields = epes
 
         return epes_of_distortion_fields
 
