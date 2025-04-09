@@ -5044,8 +5044,29 @@ def _calc_shifted_q(ml_data_dict, ml_model):
     kwargs = locals()
     q = _calc_q(**kwargs)
 
-    mean_q = q.mean(dim=(2, 3))
-    shifted_q = q - mean_q[:, :, None, None]
+    distortion_model_set_params = \
+        _generate_distortion_model_set_params(**kwargs)
+    x_c_D = \
+        distortion_model_set_params["distortion_centers"][:, 0]
+    y_c_D = \
+        distortion_model_set_params["distortion_centers"][:, 1]
+    A_r_2_0 = \
+        distortion_model_set_params["elliptical_distortion_vectors"][:, 0]
+    B_r_1_0 = \
+        distortion_model_set_params["elliptical_distortion_vectors"][:, 1]
+
+    delta_x_c_D = x_c_D-0.5
+    delta_y_c_D = y_c_D-0.5
+
+    shifted_q = \
+        q
+    shifted_q[:, 0] -= \
+        -(delta_x_c_D*A_r_2_0 + delta_y_c_D*B_r_1_0)[:, None, None]
+    shifted_q[:, 1] -= \
+        -(delta_x_c_D*B_r_1_0 - delta_y_c_D*A_r_2_0)[:, None, None]
+
+    # mean_q = q.mean(dim=(2, 3))
+    # shifted_q = q - mean_q[:, :, None, None]
 
     return shifted_q
 
@@ -5417,29 +5438,15 @@ class _MLMetricCalculator(_cls_alias):
         # metrics_of_current_mini_batch = {"epes_of_distortion_fields": \
         #                                  epes_of_distortion_fields}
 
-        # kwargs = {"ml_data_dict": ml_targets, "ml_model": ml_model}
-        # target_shifted_q = _calc_shifted_q(**kwargs)
-
-        # kwargs = {"ml_data_dict": ml_predictions, "ml_model": ml_model}
-        # predicted_shifted_q = _calc_shifted_q(**kwargs)
-
-        # method_alias = self._calc_epes_of_distortion_fields
-        # kwargs = {"target_shifted_q": target_shifted_q,
-        #           "predicted_shifted_q": predicted_shifted_q}
-        # epes_of_distortion_fields = method_alias(**kwargs)
-
         kwargs = {"ml_data_dict": ml_targets, "ml_model": ml_model}
-        target_q = _calc_q(**kwargs)
+        target_shifted_q = _calc_shifted_q(**kwargs)
 
         kwargs = {"ml_data_dict": ml_predictions, "ml_model": ml_model}
-        predicted_q = _calc_q(**kwargs)
+        predicted_shifted_q = _calc_shifted_q(**kwargs)
 
         method_alias = self._calc_epes_of_distortion_fields
-        kwargs = {"ml_predictions": ml_predictions,
-                  "ml_model": ml_model,
-                  "ml_targets": ml_targets,
-                  "target_q": target_q,
-                  "predicted_q": predicted_q}
+        kwargs = {"target_shifted_q": target_shifted_q,
+                  "predicted_shifted_q": predicted_shifted_q}
         epes_of_distortion_fields = method_alias(**kwargs)
 
         # method_alias = self._calc_scalar_rejection_maes_of_distortion_fields
@@ -5521,47 +5528,11 @@ class _MLMetricCalculator(_cls_alias):
 
 
     def _calc_epes_of_distortion_fields(self,
-                                        ml_predictions,
-                                        ml_model,
-                                        ml_targets,
-                                        target_q,
-                                        predicted_q):
-        kwargs = \
-            {"ml_data_dict": ml_predictions, "ml_model": ml_model}
-        distortion_model_set_params = \
-            _generate_distortion_model_set_params(**kwargs)
-        predicted_x_c_D = \
-            distortion_model_set_params["distortion_centers"][:, 0]
-        predicted_y_c_D = \
-            distortion_model_set_params["distortion_centers"][:, 1]
-        predicted_A_r_2_0 = \
-            distortion_model_set_params["elliptical_distortion_vectors"][:, 0]
-        predicted_B_r_1_0 = \
-            distortion_model_set_params["elliptical_distortion_vectors"][:, 1]
-
-        kwargs = \
-            {"ml_data_dict": ml_targets, "ml_model": ml_model}
-        distortion_model_set_params = \
-            _generate_distortion_model_set_params(**kwargs)
-        target_x_c_D = \
-            distortion_model_set_params["distortion_centers"][:, 0]
-        target_y_c_D = \
-            distortion_model_set_params["distortion_centers"][:, 1]
-
-        delta_x_c_D = predicted_x_c_D-target_x_c_D
-        delta_y_c_D = predicted_y_c_D-target_y_c_D
-
-        offset = torch.zeros(target_q.shape[:2], device=target_q.device)
-        offset[:, 0] = -(delta_x_c_D*predicted_A_r_2_0
-                         + delta_y_c_D*predicted_B_r_1_0)
-        offset[:, 1] = -(delta_x_c_D*predicted_B_r_1_0
-                         - delta_y_c_D*predicted_A_r_2_0)
-
-        shifted_predicted_q = predicted_q-offset[:, :, None, None]
-
+                                        target_shifted_q,
+                                        predicted_shifted_q):
         calc_sq_errors = torch.nn.functional.mse_loss
-        masked_sq_errors = calc_sq_errors(target_q,
-                                          shifted_predicted_q,
+        masked_sq_errors = calc_sq_errors(target_shifted_q,
+                                          predicted_shifted_q,
                                           reduction="none")
 
         euclidean_distances = torch.sqrt(masked_sq_errors[:, 0]
@@ -5569,37 +5540,20 @@ class _MLMetricCalculator(_cls_alias):
 
         epes_of_distortion_fields = euclidean_distances.mean(dim=(1, 2))
 
+        # calc_sq_errors = torch.nn.functional.mse_loss
+        # masked_sq_errors = target_q_masks * calc_sq_errors(target_shifted_q,
+        #                                                    predicted_shifted_q,
+        #                                                    reduction="none")
+
+        # euclidean_distances = torch.sqrt(masked_sq_errors[:, 0]
+        #                                  + masked_sq_errors[:, 1])
+
+        # epes = (euclidean_distances.sum(dim=(1, 2))
+        #         / (target_q_masks.sum(dim=(1, 2, 3)) / 2))
+
+        # epes_of_distortion_fields = epes
+
         return epes_of_distortion_fields
-
-
-
-    # def _calc_epes_of_distortion_fields(self,
-    #                                     target_shifted_q,
-    #                                     predicted_shifted_q):
-    #     calc_sq_errors = torch.nn.functional.mse_loss
-    #     masked_sq_errors = calc_sq_errors(target_shifted_q,
-    #                                       predicted_shifted_q,
-    #                                       reduction="none")
-
-    #     euclidean_distances = torch.sqrt(masked_sq_errors[:, 0]
-    #                                      + masked_sq_errors[:, 1])
-
-    #     epes_of_distortion_fields = euclidean_distances.mean(dim=(1, 2))
-
-    #     # calc_sq_errors = torch.nn.functional.mse_loss
-    #     # masked_sq_errors = target_q_masks * calc_sq_errors(target_shifted_q,
-    #     #                                                    predicted_shifted_q,
-    #     #                                                    reduction="none")
-
-    #     # euclidean_distances = torch.sqrt(masked_sq_errors[:, 0]
-    #     #                                  + masked_sq_errors[:, 1])
-
-    #     # epes = (euclidean_distances.sum(dim=(1, 2))
-    #     #         / (target_q_masks.sum(dim=(1, 2, 3)) / 2))
-
-    #     # epes_of_distortion_fields = epes
-
-    #     return epes_of_distortion_fields
 
 
 
