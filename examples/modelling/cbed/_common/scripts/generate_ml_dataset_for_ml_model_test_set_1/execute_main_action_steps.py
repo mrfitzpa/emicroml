@@ -49,9 +49,9 @@ __status__       = "Development"
 
 
 
-###############################################
-## Define classes, functions, and contstants ##
-###############################################
+##############################################
+## Define classes, functions, and constants ##
+##############################################
 
 class CBEDPatternGenerator():
     def __init__(self,

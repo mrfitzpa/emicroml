@@ -25,6 +25,8 @@ emicroml/version.py
 tests/coverage.json
 _todo.rst
 sandbox.ipynb
+rgm_test.ipynb
+_rgm_test.py
 total_losses.txt
 total_training_losses.txt
 total_validation_losses.txt

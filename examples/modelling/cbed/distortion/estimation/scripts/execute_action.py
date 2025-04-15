@@ -87,9 +87,9 @@ import os
 
 
 
-###############################################
-## Define classes, functions, and contstants ##
-###############################################
+##############################################
+## Define classes, functions, and constants ##
+##############################################
 
 def _parse_and_convert_cmd_line_args():
     accepted_actions = \

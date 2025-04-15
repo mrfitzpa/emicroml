@@ -5040,6 +5040,122 @@ class _MLModel(_cls_alias):
 
 
 
+def _calc_single_ml_data_instance_loss_weights(ml_targets, ml_model):
+    kwargs = \
+        {"ml_data_dict": ml_targets, "ml_model": ml_model}
+    distortion_model_set_params = \
+        _generate_distortion_model_set_params(**kwargs)
+    
+    u_c_D = distortion_model_set_params["distortion_centers"]
+    p_qr = distortion_model_set_params["quadratic_radial_distortion_amplitudes"]
+    p_s = distortion_model_set_params["spiral_distortion_amplitudes"]
+    p_p = distortion_model_set_params["parabolic_distortion_vectors"]
+    p_e = distortion_model_set_params["elliptical_distortion_vectors"]
+
+    kwargs = {"ml_model": ml_model, "distortion_centers": u_c_D}
+    u_x, u_y = _calc_u_x_and_u_y(**kwargs)
+
+    delta_u_x = u_x[:, :, :] - u_c_D[:, 0, None, None]
+    delta_u_y = u_y[:, :, :] - u_c_D[:, 1, None, None]
+    u_r = torch.sqrt(delta_u_x*delta_u_x + delta_u_y*delta_u_y)
+    u_theta = torch.arctan2(delta_u_y, delta_u_x)
+
+    u_r_sq = u_r*u_r
+    u_r_cu = u_r_sq*u_r
+
+    cosine_of_u_theta = torch.cos(u_theta)
+    sine_of_u_theta = torch.sin(u_theta)
+    cosine_of_2_u_theta = torch.cos(2*u_theta)
+    sine_of_2_u_theta = torch.sin(2*u_theta)
+
+    w_qr, w_s = _calc_w_qr_and_w_s(u_r_cu)
+    
+    w_p_x, w_p_y = _calc_w_p_x_and_w_p_y(u_r_sq, cosine_of_2_u_theta)
+    
+    w_e_x, w_e_y = _calc_w_e_x_and_w_e_y(u_x, u_y)
+
+    kwargs = {"u_r": u_r,
+              "u_r_sq": u_r_sq,
+              "cosine_of_u_theta": cosine_of_u_theta,
+              "sine_of_u_theta": sine_of_u_theta,
+              "cosine_of_2_u_theta": cosine_of_2_u_theta,
+              "sine_of_2_u_theta": sine_of_2_u_theta,
+              "p_qr": p_qr[:, None, None],
+              "p_s": p_s[:, None, None],
+              "p_p": p_p[:, :, None, None]}
+    w_c_D_x, w_c_D_y = _calc_w_c_D_x_and_w_c_D_y(**kwargs)
+
+    single_ml_data_instance_loss_weights = \
+        (w_qr, w_s, w_p_x, w_p_y, w_e_x, w_e_y, w_c_D_x, w_c_D_y)
+
+    return single_ml_data_instance_loss_weights
+
+
+
+def _calc_w_qr_and_w_s(u_r_cu):
+    w_qr = u_r_cu.mean(dim=(1, 2))
+    w_s = w_qr
+
+    return w_qr, w_s
+
+
+
+def _calc_w_p_x_and_w_p_y(u_r_sq, cosine_of_2_u_theta):
+    w_p_x = (u_r_sq*torch.sqrt(5+4*cosine_of_2_u_theta)/3).mean(dim=(1, 2))
+    w_p_y = (u_r_sq*torch.sqrt(5-4*cosine_of_2_u_theta)/3).mean(dim=(1, 2))
+
+    return w_p_x, w_p_y
+
+
+
+def _calc_w_e_x_and_w_e_y(u_x, u_y):
+    delta_u_x = u_x[:, :, :] - 0.5
+    delta_u_y = u_y[:, :, :] - 0.5
+    u_r = torch.sqrt(delta_u_x*delta_u_x + delta_u_y*delta_u_y)
+
+    w_e_x = u_r.mean(dim=(1, 2))
+    w_e_y = w_e_x
+
+    return w_e_x, w_e_y
+
+
+
+def _calc_w_c_D_x_and_w_c_D_y(u_r,
+                              u_r_sq,
+                              cosine_of_u_theta,
+                              sine_of_u_theta,
+                              cosine_of_2_u_theta,
+                              sine_of_2_u_theta,
+                              p_qr,
+                              p_s,
+                              p_p):
+    v_1_x = 3*u_r_sq*(cosine_of_u_theta*p_qr - sine_of_u_theta*p_s)
+    v_1_y = 3*u_r_sq*(sine_of_u_theta*p_qr + cosine_of_u_theta*p_s)
+
+    v_2_x = (2/3)*u_r*(cosine_of_2_u_theta*p_p[:, 0]
+                       + sine_of_2_u_theta*p_p[:, 1])
+    v_2_y = (2/3)*u_r*(sine_of_2_u_theta*p_p[:, 0]
+                       - cosine_of_2_u_theta*p_p[:, 1])
+
+    v_3_x = v_1_x + v_2_x + (4/3)*u_r*p_p[:, 0]
+    v_3_y = v_1_y + v_2_y + (4/3)*u_r*p_p[:, 1]
+
+    v_4_x = -v_1_y/3 - v_2_y
+    v_4_y = v_1_x/3 + v_2_x
+
+    v_5_x = -cosine_of_u_theta*v_3_x + sine_of_u_theta*v_4_x
+    v_5_y = -cosine_of_u_theta*v_3_y + sine_of_u_theta*v_4_y
+
+    v_6_x = -sine_of_u_theta*v_3_x - cosine_of_u_theta*v_4_x
+    v_6_y = -sine_of_u_theta*v_3_y - cosine_of_u_theta*v_4_y
+
+    w_c_D_x = torch.sqrt(v_5_x*v_5_x + v_5_y*v_5_y).mean(dim=(1, 2))
+    w_c_D_y = torch.sqrt(v_6_x*v_6_x + v_6_y*v_6_y).mean(dim=(1, 2))
+
+    return w_c_D_x, w_c_D_y
+
+
+
 def _calc_shifted_q(ml_data_dict, ml_model):
     kwargs = locals()
     q = _calc_q(**kwargs)
@@ -5449,6 +5565,12 @@ class _MLMetricCalculator(_cls_alias):
                   "predicted_shifted_q": predicted_shifted_q}
         epes_of_distortion_fields = method_alias(**kwargs)
 
+        method_alias = self._calc_single_ml_data_instance_losses
+        kwargs = {"ml_predictions": ml_predictions,
+                  "ml_model": ml_model,
+                  "ml_targets": ml_targets}
+        single_ml_data_instance_losses = method_alias(**kwargs)
+
         # method_alias = self._calc_scalar_rejection_maes_of_distortion_fields
         # scalar_rejection_maes_of_distortion_fields = method_alias(**kwargs)
 
@@ -5463,7 +5585,9 @@ class _MLMetricCalculator(_cls_alias):
         #      vec_mag_maes_of_distortion_fields)
 
         metrics_of_current_mini_batch = {"epes_of_distortion_fields": \
-                                         epes_of_distortion_fields}
+                                         epes_of_distortion_fields,
+                                         "single_ml_data_instance_losses": \
+                                         single_ml_data_instance_losses}
 
         # metrics_of_current_mini_batch = \
         #     {"epes_of_distortion_fields": \
@@ -5557,6 +5681,59 @@ class _MLMetricCalculator(_cls_alias):
 
 
 
+    def _calc_single_ml_data_instance_losses(self,
+                                             ml_predictions,
+                                             ml_model,
+                                             ml_targets):
+        kwargs = \
+            {"ml_data_dict": ml_predictions, "ml_model": ml_model}
+        predicted_distortion_model_set_params = \
+            _generate_distortion_model_set_params(**kwargs)
+
+        kwargs = \
+            {"ml_data_dict": ml_targets, "ml_model": ml_model}
+        target_distortion_model_set_params = \
+            _generate_distortion_model_set_params(**kwargs)
+
+        single_ml_data_instance_loss_weights = \
+            _calc_single_ml_data_instance_loss_weights(ml_targets, ml_model)
+
+        keys = ("quadratic_radial_distortion_amplitudes",
+                "spiral_distortion_amplitudes",
+                "parabolic_distortion_vectors",
+                "parabolic_distortion_vectors",
+                "elliptical_distortion_vectors",
+                "elliptical_distortion_vectors",
+                "distortion_centers",
+                "distortion_centers")
+
+        vec_cmpnt_idx = 0
+
+        for key_idx, key in enumerate(keys):
+            if "amplitudes" in key:
+                multi_dim_slice = (slice(None),)
+            else:
+                multi_dim_slice = (slice(None), vec_cmpnt_idx)
+                vec_cmpnt_idx = (vec_cmpnt_idx+1)%2
+
+            predicted_p = \
+                predicted_distortion_model_set_params[key][multi_dim_slice]
+            target_p = \
+                target_distortion_model_set_params[key][multi_dim_slice]
+            w = \
+                single_ml_data_instance_loss_weights[key_idx]
+
+            if key_idx == 0:
+                single_ml_data_instance_losses = w*torch.abs(predicted_p
+                                                             - target_p)
+            else:
+                single_ml_data_instance_losses += w*torch.abs(predicted_p
+                                                              - target_p)
+
+        return single_ml_data_instance_losses
+
+
+
     def _calc_rmlces_of_distortion_fields(self,
                                           target_shifted_q,
                                           predicted_shifted_q):
@@ -5596,7 +5773,8 @@ class _MLLossCalculator(_cls_alias):
         losses_of_current_mini_batch = {"total": 0.0}
 
         # key_set_1 = ("rmlces_of_distortion_fields",)
-        key_set_1 = ("epes_of_distortion_fields",)
+        # key_set_1 = ("epes_of_distortion_fields",)
+        key_set_1 = ("single_ml_data_instance_losses",)
         # key_set_1 = ("scalar_rejection_maes_of_distortion_fields",
         #              "vec_mag_maes_of_distortion_fields")
 
