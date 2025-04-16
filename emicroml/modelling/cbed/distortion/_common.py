@@ -5565,11 +5565,11 @@ class _MLMetricCalculator(_cls_alias):
                   "predicted_shifted_q": predicted_shifted_q}
         epes_of_distortion_fields = method_alias(**kwargs)
 
-        method_alias = self._calc_single_ml_data_instance_losses
-        kwargs = {"ml_predictions": ml_predictions,
-                  "ml_model": ml_model,
-                  "ml_targets": ml_targets}
-        single_ml_data_instance_losses = method_alias(**kwargs)
+        # method_alias = self._calc_single_ml_data_instance_losses
+        # kwargs = {"ml_predictions": ml_predictions,
+        #           "ml_model": ml_model,
+        #           "ml_targets": ml_targets}
+        # single_ml_data_instance_losses = method_alias(**kwargs)
 
         # method_alias = self._calc_scalar_rejection_maes_of_distortion_fields
         # scalar_rejection_maes_of_distortion_fields = method_alias(**kwargs)
@@ -5585,9 +5585,12 @@ class _MLMetricCalculator(_cls_alias):
         #      vec_mag_maes_of_distortion_fields)
 
         metrics_of_current_mini_batch = {"epes_of_distortion_fields": \
-                                         epes_of_distortion_fields,
-                                         "single_ml_data_instance_losses": \
-                                         single_ml_data_instance_losses}
+                                         epes_of_distortion_fields}
+
+        # metrics_of_current_mini_batch = {"epes_of_distortion_fields": \
+        #                                  epes_of_distortion_fields,
+        #                                  "single_ml_data_instance_losses": \
+        #                                  single_ml_data_instance_losses}
 
         # metrics_of_current_mini_batch = \
         #     {"epes_of_distortion_fields": \
@@ -5773,8 +5776,8 @@ class _MLLossCalculator(_cls_alias):
         losses_of_current_mini_batch = {"total": 0.0}
 
         # key_set_1 = ("rmlces_of_distortion_fields",)
-        # key_set_1 = ("epes_of_distortion_fields",)
-        key_set_1 = ("single_ml_data_instance_losses",)
+        key_set_1 = ("epes_of_distortion_fields",)
+        # key_set_1 = ("single_ml_data_instance_losses",)
         # key_set_1 = ("scalar_rejection_maes_of_distortion_fields",
         #              "vec_mag_maes_of_distortion_fields")
 
