@@ -113,7 +113,7 @@ if ml_model_task == "cbed/distortion/estimation":
     module_alias_1 = emicroml.modelling.cbed.distortion.estimation
     architecture_set = ("distoptica_net",)
     # architecture_set = ("no_pool_resnet_39",)
-    # rng_seed = 18200 + 1000*ml_model_idx
+    # rng_seed = 21000 + 1000*ml_model_idx
     rng_seed = 20000
 
 
@@ -128,17 +128,18 @@ torch.backends.cudnn.benchmark = False
 
 
 
-mini_batch_size_set = (64,)
+mini_batch_size_set = 2*(32,)
 
-weight_decay_set = (1.5e-2,)
-max_lr_set = (5e-3,)
+weight_decay_set = (5e-3, 5e-3)
+beta_2_set = (0.999,)*len(mini_batch_size_set)
+max_lr_set = (2e-3, 2e-3)
 initial_lr_set = (1e-8,)*len(max_lr_set)
 reduction_factor_set = (1/2,)*len(max_lr_set)
-min_lr_in_first_annealing_cycle_set = (1e-8,)*len(max_lr_set)
+min_lr_in_first_annealing_cycle_set = (5e-5, 1e-8)
 num_lr_annealing_cycles_set = (1,)*len(max_lr_set)
-num_epochs_in_first_lr_annealing_cycle_set = (40,)*len(max_lr_set)
+num_epochs_in_first_lr_annealing_cycle_set = (20, 20)
 multiplicative_decay_factor_set = (0.5,)*len(max_lr_set)
-num_epochs_during_warmup_set = (5,)*len(max_lr_set)
+num_epochs_during_warmup_set = (20, 20)
 num_epochs_after_warmup_set = (80,)*len(max_lr_set)
 
 M_1 = len(architecture_set)
@@ -147,6 +148,7 @@ M_2 = len(max_lr_set)
 momentum_factor = 0.9
 
 mini_batch_size = mini_batch_size_set[ml_model_idx%M_2]
+beta_2 = beta_2_set[ml_model_idx%M_2]
 reduction_factor = reduction_factor_set[ml_model_idx%M_2]
 num_epochs_during_warmup = num_epochs_during_warmup_set[ml_model_idx%M_2]
 num_epochs_after_warmup = num_epochs_after_warmup_set[ml_model_idx%M_2]
@@ -245,7 +247,9 @@ kwargs = {"ml_optimizer_name": "sgd",
           "ml_optimizer_params": ml_optimizer_params}
 ml_optimizer = module_alias_2.Generic(**kwargs)
 
-# ml_optimizer_params = {"base_lr": max_lr, "weight_decay": weight_decay}
+# ml_optimizer_params = {"base_lr": max_lr,
+#                        "weight_decay": weight_decay,
+#                        "beta_2": beta_2}
 
 # kwargs = {"ml_optimizer_name": "adam_w",
 #           "ml_optimizer_params": ml_optimizer_params}
@@ -284,32 +288,32 @@ num_lr_annealing_cycles = num_lr_annealing_cycles_set[ml_model_idx%M_2]
 cycle_period_scale_factor = 2
 multiplicative_decay_factor = multiplicative_decay_factor_set[ml_model_idx%M_2]
 
-# total_num_steps_in_lr_annealing_schedule = \
-#     sum(T * (cycle_period_scale_factor**cycle_idx)
-#         for cycle_idx
-#         in range(num_lr_annealing_cycles))
-
 total_num_steps_in_lr_annealing_schedule = \
-    (num_epochs_after_warmup
-     * num_training_mini_batch_instances_per_epoch)
-num_steps_in_first_lr_annealing_cycle = \
-    total_num_steps_in_lr_annealing_schedule
+    sum(T * (cycle_period_scale_factor**cycle_idx)
+        for cycle_idx
+        in range(num_lr_annealing_cycles))
 
-# lr_scheduler_params = {"ml_optimizer": \
-#                        ml_optimizer,
-#                        "total_num_steps": \
-#                        total_num_steps_in_lr_annealing_schedule,
-#                        "num_steps_in_first_cycle": \
-#                        num_steps_in_first_lr_annealing_cycle,
-#                        "cycle_period_scale_factor": \
-#                        cycle_period_scale_factor,
-#                        "min_lr_in_first_cycle": \
-#                        min_lr_in_first_annealing_cycle,
-#                        "multiplicative_decay_factor": \
-#                        multiplicative_decay_factor}
-# kwargs = {"lr_scheduler_name": "cosine_annealing_with_warm_restarts",
-#           "lr_scheduler_params": lr_scheduler_params}
-# non_sequential_lr_scheduler_2 = module_alias_3.Nonsequential(**kwargs)
+# total_num_steps_in_lr_annealing_schedule = \
+#     (num_epochs_after_warmup
+#      * num_training_mini_batch_instances_per_epoch)
+# num_steps_in_first_lr_annealing_cycle = \
+#     total_num_steps_in_lr_annealing_schedule
+
+lr_scheduler_params = {"ml_optimizer": \
+                       ml_optimizer,
+                       "total_num_steps": \
+                       total_num_steps_in_lr_annealing_schedule,
+                       "num_steps_in_first_cycle": \
+                       num_steps_in_first_lr_annealing_cycle,
+                       "cycle_period_scale_factor": \
+                       cycle_period_scale_factor,
+                       "min_lr_in_first_cycle": \
+                       min_lr_in_first_annealing_cycle,
+                       "multiplicative_decay_factor": \
+                       multiplicative_decay_factor}
+kwargs = {"lr_scheduler_name": "cosine_annealing_with_warm_restarts",
+          "lr_scheduler_params": lr_scheduler_params}
+non_sequential_lr_scheduler_2 = module_alias_3.Nonsequential(**kwargs)
 
 # num_validation_ml_data_instances = \
 #     len(ml_validation_dataset)
@@ -333,21 +337,21 @@ num_steps_in_first_lr_annealing_cycle = \
 #           "lr_scheduler_params": lr_scheduler_params}
 # non_sequential_lr_scheduler_2 = module_alias_3.Nonsequential(**kwargs)
 
-lr_scheduler_params = {"ml_optimizer": \
-                       ml_optimizer,
-                       "total_num_steps": \
-                       total_num_steps_in_lr_annealing_schedule,
-                       "reduction_factor": \
-                       reduction_factor,
-                       "max_num_steps_of_stagnation": \
-                       3*num_training_mini_batch_instances_per_epoch,
-                       "improvement_threshold": \
-                       0.01,
-                       "averaging_window_in_steps": \
-                       num_training_mini_batch_instances_per_epoch}
-kwargs = {"lr_scheduler_name": "reduce_on_plateau",
-          "lr_scheduler_params": lr_scheduler_params}
-non_sequential_lr_scheduler_2 = module_alias_3.Nonsequential(**kwargs)
+# lr_scheduler_params = {"ml_optimizer": \
+#                        ml_optimizer,
+#                        "total_num_steps": \
+#                        total_num_steps_in_lr_annealing_schedule,
+#                        "reduction_factor": \
+#                        reduction_factor,
+#                        "max_num_steps_of_stagnation": \
+#                        3*num_training_mini_batch_instances_per_epoch,
+#                        "improvement_threshold": \
+#                        0.01,
+#                        "averaging_window_in_steps": \
+#                        num_training_mini_batch_instances_per_epoch}
+# kwargs = {"lr_scheduler_name": "reduce_on_plateau",
+#           "lr_scheduler_params": lr_scheduler_params}
+# non_sequential_lr_scheduler_2 = module_alias_3.Nonsequential(**kwargs)
 
 non_sequential_lr_schedulers = (non_sequential_lr_scheduler_1,
                                 non_sequential_lr_scheduler_2)
