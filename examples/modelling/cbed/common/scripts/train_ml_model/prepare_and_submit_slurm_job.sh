@@ -17,8 +17,8 @@
 
 # The current script is expected to be called only by the parent script with the
 # basename ``execute_all_action_steps.py``, located in the same directory as the
-# current script. The parent script performs the "action" of generating the
-# atomic coordinates of a model of a 5-layer :math:`\text{MoS}_2` thin film.
+# current script. The parent script performs the "action" of training a single
+# machine learning (ML) model for a specified task.
 #
 # The current script prepares and submits a SLURM job which:
 #
@@ -40,18 +40,23 @@
 
 
 
-#SBATCH --job-name=generate_atomic_coords
+#SBATCH --job-name=train_ml_model
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=1  # CPU cores/threads
-#SBATCH --mem=4G           # CPU memory per node
-#SBATCH --time=00-02:59    # time (DD-HH:MM)
+#SBATCH --cpus-per-task=32       # CPU cores/threads
+#SBATCH --gpus-per-node=v100l:1  # GPU type and number of GPUs per node.
+#SBATCH --mem=187G               # CPU memory per node
+#SBATCH --time=00-35:59          # time (DD-HH:MM)
 #SBATCH --mail-type=ALL
+
+
 
 # Parse the command line arguments.
 path_to_dir_containing_current_script=${1}
 path_to_repo_root=${2}
 path_to_data_dir_1=${3}
-overwrite_slurm_tmpdir=${4}
+ml_model_task=${4}
+ml_model_idx=${5}
+overwrite_slurm_tmpdir=${6}
 
 
 
@@ -73,11 +78,37 @@ source ${path_to_repo_root}/${basename} ${SLURM_TMPDIR}/tempenv false
 
 
 
-# Execute the script which executes the main action steps.
+# Copy the input data to the temporary directories.
+partial_path_1=ml_datasets
+partial_path_2=${partial_path_1}/ml_datasets_for_training_and_validation
+
+ml_dataset_types=(training validation)
+
+for ml_dataset_type in "${ml_dataset_types[@]}"
+do
+    dirname_1=${path_to_data_dir_1}/${partial_path_1}
+    dirname_2=${SLURM_TMPDIR}/${partial_path_1}
+    basename_1=ml_dataset_for_${ml_dataset_type}.h5
+    basename_2=${basename_1}
+    filename_1=${dirname_1}/${basename_1}
+    filename_2=${dirname_2}/${basename_2}
+
+    mkdir -p ${dirname_2}
+    if [ "${filename_1}" != "${filename_2}" ]
+    then
+	cp ${filename_1} ${filename_2}
+    fi
+done
+
+
+
+# Execute the script that executes the main action steps.
 basename=execute_main_action_steps.py
 path_to_script_to_execute=${path_to_dir_containing_current_script}/${basename}
 
 python ${path_to_script_to_execute} \
+       --ml_model_task=${ml_model_task} \
+       --ml_model_idx=${ml_model_idx} \
        --data_dir_1=${SLURM_TMPDIR}
 python_script_exit_code=$?
 
@@ -94,18 +125,16 @@ fi
 # Move the non-temporary output data that is generated from the main steps to
 # their expected final destinations. Also delete/remove any remaining temporary
 # files or directories.
-dirname_1=${SLURM_TMPDIR}
-dirname_2=${path_to_data_dir_1}
-basename_1=atomic_coords.xyz
-basename_2=${basename_1}
-filename_1=${dirname_1}/${basename_1}
-filename_2=${dirname_2}/${basename_2}
+partial_path_3=ml_models/ml_model_${ml_model_idx}
+dirname_1=${SLURM_TMPDIR}/${partial_path_3}
+dirname_2=${path_to_data_dir_1}/${partial_path_3}
 
 cd ${SLURM_TMPDIR}
 mkdir -p ${dirname_2}
-if [ "${filename_1}" != "${filename_2}" ]
+rm -rf ${dirname_2}
+if [ "${dirname_1}" != "${dirname_2}" ]
 then
-    mv ${filename_1} ${filename_2}
+    mv ${dirname_1} ${dirname_2}
 fi
 
 if [ "${overwrite_slurm_tmpdir}" = true ]

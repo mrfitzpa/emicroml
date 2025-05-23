@@ -8,7 +8,4 @@ cd ${path_1}/required_git_repos
 
 git clone https://github.com/mrfitzpa/emicroml.git
 
-git clone https://gitlab.com/mrfitzpa/embeam.git
-git clone https://gitlab.com/mrfitzpa/prismatique.git
-
 cd -

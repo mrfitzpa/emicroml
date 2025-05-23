@@ -17,8 +17,8 @@
 
 # The current script is expected to be called only by the parent script with the
 # basename ``execute_all_action_steps.py``, located in the same directory as the
-# current script. The parent script performs the "action" of generating the
-# atomic coordinates of a model of a 5-layer :math:`\text{MoS}_2` thin film.
+# current script. The parent script performs the "action" of generating a single
+# ML dataset that can be used to test ML models for a specified task.
 #
 # The current script prepares and submits a SLURM job which:
 #
@@ -40,18 +40,25 @@
 
 
 
-#SBATCH --job-name=generate_atomic_coords
+#SBATCH --job-name=generate_ml_dataset_for_ml_model_test_set_1
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=1  # CPU cores/threads
-#SBATCH --mem=4G           # CPU memory per node
-#SBATCH --time=00-02:59    # time (DD-HH:MM)
+#SBATCH --cpus-per-task=8        # CPU cores/threads
+#SBATCH --gpus-per-node=v100l:1  # GPU type and number of GPUs per node.
+#SBATCH --mem=46G                # CPU memory per node
+#SBATCH --time=00-11:59          # time (DD-HH:MM)
 #SBATCH --mail-type=ALL
+
+
 
 # Parse the command line arguments.
 path_to_dir_containing_current_script=${1}
 path_to_repo_root=${2}
 path_to_data_dir_1=${3}
-overwrite_slurm_tmpdir=${4}
+ml_model_task=${4}
+disk_size_idx=${5}
+disk_size=${6}
+ml_dataset_idx=${7}
+overwrite_slurm_tmpdir=${8}
 
 
 
@@ -61,24 +68,52 @@ then
     SLURM_TMPDIR=${path_to_data_dir_1}
 fi
 
-
-
-# Setup the Python virtual environment used to execute the main action steps.
 basename=custom_env_setup_for_slurm_jobs.sh
 if [ ! -f ${path_to_repo_root}/${basename} ]
 then
     basename=default_env_setup_for_slurm_jobs.sh
 fi
-source ${path_to_repo_root}/${basename} ${SLURM_TMPDIR}/tempenv false
+source ${path_to_repo_root}/${basename} ${SLURM_TMPDIR}/tempenv true
+
+
+
+# Copy the input data to temporary directories.
+sample_name=MoS2_on_amorphous_C
+
+partial_path_1=examples/modelling/cbed/simulations/${sample_name}/data
+partial_path_2=${partial_path_1}/cbed_pattern_generator_output
+partial_path_3=${partial_path_2}/patterns_with_${disk_size}_sized_disks
+
+dirname_1=${path_to_repo_root}/${partial_path_3}
+for filename_1 in ${dirname_1}/*
+do
+    basename_1=$(basename "${filename_1}")
+    basename_2=${basename_1}
+    dirname_2=${SLURM_TMPDIR}/${partial_path_3}
+    filename_2=${dirname_2}/${basename_2}
+
+    mkdir -p ${dirname_2}
+    if [ "${filename_1}" != "${filename_2}" ]
+    then
+	cp ${filename_1} ${filename_2}
+    fi
+done
 
 
 
 # Execute the script which executes the main action steps.
+path_to_data_dir_2=${dirname_2}
+
 basename=execute_main_action_steps.py
 path_to_script_to_execute=${path_to_dir_containing_current_script}/${basename}
 
 python ${path_to_script_to_execute} \
-       --data_dir_1=${SLURM_TMPDIR}
+       --ml_model_task=${ml_model_task} \
+       --disk_size_idx=${disk_size_idx} \
+       --disk_size=${disk_size} \
+       --ml_dataset_idx=${ml_dataset_idx} \
+       --data_dir_1=${SLURM_TMPDIR} \
+       --data_dir_2=${path_to_data_dir_2}
 python_script_exit_code=$?
 
 if [ "${python_script_exit_code}" -ne 0 ];
@@ -94,9 +129,14 @@ fi
 # Move the non-temporary output data that is generated from the main steps to
 # their expected final destinations. Also delete/remove any remaining temporary
 # files or directories.
-dirname_1=${SLURM_TMPDIR}
-dirname_2=${path_to_data_dir_1}
-basename_1=atomic_coords.xyz
+partial_path_4=ml_datasets/ml_datasets_for_ml_model_test_set_1
+partial_path_5=${partial_path_4}/ml_datasets_with_cbed_patterns_of_
+partial_path_6=${partial_path_5}${sample_name}
+partial_path_7=${partial_path_6}/ml_datasets_with_${disk_size}_sized_disks
+
+dirname_1=${SLURM_TMPDIR}/${partial_path_7}
+dirname_2=${path_to_data_dir_1}/${partial_path_7}
+basename_1=ml_dataset_${ml_dataset_idx}.h5
 basename_2=${basename_1}
 filename_1=${dirname_1}/${basename_1}
 filename_2=${dirname_2}/${basename_2}

@@ -1,4 +1,61 @@
-"""Insert here a brief description of the package.
+# -*- coding: utf-8 -*-
+# Copyright 2025 Matthew Fitzpatrick.
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, version 3.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
+"""A script that is called by other scripts used for generating the atomic
+coordinates of a model of a :math:`\text{MoS}_2` thin film with a layer of
+amorphous carbon (C). The atomic coordinates of this sample are determined in
+part by those of two other models: a model of a :math:`\text{MoS}_2` thin film
+without amorphous C; and a model of a amorphous C superblock.
+
+The correct form of the command to run the script is::
+
+  python execute_main_action_steps.py \
+         --data_dir_1=<data_dir_1> \
+         --data_dir_2=<data_dir_2> \
+         --data_dir_3=<data_dir_3>
+
+where ``<data_dir_1>`` is the absolute path to the output directory;
+``<data_dir_2>`` is the absolute path to a directory directly containing the
+file that stores the atomic coordinates of the model of the :math:`\text{MoS}_2`
+thin film without amorphous C; and ``<data_dir_3>`` is the absolute path to a
+directory directly containing the file that stores the atomic coordinates of the
+model of the amorphous C superblock.
+
+``<data_dir_2>`` must be the absolute path to an existing directory that
+contains a file with the basename ``atomic_coords.xyz``, which stores the atomic
+coordinates of the model of the :math:`\text{MoS}_2` thin film without amorphous
+C. ``<data_dir_3>`` must be the absolute path to an existing directory that
+contains a file with the basename ``atomic_coords.xyz``, which stores the atomic
+coordinates of the model of the amorphous C superblock. Each file should be
+formatted as an atomic coordinates file that is accepted by :mod:`prismatique`:
+see the description of the parameter ``atomic_coords_filename`` of the class
+:class:`prismatique.sample.ModelParams` for a discussion on the expected
+formatting of such an atomic coordinates file.
+
+We assume that the C atoms are subject to room temperature, and that their
+root-mean-square :math:`x`-displacement is 0.141 Å. This value was taken from 
+Ref. [Boothroyd1]_.
+
+We assume that the Mo and S atoms are subject to room temperature. Furthermore,
+we assume that the root-mean-square (RMS) :math:`x`-displacements of the Mo and
+S atoms are 0.069 Å and 0.062 Å respectively. These values were taken from
+Ref. [Schonfeld1]_.
+
+Upon successful completion of the current script, the atomic coordinates of the
+model of the :math:`\text{MoS}_2` thin film with a layer of amorphous C are
+stored in the file at the file path ``<data_dir_1>/atomic_coords.xyz``, which
+will have the same formatting as that expected of the two input atomic
+coordinates files mentioned above.
 
 """
 
@@ -21,19 +78,6 @@ import numpy as np
 
 
 
-############################
-## Authorship information ##
-############################
-
-__author__       = "Matthew Fitzpatrick"
-__copyright__    = "Copyright 2023"
-__credits__      = ["Matthew Fitzpatrick"]
-__maintainer__   = "Matthew Fitzpatrick"
-__email__        = "mrfitzpa@uvic.ca"
-__status__       = "Development"
-
-
-
 ##############################################
 ## Define classes, functions, and constants ##
 ##############################################
@@ -50,7 +94,7 @@ __status__       = "Development"
 ## Main body of script ##
 #########################
 
-# Parse command line arguments.
+# Parse the command line arguments.
 parser = argparse.ArgumentParser()
 argument_names = ("data_dir_1", "data_dir_2", "data_dir_3")
 for argument_name in argument_names:
@@ -59,6 +103,14 @@ args = parser.parse_args()
 path_to_data_dir_1 = args.data_dir_1
 path_to_data_dir_2 = args.data_dir_2
 path_to_data_dir_3 = args.data_dir_3
+
+
+
+# Print the start message.
+msg = ("Generating the atomic coordinates for the model of the MoS2 thin film "
+       "with a layer of amorphous carbon...")
+print(msg)
+print()
 
 
 
@@ -132,7 +184,7 @@ sample_unit_cell_dims = (Delta_X, Delta_Y, Delta_Z)
 
 
 
-# Write atomic coordinates of target sample to file.
+# Write the atomic coordinates of the target sample to file.
 output_dirname = str(path_to_data_dir_1)
 pathlib.Path(output_dirname).mkdir(parents=True, exist_ok=True)
 
@@ -151,18 +203,19 @@ with open(filename, "w") as file_obj:
     Z_of_S = 16  # Atomic number of S.
     Z_of_C = 6  # Atomic number of C.
 
-    # The RMS x-displacement of Mo atoms at room temperature. Value was taken
-    # from experimental data for the RMS of the in-plane displacement in
-    # Schönfeld et al., Acta Cryst. B39, 404-407 (1983).
+    # The RMS x-displacement of the Mo atoms at room temperature, in units of
+    # Å. The value was taken from experimental data for the RMS of the in-plane
+    # displacement in Schönfeld et al., Acta Cryst. B39, 404-407 (1983).
     u_x_rms_of_Mo = 0.069
 
-    # The RMS x-displacement of S atoms at room temperature. Value was taken
-    # from experimental data for the RMS of the in-plane displacement in
-    # Schönfeld et al., Acta Cryst. B39, 404-407 (1983).
+    # The RMS x-displacement of the S atoms at room temperature, in units of
+    # Å. The value was taken from experimental data for the RMS of the in-plane
+    # displacement in Schönfeld et al., Acta Cryst. B39, 404-407 (1983).
     u_x_rms_of_S = 0.062
 
-    # The RMS x-displacement of C atoms at room temperature. Value was taken
-    # from C. B. Boothroyd, Ultramicroscopy **83**, 3-4 (2000).
+    # The RMS x-displacement of the C atoms at room temperature, in units of
+    # Å. The value was taken from C. B. Boothroyd, Ultramicroscopy **83**, 3-4
+    # (2000).
     u_x_rms_of_C = 0.141
 
     single_species_sample_unit_cells = (Mo_sample_unit_cell,
@@ -183,3 +236,12 @@ with open(filename, "w") as file_obj:
             file_obj.write(formatted_line)
 
     file_obj.write("-1")
+
+
+
+# Print the end message.
+msg = ("Finished generating the atomic coordinates for the model of the MoS2 "
+       "thin film with a layer of amorphous carbon: the atomic coordinates "
+       "were written to the file {}.".format(filename))
+print(msg)
+print()

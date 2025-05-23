@@ -11,16 +11,12 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
-"""A script that is called by the script ``../execute_action.py`` used for
-generating the potential slices of the model of a sample of :math:`\text{MoS}_2`
-on amorphous carbon (C).
+"""A script that is called by various other scripts used for combining 3 given
+sets of input machine learning (ML) datasets into 3 larger ML datasets, intended
+for testing ML models for a specified task.
 
-See the summary documentation of the script ``../execute_action.py`` for
-additional context.
-
-The action of generating the potential slices of this model of
-:math:`\text{MoS}_2` on amorphous C is broken down effectively into multiple
-steps, which can be summarized as follows:
+The action of combining ML datasets as mentioned above is broken down
+effectively into multiple steps, which can be summarized as follows:
 
 1. Set the parameters and prepare the input data required to execute the "main"
 steps of the action.
@@ -53,7 +49,7 @@ import pathlib
 # For getting the path to current script and for executing other scripts.
 import os
 
-# For checking if the ``sbatch`` shell command exists on the machine.
+# For checking whether the ``sbatch`` shell command exists on the machine.
 import shutil
 
 
@@ -76,12 +72,11 @@ import shutil
 
 # Parse the command line arguments.
 parser = argparse.ArgumentParser()
-argument_names = ("data_dir_1",
-                  "repo_root",
-                  "use_slurm")
+argument_names = ("ml_model_task", "data_dir_1", "repo_root", "use_slurm")
 for argument_name in argument_names:
     parser.add_argument("--"+argument_name)
 args = parser.parse_args()
+ml_model_task = args.ml_model_task
 path_to_data_dir_1 = args.data_dir_1
 path_to_repo_root = args.repo_root
 use_slurm = args.use_slurm
@@ -104,21 +99,18 @@ if use_slurm == "yes":
             path_to_dir_containing_current_script,
             path_to_repo_root,
             path_to_data_dir_1,
+            ml_model_task,
             overwrite_slurm_tmpdir)
     partial_cmd_str = "bash" if (shutil.which("sbatch") is None) else "sbatch"
     unformatted_cmd_str = partial_cmd_str+(" {}"*len(args))
     cmd_str = unformatted_cmd_str.format(*args)
 else:
-    path_to_data_dir_2 = (str(path_to_repo_root)
-                          + "/examples/modelling/cbed/simulations"
-                          + "/MoS2/data")
-        
     path_to_script_to_execute = (str(path_to_current_script.parent)
                                  + "/execute_main_action_steps.py")
     unformatted_cmd_str = ("python {} "
-                           "--data_dir_1={} "
-                           "--data_dir_2={}")
+                           "--ml_model_task={} "
+                           "--data_dir_1={}")
     cmd_str = unformatted_cmd_str.format(path_to_script_to_execute,
-                                         path_to_data_dir_1,
-                                         path_to_data_dir_2)
+                                         ml_model_task,
+                                         path_to_data_dir_1)
 os.system(cmd_str)

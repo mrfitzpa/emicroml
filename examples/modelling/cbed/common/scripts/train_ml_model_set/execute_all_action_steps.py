@@ -11,18 +11,14 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
-"""A script that is called by the script ``../execute_action.py`` used for
-simulating 3 convergent beam electron diffraction (CBED) experiments using the
-package :mod:`prismatique`.
+"""A script that is called by various other scripts used for training sets of
+machine learning (ML) models for a specified task.
 
-See the summary documentation of the script ``../execute_action.py`` for
-additional context.
-
-The action of simulating a set of CBED experiments is broken down effectively
-into multiple steps, where each step simulates a single CBED experiment. These
-steps are executed in parallel if a SLURM workload manager is used. Moreover,
-each step can be thought of as an "action" as well, which itself is broken down
-into multiple steps.
+The action of training a set of ML models is broken down effectively into
+multiple steps, where each step trains a single ML model. These steps are
+executed in parallel if a SLURM workload manager is used. Moreover, each step
+can be thought of as an "action" as well, which itself is broken down into
+multiple steps.
 
 """
 
@@ -61,40 +57,39 @@ import os
 
 # Parse the command line arguments.
 parser = argparse.ArgumentParser()
-argument_names = ("data_dir_1", "repo_root", "use_slurm")
+argument_names = ("ml_model_task", "data_dir_1", "repo_root", "use_slurm")
 for argument_name in argument_names:
     parser.add_argument("--"+argument_name)
 args = parser.parse_args()
+ml_model_task = args.ml_model_task
 path_to_data_dir_1 = args.data_dir_1
 path_to_repo_root = args.repo_root
 use_slurm = args.use_slurm
 
 
 
-# Get the path to the script that simulates a single CBED experiment. This path
-# is equal to
-# ``<path_to_directory_containing_current_script>/../generate_cbed_pattern_set/execute_all_action_steps.py``,
-# where ``<path_to_directory_containing_current_script>`` is the path to the
-# directory containing directly the current script.
+# Get the path to the script that trains a single ML model.
 path_to_current_script = pathlib.Path(os.path.realpath(__file__))
 path_to_script_to_execute = (str(path_to_current_script.parents[1])
-                             + "/generate_cbed_pattern_set"
-                             + "/execute_all_action_steps.py")
+                             + "/train_ml_model/execute_all_action_steps.py")
 
 
 
-# Execute the script at ``path_to_script_to_execute`` multiple times to simulate
-# multiple CBED experiments.
-disk_sizes = ("small", "medium", "large")
-for disk_size in disk_sizes:
+# Execute the script at ``path_to_script_to_execute`` multiple times to train
+# multiple ML models.
+num_ml_models_to_train = 1
+for ml_model_idx in range(num_ml_models_to_train):
     unformatted_cmd_str = ("python {} "
-                           "--disk_size={} "
+                           "--ml_model_task={} "
+                           "--ml_model_idx={} "
                            "--data_dir_1={} "
                            "--repo_root={} "
                            "--use_slurm={}")
     cmd_str = unformatted_cmd_str.format(path_to_script_to_execute,
-                                         disk_size,
+                                         ml_model_task,
+                                         ml_model_idx,
                                          path_to_data_dir_1,
                                          path_to_repo_root,
                                          use_slurm)
     os.system(cmd_str)
+    print("\n\n\n")

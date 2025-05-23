@@ -1,4 +1,40 @@
-"""Insert here a brief description of the package.
+# -*- coding: utf-8 -*-
+# Copyright 2025 Matthew Fitzpatrick.
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, version 3.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
+"""A script that is called by other scripts used for generating the atomic
+coordinates of a model of a 5-layer :math:`\text{MoS}_2` thin film.
+
+The correct form of the command to run the script is::
+
+  python execute_main_action_steps.py \
+         --data_dir_1=<data_dir_1>
+
+where ``<data_dir_1>`` is the absolute path to the output directory.
+
+We assume that the atoms are subject to room temperature. Furthermore, we assume
+that the root-mean-square (RMS) :math:`x`-displacements of the Mo and S atoms
+are 0.069 Å and 0.062 Å respectively. These values were taken from
+Ref. [Schonfeld1]_.
+
+Upon successful completion of the current script, the atomic coordinates of the
+model of :math:`\text{MoS}_2` are stored in the file at the file path
+``../data/atomic_coords.xyz``. Moreover, a subset of the sample model parameters
+used to construct the model of :math:`\text{MoS}_2` are stored in the JSON file
+at the file path ``../data/sample_model_params_subset.json``. The atomic
+coordinates file will be formatted as an atomic coordinates file that is
+accepted by :mod:`prismatique`: see the description of the parameter
+``atomic_coords_filename`` of the class :class:`prismatique.sample.ModelParams`
+for a discussion on the correct formatting of such an atomic coordinates file.
 
 """
 
@@ -24,19 +60,6 @@ import numpy as np
 
 
 
-############################
-## Authorship information ##
-############################
-
-__author__       = "Matthew Fitzpatrick"
-__copyright__    = "Copyright 2023"
-__credits__      = ["Matthew Fitzpatrick"]
-__maintainer__   = "Matthew Fitzpatrick"
-__email__        = "mrfitzpa@uvic.ca"
-__status__       = "Development"
-
-
-
 ##############################################
 ## Define classes, functions, and constants ##
 ##############################################
@@ -53,7 +76,7 @@ __status__       = "Development"
 ## Main body of script ##
 #########################
 
-# Parse command line arguments.
+# Parse the command line arguments.
 parser = argparse.ArgumentParser()
 argument_names = ("data_dir_1",)
 for argument_name in argument_names:
@@ -63,19 +86,27 @@ path_to_data_dir_1 = args.data_dir_1
 
 
 
-# "a" and "c" lattice parameters of MoS2 in Å.
+# Print the start message.
+msg = "Generating the atomic coordinates for the model of the MoS2 thin film..."
+print(msg)
+print()
+
+
+
+# The "a" and "c" lattice parameters of MoS2 in Å.
 a = 3.1604
 c = 12.295
 
-# MoS2 unit-cell lattice vectors. These vectors will yield a hexagonal lattice.
+# The MoS2 unit-cell lattice vectors. These vectors will yield a hexagonal
+# lattice.
 a_1 = a * np.array([1.0, 0.0, 0.0])
 a_2 = a * np.array([0.0, np.sqrt(3), 0.0])
 a_3 = c * np.array([0.0, 0.0, 1.0])
 
-# Used to define the positions of atoms in unit cell.
+# The following parameter is Used to define the positions of atoms in unit cell.
 u = 0.612
 
-# Positions of S atoms in unit cell.
+# The positions of the S atoms in the unit cell.
 delta_S_1 = (1/2)*a_1 + (1/6)*a_2 + (u-1/2)*a_3
 delta_S_2 = (1/2)*a_1 + (1/6)*a_2 + (1-u)*a_3
 delta_S_3 = (2/3)*a_2 + (u-1/2)*a_3
@@ -85,7 +116,7 @@ delta_S_6 = (1/3)*a_2 + (3/2-u)*a_3
 delta_S_7 = (1/2)*a_1 + (5/6)*a_2 + u*a_3
 delta_S_8 = (1/2)*a_1 + (5/6)*a_2 + (3/2-u)*a_3
 
-# Positions of Mo atoms in unit cell.
+# The positions of the Mo atoms in the unit cell.
 delta_Mo_1 = (1/3)*a_2 + (1/4)*a_3
 delta_Mo_2 = (1/2)*a_1 + (5/6)*a_2 + (1/4)*a_3
 delta_Mo_3 = (1/2)*a_1 + (1/6)*a_2 + (3/4)*a_3
@@ -96,14 +127,14 @@ S_unit_cell = np.array([delta_S_1, delta_S_2, delta_S_3, delta_S_4,
                         delta_S_5, delta_S_6, delta_S_7, delta_S_8])
 Mo_unit_cell = np.array([delta_Mo_1, delta_Mo_2, delta_Mo_3, delta_Mo_4])
 
-# Magnitude of unit-cell lattice vectors.
+# The magnitudes of unit-cell lattice vectors.
 a_1_mag = np.linalg.norm(a_1)
 a_2_mag = np.linalg.norm(a_2)
 
-# Magnitude of either primitive reciprocal lattice vector.
+# The magnitude of either primitive reciprocal lattice vector.
 b_1_mag = (2*np.pi) * (2/a/np.sqrt(3))
 
-# Subset of discretization parameters of real-space.
+# A subset of the discretization parameters of real-space.
 sample_supercell_reduced_xy_dims_in_pixels = (1024, 1024)
 interpolation_factors = (1, 1)
 
@@ -173,7 +204,7 @@ S_sample_unit_cell = np.array(S_sample_unit_cell)
 
 
 
-# Find minimum and maximum x-, y-, and z-coordinates of the sample.
+# Find the minimum and maximum x-, y-, and z-coordinates of the sample.
 single_species_sample_unit_cells = (Mo_sample_unit_cell, S_sample_unit_cell)
 
 min_coords = [np.inf, np.inf, np.inf]
@@ -189,8 +220,8 @@ for axis in range(3):
 
 
 
-# Determine sample supercell dimensions, keeping in mind we want a buffer equal
-# to the atomic potential extent from each edge of the sample supercell.
+# Determine the sample supercell dimensions, keeping in mind we want a buffer
+# equal to the atomic potential extent from each edge of the sample supercell.
 atomic_potential_extent = 3  # In Å.
 Delta_Z = (max_coords[2]-min_coords[2]) + 2*atomic_potential_extent
 sample_unit_cell_dims = (Delta_X, Delta_Y, Delta_Z)
@@ -210,13 +241,16 @@ for idx, _ in enumerate(S_sample_unit_cell):
 
 
 # Write to file some of the parameters used to construct the model of the MoS2
-# sub-sample, to be used in other scripts.
+# thin film, to be used in other scripts.
 output_dirname = str(path_to_data_dir_1)
 pathlib.Path(output_dirname).mkdir(parents=True, exist_ok=True)
 
-serializable_rep = {"a_MoS2": a,
-                    "interpolation_factors": interpolation_factors,
-                    "atomic_potential_extent": atomic_potential_extent,
+serializable_rep = {"a_MoS2": \
+                    a,
+                    "interpolation_factors": \
+                    interpolation_factors,
+                    "atomic_potential_extent": \
+                    atomic_potential_extent,
                     "sample_supercell_reduced_xy_dims_in_pixels": \
                     sample_supercell_reduced_xy_dims_in_pixels}
 filename = output_dirname + "/sample_model_params_subset.json"
@@ -225,7 +259,7 @@ with open(filename, "w", encoding="utf-8") as file_obj:
 
 
 
-# Write atomic coordinates of target sample to file.
+# Write the atomic coordinates of target sample to file.
 filename = output_dirname + "/atomic_coords.xyz"
 with open(filename, "w") as file_obj:
     line = "MoS2 Sample\n"
@@ -240,14 +274,14 @@ with open(filename, "w") as file_obj:
     Z_of_Mo = 42  # Atomic number of Mo.
     Z_of_S = 16  # Atomic number of S.
 
-    # The RMS x-displacement of Mo atoms at room temperature. Value was taken
-    # from experimental data for the RMS of the in-plane displacement in
-    # Schönfeld et al., Acta Cryst. B39, 404-407 (1983).
+    # The RMS x-displacement of the Mo atoms at room temperature, in units of
+    # Å. The value was taken from experimental data for the RMS of the in-plane
+    # displacement in Schönfeld et al., Acta Cryst. B39, 404-407 (1983).
     u_x_rms_of_Mo = 0.069
 
-    # The RMS x-displacement of S atoms at room temperature. Value was taken
-    # from experimental data for the RMS of the in-plane displacement in
-    # Schönfeld et al., Acta Cryst. B39, 404-407 (1983).
+    # The RMS x-displacement of the S atoms at room temperature, in units of
+    # Å. The value was taken from experimental data for the RMS of the in-plane
+    # displacement in Schönfeld et al., Acta Cryst. B39, 404-407 (1983).
     u_x_rms_of_S = 0.062
 
     single_species_sample_unit_cells = (Mo_sample_unit_cell, S_sample_unit_cell)
@@ -266,3 +300,12 @@ with open(filename, "w") as file_obj:
             file_obj.write(formatted_line)
 
     file_obj.write("-1")
+
+
+
+# Print the end message.
+msg = ("Finished generating the atomic coordinates for the model of the MoS2 "
+       "thin film: the atomic coordinates were written to the file {}"
+       ".".format(filename))
+print(msg)
+print()

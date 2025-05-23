@@ -3124,7 +3124,9 @@ class MLModelTester(_cls_alias):
                  output_dirname=\
                  _default_output_dirname,
                  misc_model_testing_metadata=\
-                 _default_misc_model_testing_metadata):
+                 _default_misc_model_testing_metadata,
+                 skip_validation_and_conversion=\
+                 _default_skip_validation_and_conversion):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}

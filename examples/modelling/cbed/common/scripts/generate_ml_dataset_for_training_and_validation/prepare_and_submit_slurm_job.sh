@@ -17,8 +17,9 @@
 
 # The current script is expected to be called only by the parent script with the
 # basename ``execute_all_action_steps.py``, located in the same directory as the
-# current script. The parent script performs the "action" of generating the
-# atomic coordinates of a model of a 5-layer :math:`\text{MoS}_2` thin film.
+# current script. The parent script performs the "action" of generating a single
+# ML dataset that can be used to train and/or evaluate ML models for a specified
+# task.
 #
 # The current script prepares and submits a SLURM job which:
 #
@@ -40,18 +41,23 @@
 
 
 
-#SBATCH --job-name=generate_atomic_coords
+#SBATCH --job-name=generate_ml_dataset_for_training_and_validation
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=1  # CPU cores/threads
-#SBATCH --mem=4G           # CPU memory per node
-#SBATCH --time=00-02:59    # time (DD-HH:MM)
+#SBATCH --cpus-per-task=8        # CPU cores/threads
+#SBATCH --gpus-per-node=v100l:1  # GPU type and number of GPUs per node.
+#SBATCH --mem=46G                # CPU memory per node
+#SBATCH --time=00-02:59          # time (DD-HH:MM)
 #SBATCH --mail-type=ALL
+
+
 
 # Parse the command line arguments.
 path_to_dir_containing_current_script=${1}
 path_to_repo_root=${2}
 path_to_data_dir_1=${3}
-overwrite_slurm_tmpdir=${4}
+ml_model_task=${4}
+ml_dataset_idx=${5}
+overwrite_slurm_tmpdir=${6}
 
 
 
@@ -73,11 +79,13 @@ source ${path_to_repo_root}/${basename} ${SLURM_TMPDIR}/tempenv false
 
 
 
-# Execute the script which executes the main action steps.
+# Execute the script that executes the main action steps.
 basename=execute_main_action_steps.py
 path_to_script_to_execute=${path_to_dir_containing_current_script}/${basename}
 
 python ${path_to_script_to_execute} \
+       --ml_model_task=${ml_model_task} \
+       --ml_dataset_idx=${ml_dataset_idx} \
        --data_dir_1=${SLURM_TMPDIR}
 python_script_exit_code=$?
 
@@ -94,9 +102,12 @@ fi
 # Move the non-temporary output data that is generated from the main steps to
 # their expected final destinations. Also delete/remove any remaining temporary
 # files or directories.
-dirname_1=${SLURM_TMPDIR}
-dirname_2=${path_to_data_dir_1}
-basename_1=atomic_coords.xyz
+partial_path_1=ml_datasets
+partial_path_2=${partial_path_1}/ml_datasets_for_training_and_validation
+
+dirname_1=${SLURM_TMPDIR}/${partial_path_2}
+dirname_2=${path_to_data_dir_1}/${partial_path_2}
+basename_1=ml_dataset_${ml_dataset_idx}.h5
 basename_2=${basename_1}
 filename_1=${dirname_1}/${basename_1}
 filename_2=${dirname_2}/${basename_2}

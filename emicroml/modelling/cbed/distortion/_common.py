@@ -39,7 +39,7 @@ import numpy as np
 # For generating distortion models.
 import distoptica
 
-# For generating fake CBED disks.
+# For generating fake CBED patterns.
 import fakecbed
 
 # For calculating generalized Laguerre polynomials.
@@ -430,7 +430,9 @@ class _DefaultDistortionModelGenerator(fancytypes.PreSerializableAndUpdatable):
                 convergence_map = getattr(distortion_model, attr_name)
 
                 if not torch.all(convergence_map):
-                    err_msg = _default_distortion_model_generator_err_msg_1
+                    unformatted_err_msg = \
+                        _default_distortion_model_generator_err_msg_1
+                    
                     raise ValueError(err_msg)
 
                 distortion_model_generation_has_not_been_completed = False
@@ -442,7 +444,7 @@ class _DefaultDistortionModelGenerator(fancytypes.PreSerializableAndUpdatable):
                         _default_distortion_model_generator_err_msg_2
 
                     args = ("({})".format(max_num_generation_attempts),)
-                    err_msg = unformatted_err_msg.format(*args)                    
+                    err_msg = unformatted_err_msg.format(*args)
                     raise RuntimeError(err_msg)
 
         return distortion_model
@@ -872,7 +874,12 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                     self._min_num_disks_in_any_cbed_pattern
                 
                 if num_non_clipped_disks < min_num_disks_in_any_cbed_pattern:
-                    raise ValueError(_default_cbed_pattern_generator_err_msg_1)
+                    unformatted_err_msg = \
+                        _default_cbed_pattern_generator_err_msg_1
+
+                    args = (min_num_disks_in_any_cbed_pattern,)
+                    err_msg = unformatted_err_msg.format(*args)
+                    raise ValueError(err_msg)
 
                 cbed_pattern_generation_has_not_been_completed = False
             except:
@@ -883,7 +890,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                         _default_cbed_pattern_generator_err_msg_2
 
                     args = ("", " ({})".format(max_num_generation_attempts))
-                    err_msg = unformatted_err_msg.format(*args)                    
+                    err_msg = unformatted_err_msg.format(*args)
                     raise RuntimeError(err_msg)
 
         return cbed_pattern
@@ -1122,9 +1129,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                   - u_r_E*sin(u_phi_E))
         center = (center[0].item(), center[1].item())
 
-        kwargs = {"distortion_model": \
-                  distortion_model,
-                  "reference_pt_of_distortion_model_generator": \
+        kwargs = {"reference_pt_of_distortion_model_generator": \
                   reference_pt_of_distortion_model_generator}
         semi_major_axis = self._generate_semi_major_axis(**kwargs)
 
@@ -1140,8 +1145,8 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _generate_semi_major_axis(
-            self, distortion_model, reference_pt_of_distortion_model_generator):
+    def _generate_semi_major_axis(self,
+                                  reference_pt_of_distortion_model_generator):
         rng = self._rng
 
         loc = (max(reference_pt_of_distortion_model_generator[0],
@@ -1170,9 +1175,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
              reference_pt_of_distortion_model_generator[1]
              - u_r_GB*sin(u_phi_GB).item())
 
-        kwargs = {"distortion_model": \
-                  distortion_model,
-                  "reference_pt_of_distortion_model_generator": \
+        kwargs = {"reference_pt_of_distortion_model_generator": \
                   reference_pt_of_distortion_model_generator}
         radial_amplitude = self._generate_radial_amplitude(**kwargs)
 
@@ -1203,11 +1206,9 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _generate_radial_amplitude(
-            self, distortion_model, reference_pt_of_distortion_model_generator):
-        kwargs = {"distortion_model": \
-                  distortion_model,
-                  "reference_pt_of_distortion_model_generator": \
+    def _generate_radial_amplitude(self,
+                                   reference_pt_of_distortion_model_generator):
+        kwargs = {"reference_pt_of_distortion_model_generator": \
                   reference_pt_of_distortion_model_generator}
         semi_major_axis = self._generate_semi_major_axis(**kwargs)
         radial_amplitude = semi_major_axis
@@ -4673,122 +4674,12 @@ class _DistopticaNet(torch.nn.Module):
 
 
 
-class _NoPoolResNet39(torch.nn.Module):
-    def __init__(self,
-                 num_pixels_across_each_cbed_pattern,
-                 mini_batch_norm_eps):
-        super().__init__()
-
-        self._num_pixels_across_each_cbed_pattern = \
-            num_pixels_across_each_cbed_pattern
-        self._mini_batch_norm_eps = \
-            mini_batch_norm_eps
-        
-        self._no_pool_resnet_39 = self._generate_no_pool_resnet_39()
-
-        return None
-
-
-
-    def _generate_no_pool_resnet_39(self):
-        num_filters_in_first_conv_layer = \
-            16
-        building_block_counts_in_stages = \
-            _building_block_counts_in_stages_of_no_pool_resnet_39
-        num_downsamplings = \
-            len(building_block_counts_in_stages)
-        num_nodes_in_second_last_layer = \
-            (num_filters_in_first_conv_layer * (2**num_downsamplings))
-
-        module_alias = emicroml.modelling._common
-        kwargs = {"num_input_channels": \
-                  1,
-                  "num_filters_in_first_conv_layer": \
-                  num_filters_in_first_conv_layer,
-                  "max_kernel_size_in_entry_flow": \
-                  7,
-                  "max_kernel_size_in_middle_flow": \
-                  3,
-                  "building_block_counts_in_stages": \
-                  building_block_counts_in_stages,
-                  "return_intermediate_tensor_subset_upon_call_to_forward": \
-                  False,
-                  "height_of_input_tensor_in_pixels": \
-                  self._num_pixels_across_each_cbed_pattern,
-                  "width_of_input_tensor_in_pixels": \
-                  self._num_pixels_across_each_cbed_pattern,
-                  "num_nodes_in_second_last_layer": \
-                  num_nodes_in_second_last_layer,
-                  "num_nodes_in_last_layer": \
-                  8,
-                  "mini_batch_norm_eps": \
-                  self._mini_batch_norm_eps}
-        no_pool_resnet_39 = module_alias._NoPoolResNet(**kwargs)
-
-        return no_pool_resnet_39
-
-
-
-    def forward(self, ml_inputs):
-        enhanced_cbed_pattern_images = \
-            self._get_and_enhance_cbed_pattern_images(ml_inputs)
-
-        intermediate_tensor = enhanced_cbed_pattern_images
-        intermediate_tensor, _ = self._no_pool_resnet_39(intermediate_tensor)
-
-        ml_predictions = dict()
-        keys = ("quadratic_radial_distortion_amplitudes",
-                "spiral_distortion_amplitudes",
-                "elliptical_distortion_vectors",
-                "parabolic_distortion_vectors",
-                "distortion_centers")
-
-        stop = 0
-
-        for key_idx, key in enumerate(keys):
-            start = stop
-            stop = start + 1 + ("amplitudes" not in key)
-
-            multi_dim_slice = ((slice(None), start)
-                                if ("amplitudes" in key)
-                                else (slice(None), slice(start, stop)))
-            
-            output_tensor = intermediate_tensor[multi_dim_slice]
-            ml_predictions[key] = output_tensor
-
-        return ml_predictions
-
-
-
-    def _get_and_enhance_cbed_pattern_images(self, ml_inputs):
-        cbed_pattern_images = \
-            torch.unsqueeze(ml_inputs["cbed_pattern_images"], dim=1)
-
-        gamma = \
-            0.3        
-        enhanced_cbed_pattern_images = \
-            torch.pow(cbed_pattern_images, gamma)
-        enhanced_cbed_pattern_images = \
-            kornia.enhance.equalize(enhanced_cbed_pattern_images)
-
-        kwargs = {"input": enhanced_cbed_pattern_images,
-                  "min": 0,
-                  "max": 1}
-        enhanced_cbed_pattern_images = torch.clip(**kwargs)
-
-        enhanced_cbed_pattern_images = \
-            kornia.enhance.equalize(enhanced_cbed_pattern_images)
-
-        return enhanced_cbed_pattern_images
-
-
-
 def _check_and_convert_architecture(params):
     obj_name = "architecture"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     architecture = czekitout.convert.to_str_from_str_like(**kwargs)
 
-    kwargs["accepted_strings"] = ("no_pool_resnet_39", "distoptica_net")
+    kwargs["accepted_strings"] = ("distoptica_net",)
     czekitout.check.if_one_of_any_accepted_strings(**kwargs)
 
     return architecture
@@ -5031,10 +4922,7 @@ class _MLModel(_cls_alias):
                                     architecture,
                                     num_pixels_across_each_cbed_pattern,
                                     mini_batch_norm_eps):
-        if architecture == "distoptica_net":
-            base_model_cls = _DistopticaNet
-        else:
-            base_model_cls = _NoPoolResNet39
+        base_model_cls = _DistopticaNet
 
         self._base_model = base_model_cls(num_pixels_across_each_cbed_pattern,
                                           mini_batch_norm_eps)
@@ -5391,115 +5279,6 @@ def _add_distortion_field_offset_to_q(distortion_model_set_params, q):
 
 
 
-# def _calc_shifted_q(ml_data_dict, ml_model):
-#     kwargs = locals()
-#     q = _calc_q(**kwargs)
-
-#     distortion_model_set_params = \
-#         _generate_distortion_model_set_params(**kwargs)
-#     x_c_D = \
-#         distortion_model_set_params["distortion_centers"][:, 0]
-#     y_c_D = \
-#         distortion_model_set_params["distortion_centers"][:, 1]
-#     A_r_2_0 = \
-#         distortion_model_set_params["elliptical_distortion_vectors"][:, 0]
-#     B_r_1_0 = \
-#         distortion_model_set_params["elliptical_distortion_vectors"][:, 1]
-
-#     delta_x_c_D = x_c_D-0.5
-#     delta_y_c_D = y_c_D-0.5
-
-#     shifted_q = \
-#         q
-#     shifted_q[:, 0] += \
-#         (delta_x_c_D*A_r_2_0 + delta_y_c_D*B_r_1_0)[:, None, None]
-#     shifted_q[:, 1] += \
-#         (delta_x_c_D*B_r_1_0 - delta_y_c_D*A_r_2_0)[:, None, None]
-
-#     return shifted_q
-
-
-
-# def _calc_q(ml_data_dict, ml_model):
-#     kwargs = \
-#         locals()
-#     cached_objs_of_coord_transform_set = \
-#         _calc_cached_objs_of_coord_transform_set(**kwargs)
-
-#     u_x = \
-#         cached_objs_of_coord_transform_set["u_x"]
-#     u_y = \
-#         cached_objs_of_coord_transform_set["u_y"]
-#     cosines_of_scaled_u_thetas = \
-#         cached_objs_of_coord_transform_set["cosines_of_scaled_u_thetas"]
-#     sines_of_scaled_u_thetas = \
-#         cached_objs_of_coord_transform_set["sines_of_scaled_u_thetas"]
-#     radial_fourier_series = \
-#         cached_objs_of_coord_transform_set["radial_fourier_series"]
-#     tangential_fourier_series = \
-#         cached_objs_of_coord_transform_set["tangential_fourier_series"]
-    
-#     cos_u_theta = cosines_of_scaled_u_thetas[:, 1]
-#     sin_u_theta = sines_of_scaled_u_thetas[:, 0]
-
-#     output_tensor_shape = (cos_u_theta.shape[0], 2) + cos_u_theta.shape[1:]
-#     q = torch.zeros(output_tensor_shape,
-#                     dtype=cos_u_theta.dtype,
-#                     device=cos_u_theta.device)
-
-#     q[:, 0] = (u_x
-#                + radial_fourier_series * cos_u_theta
-#                - tangential_fourier_series * sin_u_theta)
-#     q[:, 1] = (u_y
-#                + radial_fourier_series * sin_u_theta
-#                + tangential_fourier_series * cos_u_theta)
-
-#     return q
-
-
-
-# def _calc_cached_objs_of_coord_transform_set(ml_data_dict, ml_model):
-#     distortion_model_set_params = \
-#         _generate_distortion_model_set_params(ml_data_dict, ml_model)
-#     distortion_centers = \
-#         distortion_model_set_params["distortion_centers"]
-
-#     cached_objs_of_coord_transform_set = dict()
-    
-#     kwargs = {"ml_model": \
-#               ml_model,
-#               "distortion_centers": \
-#               distortion_centers,
-#               "cached_objs_of_coord_transform_set": \
-#               cached_objs_of_coord_transform_set}
-#     _update_cached_obj_subset_1_of_coord_transform_set(**kwargs)
-
-#     kwargs = {"distortion_model_set_params": \
-#               distortion_model_set_params,
-#               "cached_objs_of_coord_transform_set": \
-#               cached_objs_of_coord_transform_set}
-#     _update_cached_obj_subset_2_of_coord_transform_set(**kwargs)
-
-#     return cached_objs_of_coord_transform_set
-
-
-
-# def _generate_distortion_model_set_params(ml_data_dict, ml_model):
-#     key_subset = _generate_keys_related_to_distortion_params()
-
-#     distortion_model_set_params = {key: 1.0*ml_data_dict[key]
-#                                    for key
-#                                    in key_subset}
-        
-#     kwargs = {"ml_data_dict": distortion_model_set_params,
-#               "normalization_weights": ml_model._normalization_weights,
-#               "normalization_biases": ml_model._normalization_biases}
-#     _unnormalize_normalizable_elems_in_ml_data_dict(**kwargs)
-
-#     return distortion_model_set_params
-
-
-
 def _update_cached_obj_subset_1_of_coord_transform_set(
         ml_model,
         distortion_centers,
@@ -5545,36 +5324,6 @@ def _update_cached_obj_subset_1_of_coord_transform_set(
                                           obj_to_cache)
 
     return None
-
-
-
-# def _calc_u_x_and_u_y(ml_model, distortion_centers):
-#     sampling_grid_dims_in_pixels = \
-#         2*(ml_model._base_model._num_pixels_across_each_cbed_pattern,)
-#     device = \
-#         distortion_centers.device
-#     mini_batch_size = \
-#         distortion_centers.shape[0]
-
-#     j_range = torch.arange(sampling_grid_dims_in_pixels[0], device=device)
-#     i_range = torch.arange(sampling_grid_dims_in_pixels[1], device=device)
-        
-#     pair_of_1d_coord_arrays = ((j_range + 0.5) / j_range.numel(),
-#                                1 - (i_range + 0.5) / i_range.numel())
-#     sampling_grid = torch.meshgrid(*pair_of_1d_coord_arrays, indexing="xy")
-        
-#     u_x_shape = (mini_batch_size,) + sampling_grid[0].shape
-#     u_x = torch.zeros(u_x_shape,
-#                       dtype=distortion_centers.dtype,
-#                       device=distortion_centers.device)
-    
-#     u_y = torch.zeros_like(u_x)
-
-#     for ml_data_instance_idx in range(mini_batch_size):
-#         u_x[ml_data_instance_idx] = sampling_grid[0]
-#         u_y[ml_data_instance_idx] = sampling_grid[1]
-
-#     return u_x, u_y
 
 
 
@@ -5719,31 +5468,6 @@ def _generate_cached_obj_key_subset_2_of_coord_transform_set():
 
 
 
-# def _calc_q_masks(ml_inputs, q):
-#     key = "cbed_pattern_images"
-#     cbed_pattern_images = ml_inputs[key]
-
-#     q_masks = torch.zeros_like(q, dtype=bool)
-
-#     num_q_masks = q_masks.shape[0]
-
-#     for cbed_pattern_idx in range(num_q_masks):
-#         x_min = 0
-#         x_max = 1
-
-#         y_min = 0
-#         y_max = 1
-
-#         q_masks[cbed_pattern_idx, 0] = ((x_min <= q[cbed_pattern_idx, 0])
-#                                         & (q[cbed_pattern_idx, 0] <= x_max)
-#                                         & (y_min <= q[cbed_pattern_idx, 1])
-#                                         & (q[cbed_pattern_idx, 1] <= y_max))
-#         q_masks[cbed_pattern_idx, 1] = q_masks[cbed_pattern_idx, 0]
-
-#     return q_masks
-
-
-
 _module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLMetricCalculator
 class _MLMetricCalculator(_cls_alias):
@@ -5762,30 +5486,6 @@ class _MLMetricCalculator(_cls_alias):
             mini_batch_indices_for_entire_training_session):
         metrics_of_current_mini_batch = dict()
 
-        # kwargs = {"ml_data_dict": ml_targets, "ml_model": ml_model}
-        # target_q = _calc_q(**kwargs)
-
-        # mean_target_q = target_q.mean(dim=(2, 3))
-        # target_shifted_q = target_q - mean_target_q[:, :, None, None]
-
-        # kwargs = {"ml_inputs": ml_inputs, "q": target_q}
-        # target_q_masks = _calc_q_masks(**kwargs)
-
-        # kwargs = {"ml_data_dict": ml_predictions, "ml_model": ml_model}
-        # predicted_q = _calc_q(**kwargs)
-
-        # mean_predicted_q = predicted_q.mean(dim=(2, 3))
-        # predicted_shifted_q = predicted_q - mean_predicted_q[:, :, None, None]
-        
-        # method_alias = self._calc_epes_of_distortion_fields
-        # kwargs = {"target_shifted_q": target_shifted_q,
-        #           "predicted_shifted_q": predicted_shifted_q,
-        #           "target_q_masks": target_q_masks}
-        # epes_of_distortion_fields = method_alias(**kwargs)
-
-        # metrics_of_current_mini_batch = {"epes_of_distortion_fields": \
-        #                                  epes_of_distortion_fields}
-
         kwargs = {"ml_data_dict": ml_targets, "ml_model": ml_model}
         target_shifted_q = _calc_shifted_q(**kwargs)
 
@@ -5797,44 +5497,8 @@ class _MLMetricCalculator(_cls_alias):
                   "predicted_shifted_q": predicted_shifted_q}
         epes_of_distortion_fields = method_alias(**kwargs)
 
-        # method_alias = self._calc_single_ml_data_instance_losses
-        # kwargs = {"ml_predictions": ml_predictions,
-        #           "ml_model": ml_model,
-        #           "ml_targets": ml_targets}
-        # single_ml_data_instance_losses = method_alias(**kwargs)
-
-        # method_alias = self._calc_scalar_rejection_maes_of_distortion_fields
-        # scalar_rejection_maes_of_distortion_fields = method_alias(**kwargs)
-
-        # method_alias = self._calc_vec_mag_maes_of_distortion_fields
-        # vec_mag_maes_of_distortion_fields = method_alias(**kwargs)
-
-        # method_alias = self._calc_rmlces_of_distortion_fields
-        # rmlces_of_distortion_fields = method_alias(**kwargs)
-
-        # scalar_rejection_maes_plus_vec_mag_maes_of_distortion_fields = \
-        #     (scalar_rejection_maes_of_distortion_fields +
-        #      vec_mag_maes_of_distortion_fields)
-
         metrics_of_current_mini_batch = {"epes_of_distortion_fields": \
                                          epes_of_distortion_fields}
-
-        # metrics_of_current_mini_batch = {"epes_of_distortion_fields": \
-        #                                  epes_of_distortion_fields,
-        #                                  "single_ml_data_instance_losses": \
-        #                                  single_ml_data_instance_losses}
-
-        # metrics_of_current_mini_batch = \
-        #     {"epes_of_distortion_fields": \
-        #      epes_of_distortion_fields,
-        #      "scalar_rejection_maes_of_distortion_fields": \
-        #      scalar_rejection_maes_of_distortion_fields,
-        #      "vec_mag_maes_of_distortion_fields": \
-        #      vec_mag_maes_of_distortion_fields,
-        #      "scalar_rejection_maes_plus_vec_mag_maes_of_distortion_fields": \
-        #      scalar_rejection_maes_plus_vec_mag_maes_of_distortion_fields,
-        #      "rmlces_of_distortion_fields": \
-        #      rmlces_of_distortion_fields}
 
         return metrics_of_current_mini_batch
 
@@ -5990,11 +5654,7 @@ class _MLLossCalculator(_cls_alias):
 
         losses_of_current_mini_batch = {"total": 0.0}
 
-        # key_set_1 = ("rmlces_of_distortion_fields",)
         key_set_1 = ("epes_of_distortion_fields",)
-        # key_set_1 = ("single_ml_data_instance_losses",)
-        # key_set_1 = ("scalar_rejection_maes_of_distortion_fields",
-        #              "vec_mag_maes_of_distortion_fields")
 
         for key_1 in key_set_1:
             key_2 = \
@@ -6178,7 +5838,7 @@ _check_and_convert_num_pixels_across_each_cbed_pattern_err_msg_1 = \
      "integer that is divisible {}.")
 
 _default_cbed_pattern_generator_err_msg_1 = \
-    ("The CBED pattern must contain at least 2 non-clipped CBED disks.")
+    ("The CBED pattern must contain at least {} non-clipped CBED disks.")
 _default_cbed_pattern_generator_err_msg_2 = \
     ("The CBED pattern generator{} has exceeded its programmed maximum number "
      "of attempts{} to generate a valid CBED pattern: see traceback for "

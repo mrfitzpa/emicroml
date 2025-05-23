@@ -1,4 +1,39 @@
-"""Insert here a brief description of the package.
+# -*- coding: utf-8 -*-
+# Copyright 2025 Matthew Fitzpatrick.
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, version 3.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
+"""A script that is called by the script ``../execute_action.py`` used for
+simulating a convergent beam electron diffraction (CBED) experiment using
+:mod:`prismatique`.
+
+See the summary documentation of the script ``../execute_action.py`` for
+additional context.
+
+The action of simulating a CBED experiment is broken down effectively into
+multiple steps, which can be summarized as follows:
+
+1. Set the parameters and prepare the input data required to execute the "main"
+steps of the action.
+
+2. Execute the main steps.
+
+3. If necessary, move non-temporary output data that are generated from the main
+steps to their expected final destinations.
+
+4. If necessary, delete/remove any remaining temporary files or directories.
+
+The main steps are executed by running the script with the basename
+``execute_main_action_steps.py``, located in the same directory as the current
+script.
 
 """
 
@@ -22,19 +57,6 @@ import shutil
 
 
 
-############################
-## Authorship information ##
-############################
-
-__author__       = "Matthew Fitzpatrick"
-__copyright__    = "Copyright 2023"
-__credits__      = ["Matthew Fitzpatrick"]
-__maintainer__   = "Matthew Fitzpatrick"
-__email__        = "mrfitzpa@uvic.ca"
-__status__       = "Development"
-
-
-
 ##############################################
 ## Define classes, functions, and constants ##
 ##############################################
@@ -51,6 +73,7 @@ __status__       = "Development"
 ## Main body of script ##
 #########################
 
+# Parse the command line arguments.
 parser = argparse.ArgumentParser()
 argument_names = ("disk_size",
                   "data_dir_1",
@@ -64,6 +87,10 @@ path_to_data_dir_1 = args.data_dir_1
 path_to_repo_root = args.repo_root
 use_slurm = args.use_slurm
 
+
+
+# Execute the script that executes the remainder of the action and that accords
+# to the command line argument ``use_slurm``.
 path_to_current_script = pathlib.Path(os.path.realpath(__file__))
 
 if use_slurm == "yes":
@@ -72,9 +99,9 @@ if use_slurm == "yes":
                               else "false")
 
     path_to_dir_containing_current_script = str(path_to_current_script.parent)
-    script_to_execute = (str(path_to_current_script.parent)
-                         + "/prepare_and_submit_slurm_job.sh")
-    args = (script_to_execute,
+    path_to_script_to_execute = (str(path_to_current_script.parent)
+                                 + "/prepare_and_submit_slurm_job.sh")
+    args = (path_to_script_to_execute,
             path_to_dir_containing_current_script,
             path_to_repo_root,
             path_to_data_dir_1,
@@ -88,13 +115,13 @@ else:
                           + "/examples/modelling/cbed/simulations"
                           + "/MoS2/data")
     
-    script_to_execute = (str(path_to_current_script.parent)
-                         + "/execute_main_action_steps.py")
+    path_to_script_to_execute = (str(path_to_current_script.parent)
+                                 + "/execute_main_action_steps.py")
     unformatted_cmd_str = ("python {} "
                            "--disk_size={} "
                            "--data_dir_1={} "
                            "--data_dir_2={}")
-    cmd_str = unformatted_cmd_str.format(script_to_execute,
+    cmd_str = unformatted_cmd_str.format(path_to_script_to_execute,
                                          disk_size,
                                          path_to_data_dir_1,
                                          path_to_data_dir_2)

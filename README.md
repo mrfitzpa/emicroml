@@ -1,4 +1,4 @@
-# Electron Microscopy Machine Learning (emicroml)
+# Electron Microscopy Machine Learning (EMicroML)
 
 [![Test library](https://github.com/mrfitzpa/emicroml/actions/workflows/test_library.yml/badge.svg)](https://github.com/mrfitzpa/emicroml/actions/workflows/test_library.yml)
 [![Code Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/mrfitzpa/14251fa16826487aa533af3cfe6887d4/raw/emicroml_coverage_badge.json)](https://github.com/mrfitzpa/emicroml/actions/workflows/measure_code_coverage.yml)
