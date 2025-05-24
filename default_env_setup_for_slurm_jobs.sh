@@ -218,17 +218,17 @@ fi
 
 
 # Install ``emicroml``.
-# path_to_required_git_repos=${path_to_repo_root}/required_git_repos
-# path_to_copy_of_required_git_repos=${path_to_temp_dir}/required_git_repos
-# cp -r ${path_to_required_git_repos} ${path_to_copy_of_required_git_repos}
+path_to_required_git_repos=${path_to_repo_root}/required_git_repos
+path_to_copy_of_required_git_repos=${path_to_temp_dir}/required_git_repos
+cp -r ${path_to_required_git_repos} ${path_to_copy_of_required_git_repos}
 
-# libs=(emicroml)
+libs=(emicroml)
 
-# for lib in "${libs[@]}"
-# do
-#     cd ${path_to_temp_dir}/required_git_repos/${lib}
-#     pip install .
-# done
+for lib in "${libs[@]}"
+do
+    cd ${path_to_temp_dir}/required_git_repos/${lib}
+    pip install .
+done
 rm -rf ${path_to_temp_dir}
 pip install .
 
