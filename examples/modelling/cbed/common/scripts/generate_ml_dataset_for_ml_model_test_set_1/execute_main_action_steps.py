@@ -155,8 +155,10 @@ class CBEDPatternGenerator():
 
     def _store_relevant_stem_multislice_sim_params(
             self, path_to_stem_multislice_sim_params):
-        stem_multislice_sim_params = \
-            prismatique.stem.sim.Params.load(path_to_stem_multislice_sim_params)
+        kwargs = {"filename": path_to_stem_multislice_sim_params,
+                  "skip_validation_and_conversion": True}
+        stem_multislice_sim_params = prismatique.stem.sim.Params.load(**kwargs)
+        
         stem_system_model_params = \
             stem_multislice_sim_params.core_attrs["stem_system_model_params"]
         probe_model_params = \
@@ -431,7 +433,7 @@ class CBEDPatternGenerator():
              "cold_pixels": \
              tuple(),
              "detector_partition_width_in_pixels": \
-             0,
+             4,
              "mask_frame": \
              (0, 0, 0, 0)}
 
@@ -662,10 +664,7 @@ class CBEDPatternGenerator():
 
 
     def _apply_detector_partition_inpainting(self, input_image):
-        detector_partition_width_in_pixels = \
-            2*self._rng.integers(low=0, high=4).item()
-
-        N_DPW = detector_partition_width_in_pixels
+        N_DPW = self._cbed_pattern_params["detector_partition_width_in_pixels"]
 
         k_I_1 = ((input_image.shape[1]-1)//2) - (N_DPW//2)
         k_I_2 = k_I_1 + N_DPW - 1
