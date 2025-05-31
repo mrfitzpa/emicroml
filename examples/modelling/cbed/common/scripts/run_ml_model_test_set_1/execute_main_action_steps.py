@@ -33,10 +33,10 @@ contains the subdirectories located at the paths
 ``<data_dir_1>/ml_datasets/ml_datasets_for_ml_model_test_set_1/ml_datasets_with_cbed_patterns_of_MoS2_on_amorphous_C``
 and ``<data_dir_1>/ml_models``. Let ``<path_to_ml_testing_datasets>`` be the
 former subdirectory path. The directory at ``<path_to_ml_testing_datasets>``
-must contain at least one HDF5 file that stores a testing ML dataset with the
+must contain at least one HDF5 file that stores a ML testing dataset with the
 basename of the form ``ml_dataset_with_<disk_size>_sized_disks.h5``, where
 ``<disk_size>`` is any string of letters in the alphabet. Note that
-``<disk_size>`` serves as a unique identifier of the testing ML datasets that
+``<disk_size>`` serves as a unique identifier of the ML testing datasets that
 are considered for the current action.
 
 The directory at ``<data_dir_1>/ml_models`` must contain at least one
@@ -48,13 +48,13 @@ that has a basename of the form ``ml_model_at_lr_step_<n>.pth``, where ``<n>``
 is any nonnegative integer. If more than one dictionary representation exists in
 the same directory, then only the dictionary representation with the largest
 nonnegative integer ``<n>`` is considered, denoted here by ``<m>``, the rest are
-ignored. Much like ``<disk_size>`` serves as a unique identifier of testing ML
+ignored. Much like ``<disk_size>`` serves as a unique identifier of ML testing
 datasets, the pair ``(<k>, <m>)`` serves as a unique identifier of the ML models
 to be tested for the current action.
 
-Upon successful completion of the current script, for each ML model and testng
-ML dataset considered for testing, said ML model will have been tested against
-said testing ML dataset using the class
+Upon successful completion of the current script, for each ML model and ML
+testing dataset considered for testing, said ML model will have been tested
+against said ML testing dataset using the class
 :class:`emicroml.modelling.cbed.distortion.estimation.MLModelTester`, with the
 output data files having been saved in the directory
 ``<data_dir_1>/ml_models/ml_model_<k>/ml_model_test_set_1_results/results_for_cbed_patterns_of_MoS2_on_amorphous_C_with_<disk_size>_sized_disks``.
@@ -99,7 +99,7 @@ import torch
 
 
 
-# For combining datasets.
+# For testing ML models.
 import emicroml.modelling.cbed.distortion.estimation
 
 

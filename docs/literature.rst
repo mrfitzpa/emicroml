@@ -18,4 +18,9 @@ Below is a list of references that are cited in the ``emicroml`` documentation:
 		       B. Schönfeld et al., Acta Cryst. **83**, 404-407 (1983),
 		       :doi:`10.1107/S0108768183002645`
 
+.. [Mahr1] |nbspc|"Influence of distortions of recorded diffraction patterns on
+	          strain analysis by nano-beam electron diffraction",
+		  C. Mahr et al., Ultramicroscopy **196**, 74-82 (2019),
+		  :doi:`10.1016/j.ultramic.2018.09.010`
+
 .. |nbspc| unicode:: U+00A0 .. non-breaking space

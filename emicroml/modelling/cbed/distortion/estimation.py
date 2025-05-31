@@ -2458,8 +2458,8 @@ class MLModelTrainer(_cls_alias):
     The current class is a subclass of
     :class:`fancytypes.PreSerializableAndUpdatable`.
 
-    The current class represents machine learning (ML) model trainer that can be
-    used to train via supervised learning ML models represented by the class
+    The current class represents a machine learning (ML) model trainer that can
+    be used to train via supervised learning ML models represented by the class
     :class:`emicroml.modelling.cbed.distortion.estimation.MLModel`.
 
     As discussed in the documentation of the class
@@ -2473,7 +2473,35 @@ class MLModelTrainer(_cls_alias):
     :class:`distoptica.StandardCoordTransformParams`. The parameter set
     parameterizing said coordinate transformation is referred to as the
     "standard" coordinate transformation parameter set, and is represented by
-    the class :class:`distoptica.StandardCoordTransformParams`.
+    the class :class:`distoptica.StandardCoordTransformParams`. Similarly, we
+    refer to distortions fields that are specified by standard coordinate
+    transformation parameters sets as standard distortion fields.
+
+    A standard distortion field can be decomposed into four components, with
+    each component being a distortion field as well, sharing the same distortion
+    center. These components are: the quadratic radial distortion field; the
+    spiral distortion field; the parabolic distortion field; and the elliptical
+    distortion field. The sum of these components yields the original standard
+    distortion field.
+
+    Consider an abstract undistorted CBED intensity pattern of non-overlapping
+    CBED disks that share a common radius, and that outside the CBED disk
+    support the intensity is zero, and inside the any CBED disk support the
+    intensity is a common positive value. Next, consider an abstract distorted
+    CBED intensity pattern obtained by distorting the abstract undistorted CBED
+    intensity pattern according to a standard coordinate
+    transformation. Generally speaking, i.e. except under special circumstances,
+    the abstract distorted CBED intensity pattern will not be perfectly
+    correlated with the standard distortion field corresponding to the standard
+    coordinate transformation. However, the abstract distorted CBED intensity
+    pattern should be perfectly correlated with a vector field obtained by
+    taking the original standard distortion field, and then adding a constant
+    vector to the elliptical distortion field such that the distortion center of
+    said component is shifted to coincide with the center of the distorted CBED
+    intensity pattern. We refer to this vector field as the "adjusted" standard
+    distortion field, corresponding to the original standard distortion
+    field. We refer to the aforementioned constant vector as the "adjustment"
+    vector.
 
     Mathematically, the loss associated with a given predicted mini-batch of
     standard coordinate transformation parameter sets, during either training or
@@ -2517,20 +2545,19 @@ class MLModelTrainer(_cls_alias):
     ``predicted_distortion_model.flow_field_of_coord_transform``, then store the
     result in ``predicted_flow_field``.
 
-    10. Calculate the ground truth corresponding to the predicted sampled flow
-    field calculated in the previous step, then store the result in
-    ``target_flow_field``.
+    10. Add to the sampled flow field from the previous step the adjustment
+    vector, then store the result in ``predicted_adjusted_flow_field``. 
 
-    11. Calculate the real-domain equivalent of Eq. (4) in Ref. [Terpstra1]_,
-    using the ``n`` th predicted and ground truth flow fields as the inputs,
-    then store the result in ``scalar_rejection_mae``.
+    11. Calculate the ground truth corresponding to the predicted sampled
+    adjusted flow field from the previous step, then store the result in
+    ``target_adjusted_flow_field``.
 
-    12. Calculate the mean absolute error of the magnitudes of the field vectors
-    of the ``n`` th predicted flow field, then store the result in
-    ``vec_mag_mae``.
+    12. Calculate the end-point error (EPE) of the predicted adjusted flow field
+    stored in ``predicted_adjusted_flow_field``, using the ground truth stored
+    in ``target_adjusted_flow_field``, then store the result in
+    ``epe_of_distortion_field``.
 
-    13. Store ``scalar_rejection_mae+vec_mag_mae`` in
-    ``losses_of_ml_data_instances[n]``.
+    13. Store ``epe_of_distortion_field`` in ``losses_of_ml_data_instances[n]``.
 
     14. If ``n < mini_batch_size-1``, then go to instruction 5. Otherwise, go to
     instruction 15.
@@ -2542,6 +2569,12 @@ class MLModelTrainer(_cls_alias):
 
     The number ``mini_batch_loss`` is the loss associated with the given
     predicted mini-batch of standard coordinate transformation parameter sets.
+
+    Note that the steps 6-12 describe the calculation of an EPE. Specifically,
+    we refer to the resulting quantity as the EPE of an adjusted standard
+    distortion field specified by a predicted standard coordinate
+    transformation. We adopt this language elsewhere in the documentation of
+    this module. 
 
     The above set of instructions made reference to a few objects from the
     :mod:`distoptica` library. See the documentation for said library for
@@ -2755,18 +2788,6 @@ class MLModelTrainer(_cls_alias):
 
           - training: <HDF5 group>
 
-            * scalar_rejection_maes_of_distortion_fields <HDF5 1D dataset>
-
-              + dim_0: "ml training data instance idx"
-
-            * vec_mag_maes_of_distortion_fields <HDF5 1D dataset>
-
-              + dim_0: "ml training data instance idx"
-
-            * scalar_rejection_maes_plus_vec_mag_maes_of_distortion_fields <HDF5 1D dataset>
-
-              + dim_0: "ml training data instance idx"
-
             * epes_of_distortion_fields <HDF5 1D dataset>
 
               + dim_0: "ml training data instance idx"
@@ -2774,14 +2795,6 @@ class MLModelTrainer(_cls_alias):
         - mini_batch_losses: <HDF5 group>
 
           - training: <HDF5 group>
-
-            * scalar_rejection_maes_of_distortion_fields <HDF5 1D dataset>
-
-              + dim_0: "training mini batch instance idx"
-
-            * vec_mag_maes_of_distortion_fields <HDF5 1D dataset>
-
-              + dim_0: "training mini batch instance idx"
 
             * total <HDF5 1D dataset>
 
@@ -2871,99 +2884,53 @@ class MLModelTrainer(_cls_alias):
         ``"/lr_schedules"`` share the same HDF5 attribute in name and value,
         i.e. the attribute ``"dim_0"``.
 
-        The HDF5 group at the HDF5 path ``"/ml_data_instance_metrics"`` stores a
-        variety of performance metrics that are tracked during training.
-
-        The HDF5 dataset at the HDF5 path
-        ``"/ml_data_instance_metrics/training/scalar_rejection_maes_of_distortion_fields"``
-        stores the "scalar rejection mean absolute errors" (MAEs) of the
-        distortion fields specified by the predicted standard coordinate
-        transformation parameter sets, during training. We define the scalar
-        rejection MAE of a predicted real-valued field by the real-domain
-        equivalent of Eq. (4) in Ref. [Terpstra1]_. For every nonnegative
-        integer ``m`` less than the the total number of ML training data
-        instances, the ``m`` th element of the just aforementioned HDF5 dataset
-        is scalar rejection MAE of the distortion field specified by the ``m``
-        th predicted standard standard coordinate transformation set, during
-        training.
-
-        The HDF5 dataset at the HDF5 path
-        ``"/ml_data_instance_metrics/training/vec_mag_maes_of_distortion_fields"``
-        stores the MAEs of the vector magnitudes of the distortion fields
-        specified by the predicted standard coordinate transformation parameter
-        sets, during training. For every nonnegative integer ``m`` less than the
-        the total number of ML training data instances, the ``m`` th element of
-        the just aforementioned HDF5 dataset is the MAE of the magnitudes of the
-        field vectors of the distortion field specified by the ``m`` th
-        predicted standard standard coordinate transformation set, during
-        training.
-
-        The HDF5 dataset at the HDF5 path
-        ``"/ml_data_instance_metrics/training/scalar_rejection_maes_plus_magnitude_maes_of_distortion_fields"``
-        stores the result of adding element-wise the previous two HDF5 datasets.
+        The HDF5 group at the HDF5 path ``"/ml_data_instance_metrics"`` stores
+        the performance metrics that are tracked during training.
 
         The HDF5 dataset at the HDF5 path
         ``"/ml_data_instance_metrics/training/epes_of_distortion_fields"``
-        stores the end-point errors (EPEs) of the distortion fields specified by
-        the predicted standard coordinate transformation parameter sets, during
-        training. For every nonnegative integer ``m`` less than the the total
-        number of ML training data instances, the ``m`` th element of the just
-        aforementioned HDF5 dataset is the EPE of the distortion field specified
-        by the ``m`` th predicted standard standard coordinate transformation
-        set, during training.
+        stores the end-point errors (EPEs) of the "adjusted" standard distortion
+        fields specified by the predicted standard coordinate transformation
+        parameter sets, during training. For every nonnegative integer ``m``
+        less than the the total number of ML training data instances, the ``m``
+        th element of the aforementioned HDF5 dataset is the EPE of the adjusted
+        standard distortion field specified by the ``m`` th predicted standard
+        standard coordinate transformation set, during training. See the summary
+        documentation of the class
+        :class:`emicroml.modelling.cbed.distortion.estimation.MLModelTrainer`
+        for a definition of an adjusted standard distortion field, and how the
+        EPE is calculated exactly.
 
         If performance metrics are also calculated during validation, then the
-        output HDF5 file will also include four additional HDF5 datasets,
-        located at the HDF5 paths
-        ``"/ml_data_instance_metrics/validation/scalar_rejection_maes_of_distortion_fields"``,
-        ``"/ml_data_instance_metrics/validation/magnitude_maes_of_distortion_fields"``,
-        ``"/ml_data_instance_metrics/validation/scalar_rejection_maes_plus_magnitude_maes_of_distortion_fields"``,
-        and
+        output HDF5 file will also include an additional HDF5 dataset, located
+        at the HDF5 path
         ``"/ml_data_instance_metrics/validation/epes_of_distortion_fields"``.
         One can simply replace every instance of the word "training" with
-        "validation" in the previous four paragraphs to yield descriptions of
-        the HDF5 datasets stored in HDF5 group at the HDF5 path
+        "validation" in the previous paragraph to yield a description of the
+        HDF5 dataset stored in HDF5 group at the HDF5 path
         ``"/ml_data_instance_metrics/validation"``.
 
-        The HDF5 group at the HDF5 path ``"/mini_batch_losses"`` stores a
-        variety of mini-batch losses that are tracked during training, which are
-        used to optimize the ML model.
+        The HDF5 group at the HDF5 path ``"/mini_batch_losses"`` stores the
+        mini-batch losses that are tracked during training, which are used to
+        optimize the ML model.
 
         The HDF5 dataset at the HDF5 path
-        ``"/mini_batch_losses/training/scalar_rejection_maes_of_distortion_fields"``
-        stores the mini-batch losses associated with the scalar rejection MAEs
-        of the distortion fields specified by the predicted standard coordinate
-        transformation parameter sets, during training. For every nonnegative
-        integer ``m`` less than the total number of training mini-batches, the
-        ``m`` th element of the just aforementioned HDF5 dataset is the mean of
-        the scalar rejection MAEs of the distortion fields specified by the
-        ``m`` th predicted mini-batch of standard coordinate transformation
-        sets, during training.
-
-        The HDF5 dataset at the HDF5 path
-        ``"/mini_batch_losses/training/magnitude_maes_of_distortion_fields"``
-        stores the mini-batch losses associated with the MAEs of the vector
-        magnitudes of the distortion fields specified by the predicted standard
-        coordinate transformation parameter sets, during training. For every
-        nonnegative integer ``m`` less than the total number of training
-        mini-batches, the ``m`` th element of the just aforementioned HDF5
-        dataset is the mean of the MAEs of the magnitudes of the field vectors
-        of the distortion fields specified by the ``m`` th predicted mini-batch
-        of standard coordinate transformation sets, during training.
-
-        The HDF5 dataset at the HDF5 path
-        ``"/mini_batch_losses/training/total"`` stores the result of adding
-        element-wise the previous two HDF5 datasets.
+        ``"/mini_batch_losses/training/total"`` stores the mini-btach losses
+        associated with the EPEs of the adjusted standard distortion fields
+        specified by the predicted standard coordinate transformation parameter
+        sets, during training. For every nonnegative integer ``m`` less than the
+        total number of training mini-batches, the ``m`` th element of the
+        aforementioned HDF5 dataset is the mean of the EPEs of the adjusted
+        standard distortion fields specified by the ``m`` th predicted
+        mini-batch of standard coordinate transformation sets, during training.
 
         If mini-batch losses are also calculated during validation, then the
-        output HDF5 file will also include three additional HDF5 datasets,
-        located at the HDF5 paths
-        ``"/mini_batch_losses/validation/scalar_rejection_maes_of_distortion_fields"``,
-        ``"/mini_batch_losses/validation/magnitude_maes_of_distortion_fields"``,
-        and ``"/mini_batch_losses/validation/total"``.  One can simply replace
-        every instance of the word "training" with "validation" in the previous
-        three paragraphs to yield descriptions of the HDF5 datasets stored in
-        HDF5 group at the HDF5 path ``"/mini_batch_losses/validation"``.
+        output HDF5 file will also include an additional HDF5 dataset, located
+        at the HDF5 path ``"/mini_batch_losses/validation/total"``.  One can
+        simply replace every instance of the word "training" with "validation"
+        in the previous paragraph to yield a description of the HDF5 dataset
+        stored in HDF5 group at the HDF5 path
+        ``"/mini_batch_losses/validation"``.
 
         For further discussion on how losses are calculated, see the summary
         documentation of the class
@@ -3030,8 +2997,8 @@ class MLModelTester(_cls_alias):
     The current class is a subclass of
     :class:`fancytypes.PreSerializableAndUpdatable`.
 
-    The current class represents machine learning (ML) model tester that can be
-    used to test ML models represented by the class
+    The current class represents a machine learning (ML) model tester that can
+    be used to test ML models represented by the class
     :class:`emicroml.modelling.cbed.distortion.estimation.MLModel`.
 
     See the documentation for the method
@@ -3175,18 +3142,6 @@ class MLModelTester(_cls_alias):
 
           - testing: <HDF5 group>
 
-            * scalar_rejection_maes_of_distortion_fields <HDF5 1D dataset>
-
-              + dim_0: "ml testing data instance idx"
-
-            * vec_mag_maes_of_distortion_fields <HDF5 1D dataset>
-
-              + dim_0: "ml testing data instance idx"
-
-            * scalar_rejection_maes_plus_vec_mag_maes_of_distortion_fields <HDF5 1D dataset>
-
-              + dim_0: "ml testing data instance idx"
-
             * epes_of_distortion_fields <HDF5 1D dataset>
 
               + dim_0: "ml testing data instance idx"
@@ -3233,46 +3188,22 @@ class MLModelTester(_cls_alias):
         ``"/total_num_ml_testing_data_instances"`` stores the total number of ML
         testing data instances.
 
-        The HDF5 group at the HDF5 path ``"/ml_data_instance_metrics"`` stores a
-        variety of performance metrics that are tracked during testing.
-
-        The HDF5 dataset at the HDF5 path
-        ``"/ml_data_instance_metrics/testing/scalar_rejection_maes_of_distortion_fields"``
-        stores the "scalar rejection mean absolute errors" (MAEs) of the
-        distortion fields specified by the predicted standard coordinate
-        transformation parameter sets, during testing. We define the scalar
-        rejection MAE of a predicted real-valued field by the real-domain
-        equivalent of Eq. (4) in Ref. [Terpstra1]_. For every nonnegative
-        integer ``m`` less than the the total number of ML testing data
-        instances, the ``m`` th element of the just aforementioned HDF5 dataset
-        is scalar rejection MAE of the distortion field specified by the ``m``
-        th predicted standard standard coordinate transformation set, during
-        testing.
-
-        The HDF5 dataset at the HDF5 path
-        ``"/ml_data_instance_metrics/testing/vec_mag_maes_of_distortion_fields"``
-        stores the MAEs of the vector magnitudes of the distortion fields
-        specified by the predicted standard coordinate transformation parameter
-        sets, during testing. For every nonnegative integer ``m`` less than the
-        the total number of ML testing data instances, the ``m`` th element of
-        the just aforementioned HDF5 dataset is the MAE of the magnitudes of the
-        field vectors of the distortion field specified by the ``m`` th
-        predicted standard standard coordinate transformation set, during
-        testing.
-
-        The HDF5 dataset at the HDF5 path
-        ``"/ml_data_instance_metrics/testing/scalar_rejection_maes_plus_magnitude_maes_of_distortion_fields"``
-        stores the result of adding element-wise the previous two HDF5 datasets.
+        The HDF5 group at the HDF5 path ``"/ml_data_instance_metrics"`` stores
+        the performance metrics that are tracked during testing.
 
         The HDF5 dataset at the HDF5 path
         ``"/ml_data_instance_metrics/testing/epes_of_distortion_fields"`` stores
-        the end-point errors (EPEs) of the distortion fields specified by the
-        predicted standard coordinate transformation parameter sets, during
-        testing. For every nonnegative integer ``m`` less than the the total
-        number of ML testing data instances, the ``m`` th element of the just
-        aforementioned HDF5 dataset is the EPE of the distortion field specified
-        by the ``m`` th predicted standard standard coordinate transformation
-        set, during testing.
+        the end-point errors (EPEs) of the "adjusted" standard distortion fields
+        specified by the predicted standard coordinate transformation parameter
+        sets, during testing. For every nonnegative integer ``m`` less than the
+        the total number of ML testing data instances, the ``m`` th element of
+        the aforementioned HDF5 dataset is the EPE of the adjusted standard
+        distortion field specified by the ``m`` th predicted standard standard
+        coordinate transformation set, during testing. See the summary
+        documentation of the class
+        :class:`emicroml.modelling.cbed.distortion.estimation.MLModelTrainer`
+        for a definition of an adjusted standard distortion field, and how the
+        EPE is calculated exactly.
 
         For further discussion on how losses are calculated, see the summary
         documentation of the class

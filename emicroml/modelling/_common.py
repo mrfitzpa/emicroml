@@ -5970,7 +5970,7 @@ class _MLMetricManager():
                 kwargs = {"obj_id": hdf5_dataset_id, "attr_name": "dim_0"}
                 attr_id = h5pywrappers.attr.ID(**kwargs)
 
-                attr = "{} ml data instance idx".format(key_1)
+                attr = "ml {} data instance idx".format(key_1)
                 kwargs = {"attr": attr, "attr_id": attr_id, "write_mode": "a"}
                 h5pywrappers.attr.save(**kwargs)
 

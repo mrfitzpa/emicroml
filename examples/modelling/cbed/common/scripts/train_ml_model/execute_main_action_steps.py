@@ -79,7 +79,7 @@ import torch
 
 
 
-# For training models.
+# For training ML models.
 import emicroml.modelling.optimizers
 import emicroml.modelling.lr.schedulers
 import emicroml.modelling.cbed.distortion.estimation

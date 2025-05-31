@@ -211,7 +211,7 @@ else
 	conda install -y ${pyprismatic_pkg} -c conda-forge
 
 	pkgs="prismatique"
-	conda install -y ${pkgs} -c conda-forge
+	pip install ${pkgs}
     fi
 fi
 

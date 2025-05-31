@@ -76,7 +76,7 @@ import shutil
 
 
 
-# For combining datasets.
+# For combining ML datasets.
 import emicroml.modelling.cbed.distortion.estimation
 
 

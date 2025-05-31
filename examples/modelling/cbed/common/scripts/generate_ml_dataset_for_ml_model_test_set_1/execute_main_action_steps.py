@@ -95,7 +95,7 @@ import skimage.restoration
 
 
 
-# For generating CBED pattern datsets.
+# For generating ML datsets.
 import emicroml.modelling.cbed.distortion.estimation
 
 

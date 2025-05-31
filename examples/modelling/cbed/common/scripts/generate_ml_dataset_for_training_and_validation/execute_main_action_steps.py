@@ -58,7 +58,7 @@ import argparse
 
 
 
-# For generating images and targets in datasets.
+# For generating images and targets in ML datasets.
 import emicroml.modelling.cbed.distortion.estimation
 
 
