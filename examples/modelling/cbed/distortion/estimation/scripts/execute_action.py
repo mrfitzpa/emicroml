@@ -30,8 +30,9 @@ will be performed locally without using a SLURM workload manager. ``<action>``
 can be equal to ``generate_ml_datasets_for_training_and_validation``,
 ``combine_ml_datasets_for_training_and_validation_then_split``,
 ``train_ml_model_set``, ``generate_ml_datasets_for_ml_model_test_set_1``,
-``combine_ml_datasets_for_ml_model_test_set_1``, or ``run_ml_model_test_set_1``.
-We describe below in more detail each action that can be performed.
+``combine_ml_datasets_for_ml_model_test_set_1``, ``run_ml_model_test_set_1``, or
+``run_rgm_test_set_1``.  We describe below in more detail each action that can
+be performed.
 
 If ``<action>`` equals ``generate_ml_datasets_for_training_and_validation``,
 then the script will generate 10 ML datasets that can be used to train and/or

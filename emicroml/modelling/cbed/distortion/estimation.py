@@ -1269,14 +1269,6 @@ def ml_data_dict_to_distortion_models(ml_data_dict,
         used, e.g. ``”cuda”`` or ``”cpu”``. If ``device_name`` is set to
         ``None`` and a GPU device is available, then a GPU device is to be
         used. Otherwise, the CPU is used.
-    device_name : `str` | `None`, optional
-        This parameter specifies the device to be used to perform
-        computationally intensive calls to PyTorch functions and to store
-        intermediate arrays of the type :class:`torch.Tensor`. If
-        ``device_name`` is a string, then it is the name of the device to be
-        used, e.g. ``”cuda”`` or ``”cpu”``. If ``device_name`` is set to
-        ``None`` and a GPU device is available, then a GPU device is to be
-        used. Otherwise, the CPU is used.
 
     Returns
     -------
@@ -1710,7 +1702,7 @@ _default_normalization_weights = \
     _module_alias._default_normalization_weights
 _default_normalization_biases = \
     _module_alias._default_normalization_biases
-default_unnormalize_normalizable_elems_of_ml_predictions = \
+_default_unnormalize_normalizable_elems_of_ml_predictions = \
     _module_alias._default_unnormalize_normalizable_elems_of_ml_predictions
 
 
@@ -1786,18 +1778,18 @@ class MLModel(_MLModel):
         This parameter specifies the network architecture of the ML model. At
         the moment, only one network architecture is available for this ML
         model, and it is specified by setting ``architecture`` to
-        ``"no_pool_resnet_39"``. Below we refer to this network architecture as
-        the ``"no_pool_resnet_39"`` architecture.
+        ``"distoptica_net"``, referring to the DistopticaNet architecture. Below
+        we refer to this network architecture as the DistopticaNet architecture.
 
-        In short, the ``"no_pool_resnet_39"`` architecture is a custom residual
-        network with 39 non-trivial layers, and downsampling operations being
-        performed using strided convolutions rather than pooling. By a
-        non-trivial layer, we mean either a fully connected layer or a 2D
-        convolutional layer with kernel dimensions other than :math:1 \times 1`.
+        In short, the DistopticaNet architecture is a custom residual network
+        with 37 non-trivial layers, and downsampling operations being performed
+        using strided convolutions rather than pooling. By a non-trivial layer,
+        we mean either a fully connected layer or a 2D convolutional layer with
+        kernel dimensions other than :math:1 \times 1`.
 
-        Before describing in more detail the ``"no_pool_resnet_39"``
-        architecture, it is worth introducing several smaller network used to
-        construct the the ``"no_pool_resnet_39"`` architecture.
+        Before describing in more detail the DistopticaNet architecture, it is
+        worth introducing several smaller networks used to construct the
+        architecture.
 
         First, we introduce the residual network building block, defined
         graphically as:
@@ -1836,15 +1828,12 @@ class MLModel(_MLModel):
            size, the number of residual network building blocks in the stage,
            and the final activation function respectively.
 
-        Next, we introduce the no-pool residual network entry flow, defined
-        graphically as:
+        Next, we introduce the "enhance" operation, defined graphically as:
 
-        .. _modelling_cbed_distortion_estimation_no_pool_resnet_entry_flow:
-        .. figure:: ../_images/modelling/cbed/distortion/estimation/no_pool_resnet_entry_flow.png
+        .. _modelling_cbed_distortion_estimation_enhance:
+        .. figure:: ../_images/modelling/cbed/distortion/estimation/enhance.png
 
-           The no-pool residual network entry flow, where :math:`C_1`,
-           :math:`C_2`, and :math:`K` are the number of input channels, the
-           number of output channels, and the maximum kernel size respectively.
+           The enhance operation.
 
         The above image introduces a few mathematical objects:
         :math:`\text{min-max normalize}` is the min-max normalization operation,
@@ -1853,7 +1842,16 @@ class MLModel(_MLModel):
         with the power-law exponent :math:`\gamma`; :math:`\text{equalize}` is
         the histogram equalization operation, applied to each feature map.
 
-        Next, we introduce the no-pool residual network entry flow, defined
+        Next, we introduce the DistopticaNet entry flow, defined graphically as:
+
+        .. _modelling_cbed_distortion_estimation_distoptica_net_entry_flow:
+        .. figure:: ../_images/modelling/cbed/distortion/estimation/distoptica_net_entry_flow.png
+
+           The DistopticaNet entry flow, where :math:`C_1`, :math:`C_2`, and
+           :math:`K` are the number of input channels, the number of output
+           channels, and the maximum kernel size respectively.
+
+        Next, we introduce the no-pool residual network middle flow, defined
         graphically as:
 
         .. _modelling_cbed_distortion_estimation_no_pool_resnet_middle_flow:
@@ -1907,14 +1905,14 @@ class MLModel(_MLModel):
            of nodes in the second last layer of the exit flow, and the number of
            nodes in the last layer of the exit flow respectively.
 
-        Finally, the ``"no_pool_resnet_39"`` architecture is defined graphically
+        Finally, the ``"distoptica_net"`` architecture is defined graphically
         as:
 
-        .. _modelling_cbed_distortion_estimation_no_pool_resnet_39:
-        .. figure:: ../_images/modelling/cbed/distortion/estimation/no_pool_resnet_39.png
+        .. _modelling_cbed_distortion_estimation_distoptica_net:
+        .. figure:: ../_images/modelling/cbed/distortion/estimation/distoptica_net.png
 
-           The ``"no_pool_resnet_39"`` architecture, where :math:`W` is the
-           width of the input tensor in pixels.
+           The ``"distoptica_net"`` architecture, where :math:`W` is the width
+           of the input tensor in pixels.
 
         See the documentation for the method
         :meth:`emicroml.modelling.cbed.distortion.estimation.MLModel.forward`
@@ -2063,112 +2061,6 @@ class MLModel(_MLModel):
                   for key, val in locals().items()
                   if (key not in ("self", "__class__"))}
         ml_predictions = super().forward(**kwargs)
-
-        return ml_predictions
-
-
-
-    def make_predictions(
-            self,
-            ml_inputs,
-            unnormalize_normalizable_elems_of_ml_predictions=\
-            default_unnormalize_normalizable_elems_of_ml_predictions):
-        r"""Make predictions according to machine learning inputs.
-
-        The machine learning (ML) model takes as input a mini-batch of images,
-        where each image is assumed to depict a distorted CBED pattern, and as
-        output, the ML model predicts sets of coordinate transformation
-        parameters that specify the coordinate transformations that describe the
-        distortions of the input images. The coordinate transformation used to
-        describe the distortions of an image is defined in the documentation for
-        the class :class:`distoptica.StandardCoordTransformParams`. The
-        parameter set parameterizing said coordinate transformation is referred
-        to as the "standard" coordinate transformation parameter set, and is
-        represented by the class
-        :class:`distoptica.StandardCoordTransformParams`. See the documentation
-        for said class for a discussion on standard coordinate transformation
-        parameter sets.
-
-        Parameters
-        ----------
-        ml_inputs : `dict`
-            The dictionary representation of the mini-batch of ML inputs.
-
-            ``ml_inputs`` must have only one `dict` key, the value of which
-            being
-            ``"cbed_pattern_images"``. ``ml_inputs["cbed_pattern_images"]`` must
-            be a 3D PyTorch tensor of the data type ``torch.float32`` storing
-            the mini-batch of images assumed to depict distorted CBED
-            patterns. Let ``mini_batch_size`` be
-            ``ml_inputs["cbed_pattern_images"].shape[0]``, and ``core_attrs`` be
-            the attribute :attr:`~fancytypes.Checkable.core_attrs`. For each
-            nonnegative integer ``n`` less than ``mini_batch_size``,
-            ``ml_inputs["cbed_pattern_images"][n]`` stores the ``n`` th input
-            image of the mini-batch. ``mini_batch_size`` must be positive and
-            ``ml_inputs["cbed_pattern_images"].shape[1:]`` must be equal to
-            ``2*(num_pixels_across_each_cbed_pattern,)``, where
-            ``num_pixels_across_each_cbed_pattern`` is
-            ``core_attrs["num_pixels_across_each_cbed_pattern"]``, i.e. the
-            number of pixels across each input image.
-        unnormalize_normalizable_elems_of_ml_predictions : `bool`
-            If ``unnormalize_normalizable_elems_of_ml_predictions`` is set to
-            ``False``, then the predicted parameters of the standard coordinate
-            transformations are returned normalized. Otherwise, said parameters
-            are returned unnormalized. See the description below of
-            ``ml_predictions`` for more details on how this is implemented
-            effectively.
-
-        Returns
-        -------
-        ml_predictions : `dict`
-            The dictionary representation of the mini-batch of ML outputs.
-
-            Let ``ml_model`` be an instance of the current class. Then
-            ``ml_predictions`` is calculated effectively by:
-
-            .. code-block:: python
-
-                import emicroml.modelling.cbed.distortion.estimation
-
-                module_alias = \
-                    emicroml.modelling.cbed.distortion.estimation
-                func_alias = \
-                    module_alias.unnormalize_normalizable_elems_in_ml_data_dict
-
-                ml_predictions = ml_model.forward(ml_inputs)
-
-                if unnormalize_normalizable_elems_of_ml_predictions:
-                    kwargs = {"ml_data_dict": \
-                              ml_predictions,
-                              "normalization_weights": \
-                              ml_model.core_attrs["normalization_weights"],
-                              "normalization_biases": \
-                              ml_model.core_attrs["normalization_biases"]}
-                    ml_predictions = func_alias(**kwargs)
-
-            See the documentation for the method
-            :meth:`emicroml.modelling.cbed.distortion.estimation.MLModel.forward`
-            for details on the output returned by said method. See the
-            documentation for the attribute
-            :attr:`~fancytypes.Checkable.core_attrs` for a discussion on core
-            attributes. See the documentation for the function
-            :func:`emicroml.modelling.cbed.distortion.estimation.normalize_normalizable_elems_in_ml_data_dict`
-            for a discussion on normalizing features of ML data instances,
-            e.g. the standard coordinate transformation parameters.
-
-            Users can use the function
-            :func:`emicroml.modelling.cbed.distortion.estimation.ml_data_dict_to_distortion_models`
-            to convert ``ml_predictions`` to a sequence of distortion models,
-            with each distortion model being represented by the class
-            :class:`distoptica.DistortionModel`.
-
-        """
-        kwargs = {key: val
-                  for key, val in locals().items()
-                  if (key not in ("self", "__class__"))}
-        key = "normalizable_elems_of_ml_inputs_are_normalized"
-        kwargs[key] = True
-        ml_predictions = super().make_predictions(**kwargs)
 
         return ml_predictions
 

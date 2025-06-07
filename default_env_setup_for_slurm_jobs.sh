@@ -15,7 +15,7 @@
 
 
 
-# The current script creates a virtual environment and install the ``emicroml``
+# The current script creates a virtual environment and installs the ``emicroml``
 # library within said environment. If the script is executed on a Digital
 # Alliance of Canada (DRAC) high-performance computing (HPC) server, then the
 # virtual environment is created via ``virtualenv``. Otherwise, the virtual

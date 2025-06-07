@@ -469,7 +469,7 @@ def _generate_radial_cosine_coefficient_matrix(standard_coord_transform_params,
 
     pre_factor_matrix = torch.tensor(((0.0, 0.0, 1.0),
                                       (0.0, 1.0, 0.0), 
-                                      (1.0, 0.0, 0.0)))
+                                      (1.0, 0.0, 0.0)), device=device)
 
     kwargs = {"distortion_model_params": \
               distortion_model_params,
@@ -505,7 +505,7 @@ def _generate_radial_sine_coefficient_matrix(standard_coord_transform_params,
                                                        "B_r_0_1": (0, 1)}
 
     pre_factor_matrix = torch.tensor(((0.0, 1.0),
-                                      (1.0, 0.0)))
+                                      (1.0, 0.0)), device=device)
 
     kwargs = {"distortion_model_params": \
               distortion_model_params,
@@ -572,7 +572,7 @@ def _generate_tangential_cosine_coefficient_matrix(
 
     pre_factor_matrix = torch.tensor(((0.0, 0.0, 1.0),
                                       (0.0, 1/3, 0.0), 
-                                      (1.0, 0.0, 0.0)))
+                                      (1.0, 0.0, 0.0)), device=device)
 
     kwargs = {"distortion_model_params": \
               distortion_model_params,
@@ -608,7 +608,7 @@ def _generate_tangential_sine_coefficient_matrix(
                                                        "A_r_1_1": (0, 1)}
 
     pre_factor_matrix = torch.tensor(((0.00, -1/3),
-                                      (-1.0, 0.00)))
+                                      (-1.0, 0.00)), device=device)
 
     kwargs = {"distortion_model_params": \
               distortion_model_params,
@@ -1349,7 +1349,7 @@ def _predict_distortion_model_from_ml_data_dict(ml_data_dict):
               "q_sample": predicted_q_sample,
               "max_num_iterations": 100,
               "sampling_grid_dims_in_pixels": sampling_grid_dims_in_pixels,
-              "device_name": device_name}
+              "device_name": _get_device_name_from_ml_data_dict(ml_data_dict)}
     least_squares_problem_solver = _LeastSquaresProblemSolver(**kwargs)
 
     predicted_distortion_model, _ = least_squares_problem_solver._solve()
@@ -1359,26 +1359,34 @@ def _predict_distortion_model_from_ml_data_dict(ml_data_dict):
 
 
 def _extract_target_u_sample_from_ml_data_dict(ml_data_dict):
+    max_num_disks_to_consider = 13
+    single_dim_slice = slice(0, max_num_disks_to_consider)
+
     disk_clipping_registry = \
-        ml_data_dict["disk_clipping_registries"][0]
-    undistorted_disk_center_set = \
-        ml_data_dict["undistorted_disk_center_sets"][0]
+        ml_data_dict["disk_clipping_registries"][0][single_dim_slice]
+    undistorted_disk_center_subset = \
+        ml_data_dict["undistorted_disk_center_sets"][0][single_dim_slice]
 
     device = disk_clipping_registry.device
 
-    target_u_shape = (2, 1, torch.sum(~disk_clipping_registry).item())
-    target_u = torch.zeros(target_u_shape, device=device)
+    target_u_sample_shape = (2, 1, torch.sum(~disk_clipping_registry).item())
+    target_u_sample = torch.zeros(target_u_sample_shape, device=device)
 
     undistorted_disk_center_idx = 0
     unclipped_disk_count = 0
-    for undistorted_disk_center in undistorted_disk_center_set:
+    
+    for undistorted_disk_center in undistorted_disk_center_subset:
         if not disk_clipping_registry[undistorted_disk_center_idx].item():
-            target_u[0, 0, unclipped_disk_count] = undistorted_disk_center[0]
-            target_u[1, 0, unclipped_disk_count] = undistorted_disk_center[1]
+            target_u_sample[0, 0, unclipped_disk_count] = \
+                undistorted_disk_center[0]
+            target_u_sample[1, 0, unclipped_disk_count] = \
+                undistorted_disk_center[1]
+            
             unclipped_disk_count += 1
+            
         undistorted_disk_center_idx += 1
 
-    return target_u
+    return target_u_sample
 
 
 
@@ -1394,7 +1402,7 @@ def _extract_target_q_sample_from_ml_data_dict(ml_data_dict):
               "q_sample": target_u_sample,  # Tensor doesn't matter here.
               "max_num_iterations": None,
               "sampling_grid_dims_in_pixels": None,
-              "device_name": device_name}
+              "device_name": _get_device_name_from_ml_data_dict(ml_data_dict)}
     least_squares_problem_solver = _LeastSquaresProblemSolver(**kwargs)
 
     kwargs = {"standard_coord_transform_params": \
@@ -1642,20 +1650,21 @@ def _generate_row_col_offset_pairs_from_ml_data_dict(ml_data_dict):
     common_undistorted_disk_radius = \
         ml_data_dict["common_undistorted_disk_radii"][0].item()
 
+    kwargs = {"ml_data_dict": ml_data_dict}
     q_x_shift_step = _calc_q_x_shift_step_from_ml_data_dict(**kwargs)
 
     max_q_x_shift = 0.4*common_undistorted_disk_radius
     
-    num_non_negative_q_x_shifts = int(max_q_x_shift/q_x_shift_step)
+    num_nonnegative_q_x_shifts = int(max_q_x_shift/q_x_shift_step)
 
-    num_row_col_offset_pairs = (2*num_non_negative_q_x_shifts+1)**2
+    num_row_col_offset_pairs = (2*num_nonnegative_q_x_shifts+1)**2
 
     row_col_offset_pairs = tuple()
     for row_col_offset_pair_idx in range(num_row_col_offset_pairs):
         row_offset = (row_col_offset_pair_idx
-                      // (2*num_non_negative_q_x_shifts+1))
+                      // (2*num_nonnegative_q_x_shifts+1))
         col_offset = (row_col_offset_pair_idx
-                      % (2*num_non_negative_q_x_shifts+1))
+                      % (2*num_nonnegative_q_x_shifts+1))
         row_col_offset_pair = (row_offset, col_offset)
         row_col_offset_pairs += (row_col_offset_pair,)
 
@@ -1689,6 +1698,9 @@ def _generate_signal_from_ml_data_dict(ml_data_dict, target_q_pt):
 
     cbed_pattern_images = ml_data_dict["cbed_pattern_images"]
     cbed_pattern_image = cbed_pattern_images[0].numpy(force=True)
+
+    V = 1000
+    cbed_pattern_image_rescaled = np.log(cbed_pattern_image*V+1)
 
     signal = hyperspy.signals.Signal2D(data=cbed_pattern_image)
 
@@ -1726,7 +1738,7 @@ def _calc_crop_window_2_dims_in_pixels_from_ml_data_dict(ml_data_dict):
         _generate_row_col_offset_pairs_from_ml_data_dict(**kwargs)
 
     num_row_col_offset_pairs = len(row_col_offset_pairs)
-    num_nonnegative_q_x_shifts = round(np.sqrt(num_row_col_offset_pairs))-1
+    num_nonnegative_q_x_shifts = round((np.sqrt(num_row_col_offset_pairs)-1)/2)
 
     crop_window_2_dims_in_pixels = \
         (crop_window_1_dims_in_pixels[0] + 2*num_nonnegative_q_x_shifts,
@@ -1789,7 +1801,7 @@ def _generate_q_shifts_from_ml_data_dict(ml_data_dict, target_q_pt):
         _calc_q_pt_of_pixel_nearest_to_target_q_pt(**kwargs)
 
     num_q_shifts = len(row_col_offset_pairs)
-    num_nonnegative_q_x_shifts = round(np.sqrt(num_q_shifts))-1
+    num_nonnegative_q_x_shifts = round((np.sqrt(num_q_shifts)-1)/2)
     num_nonnegative_q_y_shifts = num_nonnegative_q_x_shifts
 
     q_shifts = tuple()
@@ -1860,7 +1872,7 @@ def _select_q_shift_corresponding_to_max_rgm_metric(
 
         candidate_rgm_metrics = \
             (intensity_profiles[:, q_xy_idx_2:q_xy_idx_1+1].sum(axis=1)
-             - intensity_profiles[:, q_xy_idx_1:q_xy_idx_3+1].sum(axis=1))
+             - intensity_profiles[:, q_xy_idx_1+1:q_xy_idx_3+1].sum(axis=1))
         
         candidate_rgm_metric = candidate_rgm_metrics.max().item()
         candidate_q_shift_idx = candidate_rgm_metrics.argmax()

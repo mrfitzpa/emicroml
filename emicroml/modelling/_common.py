@@ -3139,14 +3139,25 @@ def _convert_numerical_data_container(
                       "accepted_types": accepted_types}
             czekitout.check.if_instance_of_any_accepted_types(**kwargs)
 
-    if ((type(numerical_data_container) != target_numerical_data_container_cls)
-        and (target_numerical_data_container_cls is not None)):
-        if target_numerical_data_container_cls == torch.Tensor:
-            numerical_data_container = \
-                torch.from_numpy(numerical_data_container, device=target_device)
-        else:
-            numerical_data_container = \
-                numerical_data_container.cpu().detach().numpy()
+    current_func_name = "_convert_numerical_data_container"
+
+    try:
+        container_cls = type(numerical_data_container)
+        target_container_cls = target_numerical_data_container_cls
+
+        if ((container_cls != target_container_cls)
+            and (target_container_cls is not None)):
+            if target_container_cls == torch.Tensor:
+                numerical_data_container = \
+                    torch.from_numpy(numerical_data_container).to(target_device)
+            else:
+                numerical_data_container = \
+                    numerical_data_container.cpu().detach().numpy()
+    except:
+        unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
+        format_args = (name_of_obj_alias_of_numerical_data_container,)
+        err_msg = unformatted_err_msg.format(*format_args)
+        raise TypeError(err_msg)
         
     return numerical_data_container
 
@@ -3469,6 +3480,14 @@ def _get_device(device_name):
     device = torch.device(device_name)
 
     return device
+
+
+
+def _get_device_name(device):
+    device_name = (device.type
+                   + (device.index != None)*(":{}".format(device.index)))
+
+    return device_name
 
 
 
@@ -4908,6 +4927,7 @@ def _check_and_convert_ml_inputs(params):
         target_device = (input_tensor.device
                          if isinstance(input_tensor, torch.Tensor)
                          else None)
+        target_device = params.get("target_device", target_device)
     else:
         target_device = None
 
@@ -5019,6 +5039,8 @@ class _MLModel(torch.nn.Module):
                          if (param_name_1 != "expected_ml_data_dict_keys")
                          else "_expected_keys_of_ml_inputs")
             params[param_name_1] = getattr(self, attr_name)
+
+        params["target_device"] = next(self.parameters()).device
 
         param_name_subset_2 = \
             ("ml_inputs",
@@ -7678,6 +7700,10 @@ _check_ml_data_dict_keys_err_msg_1 = \
     _check_and_convert_normalization_weights_err_msg_1
 _check_ml_data_dict_keys_err_msg_2 = \
     ("The object ``{}`` contains the key ``'{}'``, which is invalid.")
+
+_convert_numerical_data_container_err_msg_1 = \
+    ("The object ``{}`` must be an array of integers, real-numbers, or "
+     "booleans.")
 
 _check_and_convert_ml_data_instance_idx_err_msg_1 = \
     ("An error occurred in trying to get a machine learning (ML) data instance "

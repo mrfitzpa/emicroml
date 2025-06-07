@@ -9,3 +9,4 @@ see all the different features that have been implemented in ``emicroml``.
 
 .. toctree::
 
+   examples/modelling/cbed.rst
