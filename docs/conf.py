@@ -66,7 +66,7 @@ except:
 ## Project information.
 
 project = "emicroml"
-copyright = "2024, Matthew Fitzpatrick"
+copyright = "2025, Matthew Fitzpatrick"
 author = "Matthew Fitzpatrick"
 
 

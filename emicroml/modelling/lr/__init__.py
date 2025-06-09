@@ -31,12 +31,12 @@ import fancytypes
 
 
 
+# For reusing module-wide constants.
+import emicroml.modelling.optimizers
+
 # For validating, pre-serializing, and de-pre-serializing learning rate
 # schedulers.
 import emicroml.modelling.lr.schedulers
-
-# For reusing module-wide constants.
-import emicroml.modelling.optimizers
 
 
 

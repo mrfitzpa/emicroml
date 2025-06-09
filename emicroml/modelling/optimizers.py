@@ -54,8 +54,8 @@ class BaseMLOptimizer(fancytypes.PreSerializableAndUpdatable):
     r"""A wrapper to a PyTorch optimizer class.
 
     One cannot construct an instance of the class
-    :class:`emicroml.modelling.optimizer.BaseMLOptimizer`, only subclasses of
-    itself defined in :mod:`emicroml.modelling.optimizer` module.
+    :class:`emicroml.modelling.optimizers.BaseMLOptimizer`, only subclasses of
+    itself defined in :mod:`emicroml.modelling.optimizers` module.
 
     Parameters
     ----------

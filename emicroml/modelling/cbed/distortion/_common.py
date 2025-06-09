@@ -4323,8 +4323,8 @@ class _MLDataset(_cls_alias):
         ``distortion_model`` is a distortion model that describes the distortion
         field of the imaged CBED pattern of the ML data instance. After
         constructing ``distortion_model``, an instance
-        class:`fakecbed.discretized.CBEDPattern` is constructed according to the
-        ML data instance's features and
+        :class:`fakecbed.discretized.CBEDPattern` is constructed according to
+        the ML data instance's features and
         ``distortion_model``. ``fake_cbed_pattern`` is a fake CBED pattern
         representation of the CBED pattern of the ML data instance. The Hyperspy
         signal representation of the ML data instance is then obtained from
