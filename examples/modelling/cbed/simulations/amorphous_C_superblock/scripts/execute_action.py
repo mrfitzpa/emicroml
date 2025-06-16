@@ -21,16 +21,33 @@ tiling various transformations of a model of a :math:`5 \times 5 \times 1 \
 \times 5 \times 1 \ \text{nm}^3` large block of amorphous C were taken from
 Ref. [Ricolleau1]_.
 
-The correct form of the command to run the script is::
+To execute this action, first we need to change into the directory
+``<root>/examples/modelling/cbed/simulations/amorphous_C_superblock/scripts``,
+where ``<root>`` is the root of the ``emicroml`` repository. Then, we need to
+run the Python script ``./execute_action.py`` via the terminal command::
 
   python execute_action.py --action=<action> --use_slurm=<use_slurm>
 
 where ``<action>`` must be equal to ``generate_atomic_coords``, and
 ``<use_slurm>`` is either ``yes`` or ``no``. If ``<use_slurm>`` equals ``yes``
-and the SLURM workload manager is available on the server from which you intend
-to run the script, then the action will be performed as a SLURM job. If
+and a SLURM workload manager is available on the server from which you intend to
+run the script, then the action will be performed as a SLURM job. If
 ``<use_slurm>`` is equal to ``no``, then the action will be performed locally
 without using a SLURM workload manager.
+
+If the action is to be performed locally without using a SLURM workload manager,
+then prior to executing the above Python script, a set of Python libraries need
+to be installed in the Python environment within which said Python script is to
+be executed. See :ref:`this page
+<examples_prerequisites_for_execution_without_slurm_sec>` for instructions on
+how to do so. If the action is being performed as a SLURM job, then prior to
+executing any Python commands that do not belong to Python's standard library, a
+customizable sequence of commands are executed that are expected to try to
+either activate an existing Python virtual environment, or create then activate
+one, in which the Python libraries needed to complete the action successfully
+are installed. See :ref:`this page
+<examples_prerequisites_for_execution_with_slurm_sec>` for instructions how to
+customize the sequence of commands.
 
 We assume that the C atoms are subject to room temperature, and that their
 root-mean-square :math:`x`-displacement is 0.141 Å. This value was taken from 

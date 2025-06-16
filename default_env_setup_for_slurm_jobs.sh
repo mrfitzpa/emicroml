@@ -15,24 +15,29 @@
 
 
 
-# The current script creates a virtual environment and installs the ``emicroml``
-# library within said environment. If the script is executed on a Digital
-# Alliance of Canada (DRAC) high-performance computing (HPC) server, then the
-# virtual environment is created via ``virtualenv``. Otherwise, the virtual
-# environment is created via ``conda``. For the latter scenario, an ``anaconda``
-# or ``miniconda`` distribution must be installed prior to running the script.
+# The current script will attempt to create a virtual environment, then activate
+# it within the current shell, and then install the ``emicroml`` library within
+# said environment, along with some optional libraries. If the script is
+# executed on a Digital Alliance of Canada (DRAC) high-performance computing
+# (HPC) server, then the virtual environment is created via
+# ``virtualenv``. Otherwise, the virtual environment is created via
+# ``conda``. For the latter scenario, an ``anaconda`` or ``miniconda``
+# distribution must be installed prior to running the script.
 #
 # The correct form of the command to run the script is::
 #
-#  source default_env_setup_for_slurm_jobs.sh <env_name> <install_extras>
+#  source <path_to_current_script> <env_name> <install_extras>
 #
-# where ``<env_name>`` is the path to the virtual environment, if the script is
-# being executed on a DRAC HPC server, else it is the name of the ``conda``
-# virtual environment; and ``<install_extras>`` is a boolean, i.e. it should
-# either be ``true`` or ``false``. If ``<install_extras>`` is set to ``true``,
-# then the dependencies required to run all of the examples in the repository
-# are installed within the environment, in addition to installing
-# ``emicroml``. Otherwise, no additional libraries are installed.
+# where ``<path_to_current_script>`` is the absolute or relative path to the
+# current script; ``<env_name>`` is the path to the virtual environment, if the
+# script is being executed on a DRAC HPC server, else it is the name of the
+# ``conda`` virtual environment; and ``<install_extras>`` is a boolean, i.e. it
+# should either be ``true`` or ``false``. If ``<install_extras>`` is set to
+# ``true``, then the script will attempt to install within the environment the
+# dependencies required to run all of the examples in the repository, in
+# addition to installing ``emicroml``. Otherwise, the script will attempt to
+# install only ``emicroml`` and its dependencies, i.e. not the additional
+# libraries required to run the examples.
 
 
 

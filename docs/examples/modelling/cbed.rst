@@ -3,14 +3,14 @@
 Examples of CBED-related tasks
 ==============================
 
-..
-   Below are links to some code examples of CBED-related tasks. The
-   :ref:`examples_modelling_cbed_simulations_sec` page contains examples of
-   generating simulated CBED patterns using the multislice method. These simulated
-   CBED patterns are used elsewhere in other examples, including examples of
-   machine learning tasks.
+Below are links to some code examples of tasks that are related to convergent
+beam electron diffraction (CBED). The
+:ref:`examples_modelling_cbed_simulations_sec` page contains examples of tasks
+that are related to multislice simulations of CBED experiments. The output data
+generated those particular examples are used elsewhere for machine learning
+tasks.
 
-   .. toctree::
+.. toctree::
 
-      examples/modelling/cbed/simulations.rst
-      examples/modelling/cbed/distortion/estimation.rst
+   cbed/simulations.rst
+   cbed/distortion/estimation.rst

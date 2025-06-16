@@ -15,20 +15,37 @@
 experiments, where the sample is a 5-layer :math:`\text{MoS}_2` thin film with
 a :math:`0.5 \ \text{nm}` thick layer of amorphous carbon (C).
 
-This script can be used to perform a variety of actions. The correct form of the
-command to run the script is::
+This script can be used to perform a variety of actions. To execute an action,
+first we need to change into the directory
+``<root>/examples/modelling/cbed/simulations/MoS2_on_amorphous_C/scripts``,
+where ``<root>`` is the root of the ``emicroml`` repository. Then, we need to
+run the Python script ``./execute_action.py`` via the terminal command::
 
   python execute_action.py --action=<action> --use_slurm=<use_slurm>
 
 where ``<action>`` is one of a set of accepted strings that specifies the action
 to be performed, and ``<use_slurm>`` is either ``yes`` or ``no``. If
-``<use_slurm>`` equals ``yes`` and the SLURM workload manager is available on
-the server from which you intend to run the script, then the action will be
+``<use_slurm>`` equals ``yes`` and a SLURM workload manager is available on the
+server from which you intend to run the script, then the action will be
 performed as a SLURM job. If ``<use_slurm>`` is equal to ``no``, then the action
 will be performed locally without using a SLURM workload manager. ``<action>``
 can be equal to ``generate_atomic_coords``, ``generate_potential_slices``, or
 ``generate_cbed_pattern_sets``. We describe below in more detail each action
 that can be performed.
+
+If the action is to be performed locally without using a SLURM workload manager,
+then prior to executing the above Python script, a set of Python libraries need
+to be installed in the Python environment within which said Python script is to
+be executed. See :ref:`this page
+<examples_prerequisites_for_execution_without_slurm_sec>` for instructions on
+how to do so. If the action is being performed as a SLURM job, then prior to
+executing any Python commands that do not belong to Python's standard library, a
+customizable sequence of commands are executed that are expected to try to
+either activate an existing Python virtual environment, or create then activate
+one, in which the Python libraries needed to complete the action successfully
+are installed. See :ref:`this page
+<examples_prerequisites_for_execution_with_slurm_sec>` for instructions how to
+customize the sequence of commands.
 
 If ``<action>`` equals ``generate_atomic_coords``, then the script will generate
 the atomic coordinates of the model of the sample of :math:`\text{MoS}_2` on
