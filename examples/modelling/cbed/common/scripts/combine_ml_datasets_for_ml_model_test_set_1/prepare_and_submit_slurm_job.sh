@@ -100,9 +100,15 @@ do
 	if [ "${filename_1}" != "${filename_2}" ]
 	then
 	    cp ${filename_1} ${filename_2}
+	    msg="Copied file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
+	    echo ${msg}
+	    echo ""
 	fi
     done
 done
+
+echo ""
+echo ""
 
 cd ${SLURM_TMPDIR}
 
@@ -117,7 +123,7 @@ python ${path_to_script_to_execute} \
        --data_dir_1=${SLURM_TMPDIR}
 python_script_exit_code=$?
 
-if [ "${python_script_exit_code}" -ne 0 ];
+if [ "${python_script_exit_code}" != 0 ];
 then
     msg="\n\n\nThe slurm job terminated early with at least one error. "
     msg=${msg}"See traceback for details.\n\n\n"
@@ -147,6 +153,9 @@ do
     if [ "${filename_1}" != "${filename_2}" ]
     then
 	mv ${filename_1} ${filename_2}
+	msg="Moved file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
+	echo ${msg}
+	echo ""
     fi
 done
 

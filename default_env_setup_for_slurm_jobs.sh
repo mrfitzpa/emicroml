@@ -70,12 +70,6 @@ done
 
 
 
-# Create a temporary directory, in which additional repositories are cloned.
-path_to_temp_dir=${path_to_repo_root}/temp_${SLURM_JOB_ID}
-mkdir -p ${path_to_temp_dir}
-
-
-
 if [ "${current_machine_is_on_a_drac_server}" = true ]
 then
     # Parse the command line arguments.
@@ -223,22 +217,5 @@ fi
 
 
 # Install ``emicroml``.
-path_to_required_git_repos=${path_to_repo_root}/required_git_repos
-path_to_copy_of_required_git_repos=${path_to_temp_dir}/required_git_repos
-cp -r ${path_to_required_git_repos} ${path_to_copy_of_required_git_repos}
-
-libs=(emicroml)
-
-for lib in "${libs[@]}"
-do
-    cd ${path_to_temp_dir}/required_git_repos/${lib}
-    pip install .
-done
-rm -rf ${path_to_temp_dir}
-pip install .
-
-
-
-# Remove the temporary directory that contained the cloned repositories.
 cd ${path_to_repo_root}
-rm -rf ${path_to_temp_dir}
+pip install .

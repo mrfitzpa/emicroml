@@ -820,7 +820,7 @@ output_filename = unformatted_output_filename.format(sample_name,
                                                      ml_dataset_idx)
 
 kwargs = \
-    {"num_cbed_patterns":  2880,
+    {"num_cbed_patterns": 2880,
      "cbed_pattern_generator": cbed_pattern_generator,
      "output_filename": output_filename,
      "max_num_ml_data_instances_per_file_update": 288}

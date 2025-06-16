@@ -23,5 +23,5 @@
 #  source load_drac_modules.sh
 #
 
-module load StdEnv/2020
+module load StdEnv/2023
 module load python/3.12 hdf5 cuda

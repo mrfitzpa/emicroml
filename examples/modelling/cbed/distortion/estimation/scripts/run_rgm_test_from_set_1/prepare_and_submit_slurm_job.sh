@@ -100,7 +100,13 @@ mkdir -p ${dirname_2}
 if [ "${filename_1}" != "${filename_2}" ]
 then
     cp ${filename_1} ${filename_2}
+    msg="Copied file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
+    echo ${msg}
+    echo ""
 fi
+
+echo ""
+echo ""
 
 cd ${SLURM_TMPDIR}
 
@@ -115,7 +121,7 @@ python ${path_to_script_to_execute} \
        --data_dir_1=${SLURM_TMPDIR}
 python_script_exit_code=$?
 
-if [ "${python_script_exit_code}" -ne 0 ];
+if [ "${python_script_exit_code}" != 0 ];
 then
     msg="\n\n\nThe slurm job terminated early with at least one error. "
     msg=${msg}"See traceback for details.\n\n\n"
@@ -132,7 +138,7 @@ cd ${SLURM_TMPDIR}
 
 partial_path_4=rgm_test_set_1_results
 partial_path_5=results_for_cbed_patterns_of_MoS2_on_amorphous_C_with
-partial_path_6=${partial_path_4}/{partial_path_5}_${disk_size}_sized_disks
+partial_path_6=${partial_path_4}/${partial_path_5}_${disk_size}_sized_disks
 
 dirname_1=${SLURM_TMPDIR}/${partial_path_6}
 filename_1=${dirname_1}/rgm_testing_summary_output_data.h5
@@ -147,6 +153,8 @@ mkdir -p ${dirname_2}
 if [ "${filename_1}" != "${filename_2}" ]
 then
     mv ${filename_1} ${filename_2}
+    msg="Moved file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
+    echo ${msg}
 fi
 
 if [ "${overwrite_slurm_tmpdir}" = true ]
