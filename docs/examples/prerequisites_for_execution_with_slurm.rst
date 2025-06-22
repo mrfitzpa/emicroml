@@ -39,7 +39,7 @@ successfully are installed. Let us refer to this customizable sequence of
 commands as the environment setup procedure. The Python libraries that need to
 be installed in said Python virtual environment are::
 
-  fakecbed>=0.3.5
+  fakecbed>=0.3.6
   h5pywrappers
   numba
   hyperspy

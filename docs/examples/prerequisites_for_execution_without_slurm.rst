@@ -11,7 +11,7 @@ notebooks are to be executed.
 
 The Python libraries that need to be installed in said Python environment are::
 
-  fakecbed>=0.3.5
+  fakecbed>=0.3.6
   h5pywrappers
   numba
   hyperspy

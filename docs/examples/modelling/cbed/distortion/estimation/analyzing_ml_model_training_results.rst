@@ -18,8 +18,8 @@ In this notebook, we analyze the output that results from performing the
 while also demonstrating how one can use a selection of the functions and
 classes in the module :mod:`emicroml.modelling.cbed.distortion.estimation`. In
 short, in this notebook we analyze machine learning (ML) model training results
-for the ML task of estimating distortion in convergent beam electron
-diffraction.
+for the ML task of estimating distortion in convergent beam electron diffraction
+(CBED).
 
 In order to execute the cells in this notebook, a set of Python libraries need
 to be installed in the Python environment within which the cells of the notebook

@@ -120,7 +120,7 @@ then
     pkgs=${pkgs}" blosc2 msgpack"
     pip install --no-index ${pkgs}
 
-    pkgs="fakecbed>=0.3.4 h5pywrappers"
+    pkgs="fakecbed>=0.3.6 h5pywrappers"
     pip install ${pkgs}
 
     if [ "${install_libs_required_to_run_all_examples}" = true ]
@@ -201,7 +201,7 @@ else
     # Create the ``conda`` virtual environment and install a subset of
     # libraries, then activate the virtual environment.
     pkgs="python=3.10 numpy numba hyperspy h5py pytest ipympl jupyter"
-    pkgs=${pkgs}" fakecbed>=0.3.5 h5pywrappers"
+    pkgs=${pkgs}" fakecbed>=0.3.6 h5pywrappers"
     conda create -n ${virtual_env_name} ${pkgs} -y -c conda-forge
     conda activate ${virtual_env_name}
 
