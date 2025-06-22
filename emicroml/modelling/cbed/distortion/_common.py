@@ -879,6 +879,8 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                     err_msg = unformatted_err_msg.format(*args)
                     raise ValueError(err_msg)
 
+                cbed_pattern.get_signal(deep_copy=False)
+
                 cbed_pattern_generation_has_not_been_completed = False
             except:
                 generation_attempt_count += 1
