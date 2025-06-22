@@ -132,13 +132,7 @@ path_to_data_dir_1 = converted_cmd_line_args["path_to_data_dir_1"]
 # appropriate to the specified ML model task. Also, select the RNG seed
 # according to the specified ML dataset index and ML model task.
 if ml_model_task == "cbed/distortion/estimation":
-    # For some reason, the RNG seed ``4008`` yields a CUDA runtime error near
-    # the end of the corresponding SLURM job when executed on Digital Alliance
-    # of Canada's "cedar" server.
     ml_model_task_module = emicroml.modelling.cbed.distortion.estimation
-    rng_seed = (ml_dataset_idx + 4000
-                if (ml_dataset_idx != 8)
-                else 5008)
 
     
 
@@ -150,7 +144,7 @@ sampling_grid_dims_in_pixels = 2*(num_pixels_across_each_cbed_pattern,)
 kwargs = \
     {"num_pixels_across_each_cbed_pattern": num_pixels_across_each_cbed_pattern,
      "max_num_disks_in_any_cbed_pattern": max_num_disks_in_any_cbed_pattern,
-     "rng_seed": rng_seed,
+     "rng_seed": ml_dataset_idx + 4000,
      "sampling_grid_dims_in_pixels": sampling_grid_dims_in_pixels,
      "least_squares_alg_params": None,
      "device_name": None}

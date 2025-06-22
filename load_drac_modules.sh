@@ -24,4 +24,4 @@
 #
 
 module load StdEnv/2023
-module load python/3.12 hdf5 cuda
+module load python/3.11 hdf5 cuda

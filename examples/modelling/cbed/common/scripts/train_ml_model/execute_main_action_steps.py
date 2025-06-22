@@ -195,7 +195,7 @@ for ml_dataset_type in ml_dataset_types:
     path_to_ml_dataset = unformatted_path.format(ml_dataset_type)
 
     kwargs = {"path_to_ml_dataset": path_to_ml_dataset,
-              "entire_ml_dataset_is_to_be_cached": True,
+              "entire_ml_dataset_is_to_be_cached": False,
               "ml_data_values_are_to_be_checked": True,
               "max_num_ml_data_instances_per_chunk": 32}
     ml_dataset = ml_model_task_module.MLDataset(**kwargs)
@@ -214,7 +214,8 @@ mini_batch_size = mini_batch_size_set[ml_model_idx%M]
 kwargs = {"ml_training_dataset": ml_training_dataset,
           "ml_validation_dataset": ml_validation_dataset,
           "mini_batch_size": mini_batch_size,
-          "rng_seed": rng_seed}
+          "rng_seed": rng_seed,
+          "num_data_loader_workers": 32}
 ml_dataset_manager = ml_model_task_module.MLDatasetManager(**kwargs)
 
 

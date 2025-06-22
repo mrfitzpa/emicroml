@@ -38,6 +38,9 @@ import collections
 # For deserializing JSON documents.
 import json
 
+# For setting Python's seed.
+import random
+
 
 
 # For general array handling.
@@ -3278,6 +3281,7 @@ def _check_and_convert_ml_data_instance_idx(params):
 
 def _check_and_convert_normalize_normalizable_elems_in_ml_data_dict_params(
         params):
+    original_params = params
     params = params.copy()
 
     params["check_ml_data_dict_first"] = \
@@ -3296,30 +3300,30 @@ def _check_and_convert_normalize_normalizable_elems_in_ml_data_dict_params(
     ml_data_value_validator = \
         ml_data_normalization_weights_and_biases_loader._ml_data_value_validator
 
-    param_subset = {"name_of_obj_alias_of_ml_data_dict": \
-                    name_of_obj_alias_of_ml_data_dict,
-                    "ml_data_dict": \
-                    params[name_of_obj_alias_of_ml_data_dict],
-                    "expected_ml_data_dict_keys": \
-                    tuple(),
-                    "ml_data_normalizer": \
-                    ml_data_normalizer,
-                    "target_numerical_data_container_cls": \
-                    None,
-                    "target_device": \
-                    None,
-                    "variable_axis_size_dict": \
-                    params.get("variable_axis_size_dict", None),
-                    "normalizable_elems_are_normalized": \
-                    False,
-                    "ml_data_value_validator": \
-                    ml_data_value_validator}
+    param_subset = \
+        {"name_of_obj_alias_of_ml_data_dict": name_of_obj_alias_of_ml_data_dict,
+         "ml_data_dict": params[name_of_obj_alias_of_ml_data_dict],
+         "expected_ml_data_dict_keys": tuple(),
+         "ml_data_normalizer": ml_data_normalizer,
+         "target_numerical_data_container_cls": None,
+         "target_device": None,
+         "variable_axis_size_dict": params.get("variable_axis_size_dict", None),
+         "normalizable_elems_are_normalized": False,
+         "ml_data_value_validator": ml_data_value_validator}
+    
     for key in param_subset:
         params[key] = param_subset[key]
 
     ml_data_dict_is_to_be_checked_first = params["check_ml_data_dict_first"]
     if ml_data_dict_is_to_be_checked_first:
         params["ml_data_dict"] = _check_and_convert_ml_data_dict(params)
+
+    for key in params["ml_data_dict"]:
+        original_params["ml_data_dict"][key] = params["ml_data_dict"][key]
+    params["ml_data_dict"] = original_params["ml_data_dict"]
+    for key in tuple(params.keys()):
+        if key not in original_params:
+            del params[key]
 
     return params
 
@@ -3354,6 +3358,7 @@ def _normalize_normalizable_elems_in_ml_data_dict(ml_data_dict,
 
 def _check_and_convert_unnormalize_normalizable_elems_in_ml_data_dict_params(
         params):
+    original_params = params
     params = params.copy()
 
     params["check_ml_data_dict_first"] = \
@@ -3372,30 +3377,30 @@ def _check_and_convert_unnormalize_normalizable_elems_in_ml_data_dict_params(
     ml_data_value_validator = \
         ml_data_normalization_weights_and_biases_loader._ml_data_value_validator
 
-    param_subset = {"name_of_obj_alias_of_ml_data_dict": \
-                    name_of_obj_alias_of_ml_data_dict,
-                    "ml_data_dict": \
-                    params[name_of_obj_alias_of_ml_data_dict],
-                    "expected_ml_data_dict_keys": \
-                    tuple(),
-                    "ml_data_normalizer": \
-                    ml_data_normalizer,
-                    "target_numerical_data_container_cls": \
-                    None,
-                    "target_device": \
-                    None,
-                    "variable_axis_size_dict": \
-                    params.get("variable_axis_size_dict", None),
-                    "normalizable_elems_are_normalized": \
-                    True,
-                    "ml_data_value_validator": \
-                    ml_data_value_validator}
+    param_subset = \
+        {"name_of_obj_alias_of_ml_data_dict": name_of_obj_alias_of_ml_data_dict,
+         "ml_data_dict": params[name_of_obj_alias_of_ml_data_dict],
+         "expected_ml_data_dict_keys": tuple(),
+         "ml_data_normalizer": ml_data_normalizer,
+         "target_numerical_data_container_cls": None,
+         "target_device": None,
+         "variable_axis_size_dict": params.get("variable_axis_size_dict", None),
+         "normalizable_elems_are_normalized": True,
+         "ml_data_value_validator": ml_data_value_validator}
+    
     for key in param_subset:
         params[key] = param_subset[key]
 
     ml_data_dict_is_to_be_checked_first = params["check_ml_data_dict_first"]
     if ml_data_dict_is_to_be_checked_first:
         params["ml_data_dict"] = _check_and_convert_ml_data_dict(params)
+
+    for key in params["ml_data_dict"]:
+        original_params["ml_data_dict"][key] = params["ml_data_dict"][key]
+    params["ml_data_dict"] = original_params["ml_data_dict"]
+    for key in tuple(params.keys()):
+        if key not in original_params:
+            del params[key]
 
     return params
 
@@ -4593,6 +4598,29 @@ def _de_pre_serialize_mini_batch_size(serializable_rep):
 
 
 
+def _check_and_convert_num_data_loader_workers(params):
+    obj_name = "num_data_loader_workers"
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    num_data_loader_workers = czekitout.convert.to_nonnegative_int(**kwargs)
+
+    return num_data_loader_workers
+
+
+
+def _pre_serialize_num_data_loader_workers(num_data_loader_workers):
+    serializable_rep = num_data_loader_workers
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_num_data_loader_workers(serializable_rep):
+    num_data_loader_workers = serializable_rep
+    
+    return num_data_loader_workers
+
+
+
 def _seed_worker(worker_id):
     rng_seed = torch.initial_seed() % 2**32
     np.random.seed(rng_seed)
@@ -4603,12 +4631,14 @@ def _seed_worker(worker_id):
 
 
 _default_mini_batch_size = 32
+_default_num_data_loader_workers = 0
 
 
 
 class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
     ctor_param_names = ("mini_batch_size",
-                        "rng_seed")
+                        "rng_seed",
+                        "num_data_loader_workers")
     kwargs = {"namespace_as_dict": globals(),
               "ctor_param_names": ctor_param_names}
 
@@ -4727,6 +4757,8 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
         if ml_testing_dataset is not None:
             mini_batch_size = \
                 self_core_attrs["mini_batch_size"]
+            num_data_loader_workers = \
+                self_core_attrs["num_data_loader_workers"]
             torch_ml_testing_dataset = \
                 ml_testing_dataset._get_torch_ml_dataset()
             torch_ml_dataloader_cls = \
@@ -4734,7 +4766,8 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
 
             kwargs = {"dataset": torch_ml_testing_dataset,
                       "batch_size": mini_batch_size,
-                      "shuffle": False}
+                      "shuffle": False,
+                      "num_workers": num_data_loader_workers}
             torch_ml_testing_dataloader = torch_ml_dataloader_cls(**kwargs)
             torch_ml_testing_dataloader = torch_ml_testing_dataloader
         else:
@@ -4755,6 +4788,8 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
         if torch_ml_testing_dataloader is None:
             mini_batch_size = \
                 self_core_attrs["mini_batch_size"]
+            num_data_loader_workers = \
+                self_core_attrs["num_data_loader_workers"]
             torch_ml_training_dataset = \
                 ml_training_dataset._get_torch_ml_dataset()
             torch_ml_dataloader_cls = \
@@ -4763,6 +4798,7 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
             kwargs = {"dataset": torch_ml_training_dataset,
                       "batch_size": mini_batch_size,
                       "shuffle": True,
+                      "num_workers": num_data_loader_workers,
                       "worker_init_fn": _seed_worker,
                       "generator": self._generator}
             torch_ml_training_dataloader = torch_ml_dataloader_cls(**kwargs)
@@ -4785,6 +4821,8 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
             and (torch_ml_testing_dataloader is None)):
             mini_batch_size = \
                 self_core_attrs["mini_batch_size"]
+            num_data_loader_workers = \
+                self_core_attrs["num_data_loader_workers"]
             torch_ml_validation_dataset = \
                 ml_validation_dataset._get_torch_ml_dataset()
             torch_ml_dataloader_cls = \
@@ -4793,6 +4831,7 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
             kwargs = {"dataset": torch_ml_validation_dataset,
                       "batch_size": mini_batch_size,
                       "shuffle": True,
+                      "num_workers": num_data_loader_workers,
                       "worker_init_fn": _seed_worker,
                       "generator": self._generator}
             torch_ml_validation_dataloader = torch_ml_dataloader_cls(**kwargs)
@@ -4979,8 +5018,18 @@ def _check_and_convert_unnormalize_normalizable_elems_of_ml_predictions(params):
 
 
 
+def _check_and_convert_deep_copy(params):
+    obj_name = "deep_copy"
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    deep_copy = czekitout.convert.to_bool(**kwargs)
+
+    return deep_copy
+
+
+
 _default_normalizable_elems_of_ml_inputs_are_normalized = True
 _default_unnormalize_normalizable_elems_of_ml_predictions = False
+_default_deep_copy = True
 
 
 
@@ -5006,6 +5055,8 @@ class _MLModel(torch.nn.Module):
             subcls_ctor_params.get("normalization_weights", dict())
         self._normalization_biases = \
             subcls_ctor_params.get("normalization_biases", dict())
+
+        self._core_attrs = subcls_ctor_params
 
         kwargs = {"obj_to_convert_and_store_as_dressed_up_buffer": \
                   subcls_ctor_params}
@@ -5087,6 +5138,49 @@ class _MLModel(torch.nn.Module):
             _unnormalize_normalizable_elems_in_ml_data_dict(**kwargs)
 
         return ml_predictions
+
+
+
+    def get_core_attrs(self, deep_copy=_default_deep_copy):
+        r"""Return the "core attributes", i.e. the construction parameters, as a
+        `dict` object.
+
+        Parameters
+        ----------
+        deep_copy : `bool`, optional
+            Let ``core_attrs`` denote the core attributes.
+
+            If ``deep_copy`` is set to ``True``, then a deep copy of
+            ``core_attrs`` is returned.  Otherwise, a shallow copy of
+            ``core_attrs`` is returned.
+
+        Returns
+        -------
+        core_attrs : `dict`
+            The core attributes.
+
+        """
+        params = {"deep_copy": deep_copy}
+        deep_copy = _check_and_convert_deep_copy(params)
+        
+        core_attrs = (self.core_attrs
+                      if (deep_copy == True)
+                      else self._core_attrs.copy())
+
+        return core_attrs
+
+
+
+    @property
+    def core_attrs(self):
+        r"""`dict`: The "core attributes", i.e. the construction parameters.
+
+        Note that ``core_attrs`` should be considered **read-only**.
+
+        """
+        result = copy.deepcopy(self._core_attrs)
+        
+        return result
 
 
 
@@ -7515,10 +7609,15 @@ def _check_and_convert_load_ml_model_from_state_dict_params(params):
 
 def _check_and_convert_ml_model_state_dict(params):
     obj_name = "ml_model_state_dict"
-    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
-    ml_model_state_dict = czekitout.convert.to_str_from_str_like(**kwargs)
+    obj = params[obj_name]
+    kwargs = {"obj": obj,
+              "obj_name": obj_name,
+              "accepted_types": (collections.OrderedDict,)}
+    czekitout.check.if_instance_of_any_accepted_types(**kwargs)
+
+    ml_model_state_dict = obj
     
-    return ml_model_state_dict_filename
+    return ml_model_state_dict
 
 
 

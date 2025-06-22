@@ -1,14 +1,17 @@
 .. _examples_modelling_cbed_simulations_MoS2_on_amorphous_C_generate_cbed_pattern_sets_sec:
 
-Generating simulated CBED patterns of a sample of :math:`\text{MoS}_2` on amorphous C
-=====================================================================================
+Generating simulated CBED patterns of a sample of MoS\ :sub:`2` on amorphous C
+==============================================================================
 
 In this example, we perform the "action" of simulating some convergent beam
 electron diffraction (CBED) experiments, where the sample is a 5-layer
 :math:`\text{MoS}_2` thin film with a :math:`0.5 \ \text{nm}` thick layer of
 amorphous carbon (C).
 
-To execute this action, first we need to change into the directory
+NOTE: Users are advised to read the remainder of the current page in its
+entirety before trying to execute this action.
+
+To execute the action, first we need to change into the directory
 ``<root>/examples/modelling/cbed/simulations/MoS2_amorphous_C/scripts``, where
 ``<root>`` is the root of the ``emicroml`` repository. Then, we need to run the
 Python script ``./execute_action.py`` via the terminal command::
@@ -18,7 +21,7 @@ Python script ``./execute_action.py`` via the terminal command::
 where ``<action>`` must be equal to ``generate_cbed_pattern_sets``, and
 ``<use_slurm>`` is either ``yes`` or ``no``. If ``<use_slurm>`` equals ``yes``
 and a SLURM workload manager is available on the server from which you intend to
-run the script, then the action will be performed as a SLURM job. If
+run the script, then the action will be performed as multiple SLURM jobs. If
 ``<use_slurm>`` is equal to ``no``, then the action will be performed locally
 without using a SLURM workload manager.
 
@@ -27,12 +30,12 @@ then prior to executing the above Python script, a set of Python libraries need
 to be installed in the Python environment within which said Python script is to
 be executed. See :ref:`this page
 <examples_prerequisites_for_execution_without_slurm_sec>` for instructions on
-how to do so. If the action is being performed as a SLURM job, then prior to
-executing any Python commands that do not belong to Python's standard library, a
-customizable sequence of commands are executed that are expected to try to
-either activate an existing Python virtual environment, or create then activate
-one, in which the Python libraries needed to complete the action successfully
-are installed. See :ref:`this page
+how to do so. If the action is being performed as multiple SLURM jobs, then
+prior to executing any Python commands that do not belong to Python's standard
+library, a customizable sequence of commands are executed that are expected to
+try to either activate an existing Python virtual environment, or create then
+activate one, in which the Python libraries needed to complete the action
+successfully are installed. See :ref:`this page
 <examples_prerequisites_for_execution_with_slurm_sec>` for instructions how to
 customize the sequence of commands.
 
@@ -68,6 +71,10 @@ executed in the order that they appear directly below:
 :download:`<root>/examples/modelling/cbed/simulations/MoS2_on_amorphous_C/scripts/generate_cbed_pattern_set/prepare_and_submit_slurm_job.sh <../../../../../../examples/modelling/cbed/simulations/MoS2_on_amorphous_C/scripts/generate_cbed_pattern_set/prepare_and_submit_slurm_job.sh>`
 :download:`<root>/examples/modelling/cbed/simulations/MoS2_on_amorphous_C/scripts/generate_cbed_pattern_set/execute_main_action_steps.py <../../../../../../examples/modelling/cbed/simulations/MoS2_on_amorphous_C/scripts/generate_cbed_pattern_set/execute_main_action_steps.py>`
 
-Otherwise, if ``<use_slurm>`` equals ``no``, then the fourth script, i.e. the one
-with the basename ``prepare_and_submit_slurm_job.sh`` is not executed. See the
-contents of the scripts listed above for implementation details.
+Otherwise, if ``<use_slurm>`` equals ``no``, then the fourth script, i.e. the
+one with the basename ``prepare_and_submit_slurm_job.sh`` is not executed. See
+the contents of the scripts listed above for implementation details. Lastly, if
+the action is being performed as multiple SLURM jobs, then the default
+``sbatch`` options, which are specified in the file with the basename
+``prepare_and_submit_slurm_job.sh``, can be overridden by following the
+instructions in :ref:`this page <examples_overriding_sbatch_options_sec>`.

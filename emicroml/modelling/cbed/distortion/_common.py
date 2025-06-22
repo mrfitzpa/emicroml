@@ -2830,7 +2830,7 @@ def _extract_ml_data_dict_from_cbed_pattern_signal(
 
 def _extract_disk_related_features_from_cbed_pattern_signal(
         cbed_pattern_signal, max_num_disks_in_any_cbed_pattern):
-    disk_overlap_map = cbed_pattern_signal.data[1]
+    disk_overlap_map = cbed_pattern_signal.data[2]
 
     func_alias = \
         _extract_common_undistorted_disk_radius_from_cbed_pattern_signal
@@ -3793,6 +3793,7 @@ def _check_and_convert_check_ml_data_dict_first(params):
 
 def _check_and_convert_normalize_normalizable_elems_in_ml_data_dict_params(
         params):
+    original_params = params
     params = params.copy()
 
     params["ml_data_shape_analyzer"] = \
@@ -3812,6 +3813,10 @@ def _check_and_convert_normalize_normalizable_elems_in_ml_data_dict_params(
     module_alias = emicroml.modelling._common
     func_alias = getattr(module_alias, current_func_name)
     params = func_alias(params)
+
+    for key in tuple(params.keys()):
+        if key not in original_params:
+            del params[key]
 
     return params
 
@@ -3838,6 +3843,7 @@ def _normalize_normalizable_elems_in_ml_data_dict(ml_data_dict,
 
 def _check_and_convert_unnormalize_normalizable_elems_in_ml_data_dict_params(
         params):
+    original_params = params
     params = params.copy()
 
     params["ml_data_shape_analyzer"] = \
@@ -3858,6 +3864,10 @@ def _check_and_convert_unnormalize_normalizable_elems_in_ml_data_dict_params(
     func_alias = getattr(module_alias, current_func_name)
     params = func_alias(params)
 
+    for key in tuple(params.keys()):
+        if key not in original_params:
+            del params[key]
+
     return params
 
 
@@ -3875,8 +3885,9 @@ def _unnormalize_normalizable_elems_in_ml_data_dict(ml_data_dict,
 
 
 def _check_and_convert_ml_data_dict_to_distortion_models_params(params):
-    params = \
-        params.copy()
+    original_params = params
+    params = params.copy()
+    
     params["data_chunk_dims_are_to_be_expanded_temporarily"] = \
         False
     params["expected_ml_data_dict_keys"] = \
@@ -3889,6 +3900,10 @@ def _check_and_convert_ml_data_dict_to_distortion_models_params(params):
         _check_and_convert_device_name(params)
     params["least_squares_alg_params"] = \
         _check_and_convert_least_squares_alg_params(params)
+
+    for key in tuple(params.keys()):
+        if key not in original_params:
+            del params[key]
     
     return params
 
@@ -3961,8 +3976,24 @@ def _ml_data_dict_to_distortion_models(ml_data_dict,
 
 
 def _check_and_convert_ml_data_dict_to_signals_params(params):
-    params = \
-        params.copy()
+    original_params = params
+    params = params.copy()
+
+    kwargs = {"obj": params["ml_data_dict"], "obj_name": "ml_data_dict"}
+    ml_data_dict = czekitout.convert.to_dict(**kwargs)
+
+    device_name = params["device_name"]
+
+    params = {"cbed_pattern_images": \
+              ml_data_dict.get("cbed_pattern_images", None),
+              "name_of_obj_alias_of_cbed_pattern_images": \
+              "ml_data_dict['cbed_pattern_images']",
+              "target_device": \
+              _get_device(device_name),
+              **params}
+    cbed_pattern_images = _check_and_convert_cbed_pattern_images(params)
+    params["ml_data_dict"]["cbed_pattern_images"] = cbed_pattern_images
+
     params["data_chunk_dims_are_to_be_expanded_temporarily"] = \
         False
     params["expected_ml_data_dict_keys"] = \
@@ -3975,8 +4006,61 @@ def _check_and_convert_ml_data_dict_to_signals_params(params):
         _check_and_convert_device_name(params)
     params["least_squares_alg_params"] = \
         _check_and_convert_least_squares_alg_params(params)
+
+    for key in tuple(params.keys()):
+        if key not in original_params:
+            del params[key]
     
     return params
+
+
+
+def _check_and_convert_cbed_pattern_images(params):
+    obj_name = "cbed_pattern_images"
+    obj = params[obj_name]
+
+    name_of_obj_alias_of_cbed_pattern_images = \
+        params.get("name_of_obj_alias_of_cbed_pattern_images", obj_name)
+    target_device = \
+        params.get("target_device", None)
+
+    kwargs = {"numerical_data_container": \
+              obj,
+              "name_of_obj_alias_of_numerical_data_container": \
+              name_of_obj_alias_of_cbed_pattern_images,
+              "target_numerical_data_container_cls": \
+              torch.Tensor,
+              "target_device": \
+              None}
+    obj = _convert_numerical_data_container(**kwargs)
+
+    current_func_name = "_check_and_convert_cbed_pattern_images"
+
+    if len(obj.shape) < 3:
+        unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
+        format_args = (name_of_obj_alias_of_cbed_pattern_images,)
+        err_msg = unformatted_err_msg.format(*format_args)
+        raise ValueError(err_msg)
+
+    kwargs = {"image_stack": obj}
+    cbed_pattern_images = _min_max_normalize_image_stack(**kwargs)
+
+    return cbed_pattern_images
+
+
+
+def _convert_numerical_data_container(
+        numerical_data_container,
+        name_of_obj_alias_of_numerical_data_container,
+        target_numerical_data_container_cls,
+        target_device):
+    kwargs = locals()
+    
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._convert_numerical_data_container
+    numerical_data_container = func_alias(**kwargs)
+
+    return numerical_data_container
 
 
 
@@ -4192,14 +4276,25 @@ def _construct_cbed_pattern_signal_using_objs_extracted_from_ml_data_dict(
               "skip_validation_and_conversion": True}
     cbed_pattern.override_image_then_reapply_mask(**kwargs)
 
-    inferred_illumination_support = (cbed_pattern_image != 0).numpy(force=True)
+    kwargs = {"cbed_pattern_image": cbed_pattern_image,
+              "disk_overlap_map": disk_overlap_map}
+    inferred_illumination_support = _infer_illumination_support(**kwargs)
 
     cbed_pattern_signal = cbed_pattern.get_signal(deep_copy=False)
     if disk_overlap_map is not None:
         cbed_pattern_signal.data[2] = disk_overlap_map
-    cbed_pattern_signal.data[:] *= inferred_illumination_support
+    cbed_pattern_signal.data[1] *= inferred_illumination_support
 
     return cbed_pattern_signal
+
+
+
+def _infer_illumination_support(cbed_pattern_image, disk_overlap_map):
+    inferred_illumination_support = (cbed_pattern_image != 0).numpy(force=True)
+    if disk_overlap_map is not None:
+        inferred_illumination_support += (disk_overlap_map > 0)
+
+    return inferred_illumination_support
 
 
 
@@ -4326,9 +4421,16 @@ class _MLDataset(_cls_alias):
         :class:`fakecbed.discretized.CBEDPattern` is constructed according to
         the ML data instance's features and
         ``distortion_model``. ``fake_cbed_pattern`` is a fake CBED pattern
-        representation of the CBED pattern of the ML data instance. The Hyperspy
-        signal representation of the ML data instance is then obtained from
-        ``fake_cbed_pattern.signal``.
+        representation of the CBED pattern of the ML data instance. Next, a
+        Hyperspy signal ``fake_cbed_pattern_signal`` is obtained from
+        ``fake_cbed_pattern.signal``. The Hyperspy signal representation of the
+        ML data instance is obtained by modifying in place
+        ``fake_cbed_pattern_signal.data[1:3]`` according to the ML data
+        instance's features. Note that the illumination support of the fake CBED
+        pattern representation of the CBED pattern of the ML data instance is
+        inferred from the features of the ML data instance, and is stored in
+        ``fake_cbed_pattern_signal.data[1]``. Moreover, the illumination suport
+        implied by the signal's metadata should be ignored.
 
         Parameters
         ----------
@@ -4500,9 +4602,14 @@ def _pre_serialize_ml_testing_dataset(ml_testing_dataset):
 
 
 
-_module_alias = emicroml.modelling._common
-_default_ml_testing_dataset = _module_alias._default_ml_testing_dataset
-_default_mini_batch_size = _module_alias._default_mini_batch_size
+_module_alias = \
+    emicroml.modelling._common
+_default_ml_testing_dataset = \
+    _module_alias._default_ml_testing_dataset
+_default_mini_batch_size = \
+    _module_alias._default_mini_batch_size
+_default_num_data_loader_workers = \
+    _module_alias._default_num_data_loader_workers
 
 
 
@@ -4515,6 +4622,7 @@ class _MLDatasetManager(_cls_alias):
                  ml_testing_dataset,
                  mini_batch_size,
                  rng_seed,
+                 num_data_loader_workers,
                  skip_validation_and_conversion):
         ctor_params = {key: val
                        for key, val in locals().items()
@@ -4835,55 +4943,6 @@ def _generate_default_normalization_biases():
 
 
 
-def _check_and_convert_cbed_pattern_images(params):
-    obj_name = "cbed_pattern_images"
-    obj = params[obj_name]
-
-    name_of_obj_alias_of_cbed_pattern_images = \
-        params.get("name_of_obj_alias_of_cbed_pattern_images", obj_name)
-    target_device = \
-        params.get("target_device", None)
-
-    kwargs = {"numerical_data_container": \
-              obj,
-              "name_of_obj_alias_of_numerical_data_container": \
-              name_of_obj_alias_of_cbed_pattern_images,
-              "target_numerical_data_container_cls": \
-              torch.Tensor,
-              "target_device": \
-              None}
-    obj = _convert_numerical_data_container(**kwargs)
-
-    current_func_name = "_check_and_convert_cbed_pattern_images"
-
-    if len(obj.shape) < 3:
-        unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
-        format_args = (name_of_obj_alias_of_cbed_pattern_images,)
-        err_msg = unformatted_err_msg.format(*format_args)
-        raise ValueError(err_msg)
-
-    kwargs = {"image_stack": obj}
-    cbed_pattern_images = _min_max_normalize_image_stack(**kwargs)
-
-    return cbed_pattern_images
-
-
-
-def _convert_numerical_data_container(
-        numerical_data_container,
-        name_of_obj_alias_of_numerical_data_container,
-        target_numerical_data_container_cls,
-        target_device):
-    kwargs = locals()
-    
-    module_alias = emicroml.modelling._common
-    func_alias = module_alias._convert_numerical_data_container
-    numerical_data_container = func_alias(**kwargs)
-
-    return numerical_data_container
-
-
-
 def _get_device_name(device):
     kwargs = locals()
 
@@ -5022,94 +5081,6 @@ class _MLModel(_cls_alias):
             ml_inputs,
             unnormalize_normalizable_elems_of_ml_predictions=\
             _default_unnormalize_normalizable_elems_of_ml_predictions):
-        r"""Make predictions according to machine learning inputs.
-
-        The machine learning (ML) model takes as input a mini-batch of images,
-        where each image is assumed to depict a distorted CBED pattern, and as
-        output, the ML model predicts sets of coordinate transformation
-        parameters that specify the coordinate transformations that describe the
-        distortions of the input images. The coordinate transformation used to
-        describe the distortions of an image is defined in the documentation for
-        the class :class:`distoptica.StandardCoordTransformParams`. The
-        parameter set parameterizing said coordinate transformation is referred
-        to as the "standard" coordinate transformation parameter set, and is
-        represented by the class
-        :class:`distoptica.StandardCoordTransformParams`. See the documentation
-        for said class for a discussion on standard coordinate transformation
-        parameter sets.
-
-        Parameters
-        ----------
-        ml_inputs : `dict`
-            The dictionary representation of the mini-batch of ML inputs.
-            ``ml_inputs`` must have the `dict` key
-            ``"cbed_pattern_images"``. ``ml_inputs["cbed_pattern_images"]`` must
-            be a 3D PyTorch tensor of the data type ``torch.float32`` storing
-            the mini-batch of images assumed to depict distorted CBED
-            patterns. Let ``mini_batch_size`` be
-            ``ml_inputs["cbed_pattern_images"].shape[0]``, and ``core_attrs`` be
-            the attribute :attr:`~fancytypes.Checkable.core_attrs`. For each
-            nonnegative integer ``n`` less than ``mini_batch_size``,
-            ``ml_inputs["cbed_pattern_images"][n]`` stores the ``n`` th input
-            image of the mini-batch. ``mini_batch_size`` must be positive and
-            ``ml_inputs["cbed_pattern_images"].shape[1:]`` must be equal to
-            ``2*(num_pixels_across_each_cbed_pattern,)``, where
-            ``num_pixels_across_each_cbed_pattern`` is
-            ``core_attrs["num_pixels_across_each_cbed_pattern"]``, i.e. the
-            number of pixels across each input image.
-        unnormalize_normalizable_elems_of_ml_predictions : `bool`
-            If ``unnormalize_normalizable_elems_of_ml_predictions`` is set to
-            ``False``, then the predicted parameters of the standard coordinate
-            transformations are returned normalized. Otherwise, said parameters
-            are returned unnormalized. See the description below of
-            ``ml_predictions`` for more details on how this is implemented
-            effectively.
-
-        Returns
-        -------
-        ml_predictions : `dict`
-            The dictionary representation of the mini-batch of ML outputs.
-
-            Let ``ml_model`` be an instance of the current class. Then
-            ``ml_predictions`` is calculated effectively by:
-
-            .. code-block:: python
-
-                import emicroml.modelling.cbed.distortion.estimation
-
-                module_alias = \
-                    emicroml.modelling.cbed.distortion.estimation
-                func_alias = \
-                    module_alias.unnormalize_normalizable_elems_in_ml_data_dict
-
-                ml_predictions = ml_model.forward(ml_inputs)
-
-                if unnormalize_normalizable_elems_of_ml_predictions:
-                    kwargs = {"ml_data_dict": \
-                              ml_predictions,
-                              "normalization_weights": \
-                              ml_model.core_attrs["normalization_weights"],
-                              "normalization_biases": \
-                              ml_model.core_attrs["normalization_biases"]}
-                    ml_predictions = func_alias(**kwargs)
-
-            See the documentation for the method
-            :meth:`emicroml.modelling.cbed.distortion.estimation.MLModel.forward`
-            for details on the output returned by said method. See the
-            documentation for the attribute
-            :attr:`~fancytypes.Checkable.core_attrs` for a discussion on core
-            attributes. See the documentation for the function
-            :func:`emicroml.modelling.cbed.distortion.estimation.normalize_normalizable_elems_in_ml_data_dict`
-            for a discussion on normalizing features of ML data instances,
-            e.g. the standard coordinate transformation parameters.
-
-            Users can use the function
-            :func:`emicroml.modelling.cbed.distortion.estimation.ml_data_dict_to_distortion_models`
-            to convert ``ml_predictions`` to a sequence of distortion models,
-            with each distortion model being represented by the class
-            :class:`distoptica.DistortionModel`.
-
-        """
         kwargs = {"obj": ml_inputs, "obj_name": "ml_inputs"}
         ml_inputs = czekitout.convert.to_dict(**kwargs)
 
@@ -5140,57 +5111,6 @@ class _MLModel(_cls_alias):
                                   _default_sampling_grid_dims_in_pixels,
                                   least_squares_alg_params=\
                                   _default_least_squares_alg_params):
-        r"""Predict distortion models according to a mini-batch of images.
-
-        The machine learning (ML) model takes as input a mini-batch of images,
-        where each image is assumed to depict a distorted CBED pattern, and as
-        output, the ML model predicts a set of distortion models that describe
-        the distortions of the input images. The distortion model used to
-        describe the distortion of an image is defined in the documentation for
-        the class :class:`distoptica.DistortionModel`. See the documentation for
-        the class :class:`distoptica.DistortionModel` for a discussion on
-        distortion models.
-
-        For each CBED pattern image, an instance ``distortion_model`` of the
-        class :class:`distoptica.DistortionModel` is constructed according to
-        the distortions predicted by the ML model. 
-
-        Parameters
-        ----------
-        cbed_pattern_images : `array_like` (`float`, ndim=3)
-            The mini-batch of images. Let ``mini_batch_size`` be
-            ``cbed_pattern_images.shape[0]``, and ``core_attrs`` be the
-            attribute :attr:`~fancytypes.Checkable.core_attrs`. For each
-            nonnegative integer ``n`` less than ``mini_batch_size``,
-            ``cbed_pattern_images[n]`` stores the ``n`` th input image of the
-            mini-batch. ``mini_batch_size`` must be positive and
-            ``cbed_pattern_images.shape[1:]`` must be equal to
-            ``2*(num_pixels_across_each_cbed_pattern,)``, where
-            ``num_pixels_across_each_cbed_pattern`` is
-            ``core_attrs["num_pixels_across_each_cbed_pattern"]``, i.e. the
-            number of pixels across each input image.
-        sampling_grid_dims_in_pixels : `array_like` (`int`, shape=(2,)), optional
-            The dimensions of the sampling grid, in units of pixels, used for
-            all distortion models.
-        least_squares_alg_params : :class:`distoptica.LeastSquaresAlgParams` | `None`, optional
-            ``least_squares_alg_params`` specifies the parameters of the
-            least-squares algorithm to be used to calculate the mappings of
-            fractional Cartesian coordinates of distorted images to those of the
-            corresponding undistorted images. ``least_squares_alg_params`` is
-            used to calculate the distortion models mentioned above in the
-            summary documentation. If ``least_squares_alg_params`` is set to
-            ``None``, then the parameter will be reassigned to the value
-            ``distoptica.LeastSquaresAlgParams()``. See the documentation for
-            the class :class:`distoptica.LeastSquaresAlgParams` for details on
-            the parameters of the least-squares algorithm.
-
-        Returns
-        -------
-        distortion_models : `array_like` (:class:`distoptica.DistortionModel`, ndim=1)
-            The distortion models. Note that each distortion model is stored on 
-            the same device as that on which the ML model is stored.
-
-        """
         params = \
             {key: val
              for key, val in locals().items()

@@ -245,7 +245,7 @@ for disk_size in disk_sizes:
             (path_to_data_dir_1
              + "/ml_models/ml_model_{}")
         path_to_ml_model_state_dicts = \
-            unformatted_path.format(ml_model_idx, architecture)
+            unformatted_path.format(ml_model_idx)
         pattern = \
             "ml_model_at_lr_step_[0-9]*\.pth"
         largest_lr_step_idx = \

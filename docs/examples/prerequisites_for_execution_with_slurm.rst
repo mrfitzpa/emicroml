@@ -16,7 +16,7 @@ terminal command::
 where ``<action>`` is the string associated with the action of interest, and
 ``<use_slurm>`` is either ``yes`` or ``no``. If ``<use_slurm>`` equals ``yes``
 and a SLURM workload manager is available on the server from which you intend to
-run the script, then the action will be performed as a SLURM job. If
+run the script, then the action will be performed as one or more SLURM jobs. If
 ``<use_slurm>`` is equal to ``no``, then the action will be performed locally
 without using a SLURM workload manager.
 
@@ -30,16 +30,16 @@ the following terminal command::
 then the action of generating the atomic coordinates of a model of a 5-layer
 :math:`\text{MoS}_2` thin film will be performed as a SLURM job.
 
-In general, if an action is being performed as a SLURM job, then prior to
-executing any Python commands that do not belong to Python's standard library, a
-customizable sequence of commands are executed that are expected to try to
-either activate an existing Python virtual environment, or create then activate
-one, in which the Python libraries needed to complete the action successfully
-are installed. Let us refer to this customizable sequence of commands as the
-environment setup procedure. The Python libraries that need to be installed in
-said Python virtual environment are::
+In general, if an action is being performed as one or more SLURM jobs, then
+prior to executing any Python commands that do not belong to Python's standard
+library, a customizable sequence of commands are executed that are expected to
+try to either activate an existing Python virtual environment, or create then
+activate one, in which the Python libraries needed to complete the action
+successfully are installed. Let us refer to this customizable sequence of
+commands as the environment setup procedure. The Python libraries that need to
+be installed in said Python virtual environment are::
 
-  fakecbed>=0.3.2
+  fakecbed>=0.3.5
   h5pywrappers
   numba
   hyperspy
@@ -47,7 +47,9 @@ said Python virtual environment are::
   jupyter
   torch
   kornia
-  pyopencl[pocl]
+  blosc2
+  msgpack
+  pyopencl
   pyFAI
   pyprismatic>=2.0
   prismatique

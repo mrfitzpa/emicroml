@@ -1,12 +1,15 @@
 .. _examples_modelling_cbed_simulations_MoS2_on_amorphous_C_generate_potential_slices_sec:
 
-Generating the potential slices of a model of :math:`\text{MoS}_2` on amorphous C
-=================================================================================
+Generating the potential slices of a model of MoS\ :sub:`2` on amorphous C
+==========================================================================
 
 In this example, we perform the "action" of generating the potential slices of a
 model of a sample of :math:`\text{MoS}_2` on amorphous C.
 
-To execute this action, first we need to change into the directory
+NOTE: Users are advised to read the remainder of the current page in its
+entirety before trying to execute this action.
+
+To execute the action, first we need to change into the directory
 ``<root>/examples/modelling/cbed/simulations/MoS2_amorphous_C/scripts``, where
 ``<root>`` is the root of the ``emicroml`` repository. Then, we need to run the
 Python script ``./execute_action.py`` via the terminal command::

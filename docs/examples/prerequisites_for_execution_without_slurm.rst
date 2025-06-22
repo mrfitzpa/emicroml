@@ -11,7 +11,7 @@ notebooks are to be executed.
 
 The Python libraries that need to be installed in said Python environment are::
 
-  fakecbed>=0.3.2
+  fakecbed>=0.3.5
   h5pywrappers
   numba
   hyperspy
@@ -19,6 +19,8 @@ The Python libraries that need to be installed in said Python environment are::
   jupyter
   torch
   kornia
+  blosc2
+  msgpack
   pyopencl[pocl]
   pyFAI
   pyprismatic>=2.0

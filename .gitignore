@@ -15,6 +15,7 @@ models/
 examples/modelling/cbed/simulations/MoS2_backup/
 *_backup_*
 test_data/
+_wheels_for_custom_env_setup/
 
 # Ignore select files
 .coverage
@@ -33,6 +34,7 @@ total_validation_losses.txt
 avg_training_mini_batch_losses.txt
 avg_validation_mini_batch_losses.txt
 custom_env_setup_for_slurm_jobs.sh
+overriding_sbatch_options.sh
 scratch_param.txt
 *_img.txt
 *_img

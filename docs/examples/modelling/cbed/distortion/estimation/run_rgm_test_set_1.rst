@@ -9,7 +9,10 @@ patterns. The RGM tests use the machine learning (ML) datasets generated from
 the action described in :ref:`this page
 <examples_modelling_cbed_distortion_estimation_combine_ml_datasets_for_ml_model_test_set_1_sec>`.
 
-To execute this action, first we need to change into the directory
+NOTE: Users are advised to read the remainder of the current page in its
+entirety before trying to execute this action.
+
+To execute the action, first we need to change into the directory
 ``<root>/examples/modelling/cbed/distortion/estimation/scripts``, where
 ``<root>`` is the root of the ``emicroml`` repository. Then, we need to run the
 Python script ``./execute_action.py`` via the terminal command::
@@ -19,21 +22,21 @@ Python script ``./execute_action.py`` via the terminal command::
 where ``<action>`` must be equal to ``run_rgm_test_set_1``, and ``<use_slurm>``
 is either ``yes`` or ``no``. If ``<use_slurm>`` equals ``yes`` and a SLURM
 workload manager is available on the server from which you intend to run the
-script, then the action will be performed as a SLURM job. If ``<use_slurm>`` is
-equal to ``no``, then the action will be performed locally without using a SLURM
-workload manager.
+script, then the action will be performed as multiple SLURM jobs. If
+``<use_slurm>`` is equal to ``no``, then the action will be performed locally
+without using a SLURM workload manager.
 
 If the action is to be performed locally without using a SLURM workload manager,
 then prior to executing the above Python script, a set of Python libraries need
 to be installed in the Python environment within which said Python script is to
 be executed. See :ref:`this page
 <examples_prerequisites_for_execution_without_slurm_sec>` for instructions on
-how to do so. If the action is being performed as a SLURM job, then prior to
-executing any Python commands that do not belong to Python's standard library, a
-customizable sequence of commands are executed that are expected to try to
-either activate an existing Python virtual environment, or create then activate
-one, in which the Python libraries needed to complete the action successfully
-are installed. See :ref:`this page
+how to do so. If the action is being performed as multiple SLURM jobs, then
+prior to executing any Python commands that do not belong to Python's standard
+library, a customizable sequence of commands are executed that are expected to
+try to either activate an existing Python virtual environment, or create then
+activate one, in which the Python libraries needed to complete the action
+successfully are installed. See :ref:`this page
 <examples_prerequisites_for_execution_with_slurm_sec>` for instructions how to
 customize the sequence of commands.
 
@@ -129,4 +132,8 @@ executed in the order that they appear directly below:
 
 Otherwise, if ``<use_slurm>`` equals ``no``, then the fourth script, i.e. the
 one with the basename ``prepare_and_submit_slurm_job.sh`` is not executed. See
-the contents of the scripts listed above for implementation details. 
+the contents of the scripts listed above for implementation details. Lastly, if
+the action is being performed as multiple SLURM jobs, then the default
+``sbatch`` options, which are specified in the file with the basename
+``prepare_and_submit_slurm_job.sh``, can be overridden by following the
+instructions in :ref:`this page <examples_overriding_sbatch_options_sec>`.

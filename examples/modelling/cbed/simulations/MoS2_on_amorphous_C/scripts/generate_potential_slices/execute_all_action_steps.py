@@ -44,6 +44,9 @@ script.
 ## Load libraries/packages/modules ##
 #####################################
 
+# For pattern matching.
+import re
+
 # For parsing command line arguments.
 import argparse
 
@@ -61,6 +64,26 @@ import shutil
 ##############################################
 ## Define classes, functions, and constants ##
 ##############################################
+
+def parse_overriding_sbatch_options_file(path_to_repo_root):
+    overriding_sbatch_options = tuple()
+
+    path_to_overriding_sbatch_options_file = \
+        path_to_repo_root + "/overriding_sbatch_options.sh"
+    overriding_sbatch_options_file_exists = \
+        pathlib.Path(path_to_overriding_sbatch_options_file).is_file()
+
+    if overriding_sbatch_options_file_exists:
+        with open(path_to_overriding_sbatch_options_file, "r") as file_obj:
+            for line in file_obj:
+                stripped_line = line.strip()
+                pattern = r"#SBATCH --[a-z]+(-[a-z]+)*=.*"
+                
+                if re.fullmatch(pattern, stripped_line):
+                    overriding_sbatch_option = stripped_line[8:]
+                    overriding_sbatch_options += (overriding_sbatch_option,)
+
+    return overriding_sbatch_options
 
 
 
@@ -97,14 +120,19 @@ if use_slurm == "yes":
                               if (shutil.which("sbatch") is None)
                               else "false")
 
-    path_to_dir_containing_current_script = str(path_to_current_script.parent)
-    path_to_script_to_execute = (str(path_to_current_script.parent)
-                                 + "/prepare_and_submit_slurm_job.sh")
-    args = (path_to_script_to_execute,
-            path_to_dir_containing_current_script,
-            path_to_repo_root,
-            path_to_data_dir_1,
-            overwrite_slurm_tmpdir)
+    overriding_sbatch_options = \
+        parse_overriding_sbatch_options_file(path_to_repo_root)
+    path_to_dir_containing_current_script = \
+        str(path_to_current_script.parent)
+    path_to_script_to_execute = \
+        str(path_to_current_script.parent) + "/prepare_and_submit_slurm_job.sh"
+
+    args = (overriding_sbatch_options*(shutil.which("sbatch") is not None)
+            + (path_to_script_to_execute,
+               path_to_dir_containing_current_script,
+               path_to_repo_root,
+               path_to_data_dir_1,
+               overwrite_slurm_tmpdir))
     partial_cmd_str = "bash" if (shutil.which("sbatch") is None) else "sbatch"
     unformatted_cmd_str = partial_cmd_str+(" {}"*len(args))
     cmd_str = unformatted_cmd_str.format(*args)

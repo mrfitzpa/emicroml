@@ -1,12 +1,15 @@
 .. _examples_modelling_cbed_simulations_MoS2_generate_atomic_coords_sec:
 
-Generating the atomic coordinates of a model of :math:`\text{MoS}_2`
-====================================================================
+Generating the atomic coordinates of a model of MoS\ :sub:`2`
+=============================================================
 
 In this example, we perform the "action" of generating the atomic coordinates of
 a model of a 5-layer :math:`\text{MoS}_2` thin film.
 
-To execute this action, first we need to change into the directory
+NOTE: Users are advised to read the remainder of the current page in its
+entirety before trying to execute this action.
+
+To execute the action, first we need to change into the directory
 ``<root>/examples/modelling/cbed/simulations/MoS2/scripts``, where ``<root>`` is
 the root of the ``emicroml`` repository. Then, we need to run the Python script
 ``./execute_action.py`` via the terminal command::
@@ -64,4 +67,8 @@ directly below:
 
 Otherwise, if ``<use_slurm>`` equals ``no``, then the third script, i.e. the one
 with the basename ``prepare_and_submit_slurm_job.sh`` is not executed. See the
-contents of the scripts listed above for implementation details.
+contents of the scripts listed above for implementation details. Lastly, if the
+action is being performed as a SLURM job, then the default ``sbatch`` options,
+which are specified in the file with the basename
+``prepare_and_submit_slurm_job.sh``, can be overridden by following the
+instructions in :ref:`this page <examples_overriding_sbatch_options_sec>`.

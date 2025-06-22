@@ -41,6 +41,18 @@
 
 
 
+# Begin timer, and print starting message.
+start_time=$(date +%s.%N)
+
+msg="Beginning virtual environment creation and setup..."
+echo ""
+echo ${msg}
+echo ""
+echo ""
+echo ""
+
+
+
 # Get the path to the root of the repository.
 cmd="realpath "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)""
 path_to_repo_root=$(${cmd})
@@ -105,17 +117,15 @@ then
     # ``emicroml``. Where applicable, GPU-supported versions of libraries are
     # installed.
     pkgs="numpy numba hyperspy h5py pytest ipympl jupyter torch kornia"
+    pkgs=${pkgs}" blosc2 msgpack"
     pip install --no-index ${pkgs}
 
-    pkgs="fakecbed>=0.3.2 h5pywrappers"
+    pkgs="fakecbed>=0.3.4 h5pywrappers"
     pip install ${pkgs}
 
     if [ "${install_libs_required_to_run_all_examples}" = true ]
     then
-	pkgs="pyopencl[pocl] pyFAI"
-	pip install ${pkgs}
-
-	pkgs="pyprismatic-gpu"
+	pkgs="pyopencl pyFAI pyprismatic-gpu"
 	pip install --no-index ${pkgs}
 
 	pkgs="prismatique"
@@ -191,7 +201,7 @@ else
     # Create the ``conda`` virtual environment and install a subset of
     # libraries, then activate the virtual environment.
     pkgs="python=3.10 numpy numba hyperspy h5py pytest ipympl jupyter"
-    pkgs=${pkgs}" fakecbed>=0.3.2 h5pywrappers"
+    pkgs=${pkgs}" fakecbed>=0.3.5 h5pywrappers"
     conda create -n ${virtual_env_name} ${pkgs} -y -c conda-forge
     conda activate ${virtual_env_name}
 
@@ -219,3 +229,17 @@ fi
 # Install ``emicroml``.
 cd ${path_to_repo_root}
 pip install .
+
+
+
+# End timer and print completion message.
+end_time=$(date +%s.%N)
+elapsed_time=$(echo "${end_time} - ${start_time}" | bc -l)
+
+echo ""
+echo ""
+echo ""
+msg="Finished virtual environment creation and setup. Time taken: "
+msg=${msg}"${elapsed_time} s."
+echo ${msg}
+echo ""

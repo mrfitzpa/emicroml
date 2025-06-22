@@ -10,7 +10,10 @@ combining said input ML datasets, and then subsequently splitting the resulting
 ML dataset into two output ML datasets: one intended for training ML models, the
 other for validating ML models.
 
-To execute this action, first we need to change into the directory
+NOTE: Users are advised to read the remainder of the current page in its
+entirety before trying to execute this action.
+
+To execute the action, first we need to change into the directory
 ``<root>/examples/modelling/cbed/distortion/estimation/scripts``, where
 ``<root>`` is the root of the ``emicroml`` repository. Then, we need to run the
 Python script ``./execute_action.py`` via the terminal command::
@@ -72,4 +75,7 @@ with the basename ``prepare_and_submit_slurm_job.sh`` is not executed. See the
 contents of the scripts listed above for implementation details. The last script
 uses the module :mod:`emicroml.modelling.cbed.distortion.estimation`. It is
 recommended that you consult the documentation of said module as you explore
-said script.
+said script. Lastly, if the action is being performed as a SLURM job, then the
+default ``sbatch`` options, which are specified in the file with the basename
+``prepare_and_submit_slurm_job.sh``, can be overridden by following the
+instructions in :ref:`this page <examples_overriding_sbatch_options_sec>`.

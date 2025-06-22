@@ -15,3 +15,6 @@ estimation of distortion in CBED patterns, using deep learning.
    estimation/combine_ml_datasets_for_ml_model_test_set_1.rst
    estimation/run_ml_model_test_set_1.rst
    estimation/run_rgm_test_set_1.rst
+   estimation/analyzing_ml_model_training_results.rst
+   estimation/analyzing_ml_model_testing_results.rst
+   estimation/correcting_distortion_in_parallel_beam_diffraction_pattern.rst
