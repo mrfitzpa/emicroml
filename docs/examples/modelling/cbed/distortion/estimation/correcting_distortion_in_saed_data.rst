@@ -1,0 +1,35 @@
+.. _examples_modelling_cbed_distortion_estimation_correcting_distortion_in_saed_data_sec:
+
+Correcting distortion in SAED data
+==================================
+
+This page briefly summarizes the contents of the Jupyter notebook at the file
+path
+``<root>/examples/modelling/cbed/distortion/estimation/notebooks/correcting_distortion_in_saed.ipynb``,
+where ``<root>`` is the root of the ``emicroml`` repository.
+
+In this notebook, we show how one can use the machine learning (ML) model that
+is trained as a result of executing the "action" described in the page
+:ref:`examples_modelling_cbed_distortion_estimation_train_ml_model_set_sec` to
+correct distortion in selected area electron diffraction (SAED). Strictly
+speaking, this ML model is trained to estimate distortion in convergent beam
+electron diffraction (CBED) patterns. However, by exploiting the fact that
+distortions predominantly come from post-specimen lenses [Hawkes1]_,
+e.g. projection lenses, we can estimate and correction distortion in SAED data
+as follows:
+
+1. Collect the target experimental SAED data;
+2. Modify only pre-specimen lenses to produce CBED data;
+3. Use ML model to estimate distortion field in CBED data;
+4. Correct distortion in SAED data using distortion field from step 3.
+
+In order to execute the cells in this notebook, a set of Python libraries need
+to be installed in the Python environment within which the cells of the notebook
+are to be executed. See :ref:`this page
+<examples_prerequisites_for_execution_without_slurm_sec>` for instructions on
+how to do so.
+
+It is recommended that you consult the documentation of the :mod:`emicroml`
+library as you explore the notebook. Moreover, users should execute the cells in
+the order that they appear, i.e. from top to bottom, as some cells reference
+variables that are set in other cells above them.

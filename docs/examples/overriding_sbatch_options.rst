@@ -53,6 +53,6 @@ The contents of an example valid file at the file path
   #SBATCH --cpus-per-task=8
   #SBATCH --gpus-per-node=a100:1
   #SBATCH --mem=40G
-  #SBATCH --time=00-8:59
+  #SBATCH --time=00-08:59
   #SBATCH --mail-user=matthew.rc.fitzpatrick@gmail.com
   #SBATCH --mail-type=ALL

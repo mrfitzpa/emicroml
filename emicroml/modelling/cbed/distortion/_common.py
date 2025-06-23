@@ -5138,122 +5138,6 @@ class _MLModel(_cls_alias):
 
 
 
-def _calc_single_ml_data_instance_loss_weights(ml_targets, ml_model):
-    kwargs = \
-        {"ml_data_dict": ml_targets, "ml_model": ml_model}
-    distortion_model_set_params = \
-        _generate_distortion_model_set_params(**kwargs)
-    
-    u_c_D = distortion_model_set_params["distortion_centers"]
-    p_qr = distortion_model_set_params["quadratic_radial_distortion_amplitudes"]
-    p_s = distortion_model_set_params["spiral_distortion_amplitudes"]
-    p_p = distortion_model_set_params["parabolic_distortion_vectors"]
-    p_e = distortion_model_set_params["elliptical_distortion_vectors"]
-
-    kwargs = {"ml_model": ml_model, "distortion_centers": u_c_D}
-    u_x, u_y = _calc_u_x_and_u_y(**kwargs)
-
-    delta_u_x = u_x[:, :, :] - u_c_D[:, 0, None, None]
-    delta_u_y = u_y[:, :, :] - u_c_D[:, 1, None, None]
-    u_r = torch.sqrt(delta_u_x*delta_u_x + delta_u_y*delta_u_y)
-    u_theta = torch.arctan2(delta_u_y, delta_u_x)
-
-    u_r_sq = u_r*u_r
-    u_r_cu = u_r_sq*u_r
-
-    cosine_of_u_theta = torch.cos(u_theta)
-    sine_of_u_theta = torch.sin(u_theta)
-    cosine_of_2_u_theta = torch.cos(2*u_theta)
-    sine_of_2_u_theta = torch.sin(2*u_theta)
-
-    w_qr, w_s = _calc_w_qr_and_w_s(u_r_cu)
-    
-    w_p_x, w_p_y = _calc_w_p_x_and_w_p_y(u_r_sq, cosine_of_2_u_theta)
-    
-    w_e_x, w_e_y = _calc_w_e_x_and_w_e_y(u_x, u_y)
-
-    kwargs = {"u_r": u_r,
-              "u_r_sq": u_r_sq,
-              "cosine_of_u_theta": cosine_of_u_theta,
-              "sine_of_u_theta": sine_of_u_theta,
-              "cosine_of_2_u_theta": cosine_of_2_u_theta,
-              "sine_of_2_u_theta": sine_of_2_u_theta,
-              "p_qr": p_qr[:, None, None],
-              "p_s": p_s[:, None, None],
-              "p_p": p_p[:, :, None, None]}
-    w_c_D_x, w_c_D_y = _calc_w_c_D_x_and_w_c_D_y(**kwargs)
-
-    single_ml_data_instance_loss_weights = \
-        (w_qr, w_s, w_p_x, w_p_y, w_e_x, w_e_y, w_c_D_x, w_c_D_y)
-
-    return single_ml_data_instance_loss_weights
-
-
-
-def _calc_w_qr_and_w_s(u_r_cu):
-    w_qr = u_r_cu.mean(dim=(1, 2))
-    w_s = w_qr
-
-    return w_qr, w_s
-
-
-
-def _calc_w_p_x_and_w_p_y(u_r_sq, cosine_of_2_u_theta):
-    w_p_x = (u_r_sq*torch.sqrt(5+4*cosine_of_2_u_theta)/3).mean(dim=(1, 2))
-    w_p_y = (u_r_sq*torch.sqrt(5-4*cosine_of_2_u_theta)/3).mean(dim=(1, 2))
-
-    return w_p_x, w_p_y
-
-
-
-def _calc_w_e_x_and_w_e_y(u_x, u_y):
-    delta_u_x = u_x[:, :, :] - 0.5
-    delta_u_y = u_y[:, :, :] - 0.5
-    u_r = torch.sqrt(delta_u_x*delta_u_x + delta_u_y*delta_u_y)
-
-    w_e_x = u_r.mean(dim=(1, 2))
-    w_e_y = w_e_x
-
-    return w_e_x, w_e_y
-
-
-
-def _calc_w_c_D_x_and_w_c_D_y(u_r,
-                              u_r_sq,
-                              cosine_of_u_theta,
-                              sine_of_u_theta,
-                              cosine_of_2_u_theta,
-                              sine_of_2_u_theta,
-                              p_qr,
-                              p_s,
-                              p_p):
-    v_1_x = 3*u_r_sq*(cosine_of_u_theta*p_qr - sine_of_u_theta*p_s)
-    v_1_y = 3*u_r_sq*(sine_of_u_theta*p_qr + cosine_of_u_theta*p_s)
-
-    v_2_x = (2/3)*u_r*(cosine_of_2_u_theta*p_p[:, 0]
-                       + sine_of_2_u_theta*p_p[:, 1])
-    v_2_y = (2/3)*u_r*(sine_of_2_u_theta*p_p[:, 0]
-                       - cosine_of_2_u_theta*p_p[:, 1])
-
-    v_3_x = v_1_x + v_2_x + (4/3)*u_r*p_p[:, 0]
-    v_3_y = v_1_y + v_2_y + (4/3)*u_r*p_p[:, 1]
-
-    v_4_x = -v_1_y/3 - v_2_y
-    v_4_y = v_1_x/3 + v_2_x
-
-    v_5_x = -cosine_of_u_theta*v_3_x + sine_of_u_theta*v_4_x
-    v_5_y = -cosine_of_u_theta*v_3_y + sine_of_u_theta*v_4_y
-
-    v_6_x = -sine_of_u_theta*v_3_x - cosine_of_u_theta*v_4_x
-    v_6_y = -sine_of_u_theta*v_3_y - cosine_of_u_theta*v_4_y
-
-    w_c_D_x = torch.sqrt(v_5_x*v_5_x + v_5_y*v_5_y).mean(dim=(1, 2))
-    w_c_D_y = torch.sqrt(v_6_x*v_6_x + v_6_y*v_6_y).mean(dim=(1, 2))
-
-    return w_c_D_x, w_c_D_y
-
-
-
 def _calc_shifted_q(ml_data_dict, ml_model):
     kwargs = \
         locals()
@@ -5479,195 +5363,6 @@ def _add_distortion_field_offset_to_q(distortion_model_set_params, q):
 
 
 
-def _update_cached_obj_subset_1_of_coord_transform_set(
-        ml_model,
-        distortion_centers,
-        cached_objs_of_coord_transform_set):
-    u_x, u_y = _calc_u_x_and_u_y(ml_model, distortion_centers)
-
-    x_c_D = distortion_centers[:, 0]
-    y_c_D = distortion_centers[:, 1]
-
-    delta_u_x = u_x[:, :, :] - x_c_D[:, None, None]
-    delta_u_y = u_y[:, :, :] - y_c_D[:, None, None]
-    u_r = torch.sqrt(delta_u_x*delta_u_x + delta_u_y*delta_u_y)
-    exponents = torch.arange(0, 4, device=u_r.device)
-    powers_of_u_r = torch.pow(u_r[:, None, :, :],
-                              exponents[None, :, None, None])
-
-    u_theta = torch.arctan2(delta_u_y, delta_u_x)
-    azimuthal_orders = torch.arange(0, 3, device=u_theta.device)
-    scaled_u_thetas = torch.einsum("i, jkl -> jikl", azimuthal_orders, u_theta)
-    cosines_of_scaled_u_thetas = torch.cos(scaled_u_thetas)
-    sines_of_scaled_u_thetas = torch.sin(scaled_u_thetas[:, 1:])
-
-    A_r_0_2_prefactor_1 = powers_of_u_r[:, 3] * cosines_of_scaled_u_thetas[:, 0]
-    A_r_1_1_prefactor_1 = powers_of_u_r[:, 2] * cosines_of_scaled_u_thetas[:, 1]
-    A_r_2_0_prefactor_1 = powers_of_u_r[:, 1] * cosines_of_scaled_u_thetas[:, 2]
-    B_r_0_1_prefactor_1 = powers_of_u_r[:, 2] * sines_of_scaled_u_thetas[:, 0]
-    B_r_1_0_prefactor_1 = powers_of_u_r[:, 1] * sines_of_scaled_u_thetas[:, 1]
-    A_t_0_2_prefactor_1 = A_r_0_2_prefactor_1
-    A_t_1_1_prefactor_1 = A_r_1_1_prefactor_1
-    A_t_2_0_prefactor_1 = A_r_2_0_prefactor_1
-    B_t_0_1_prefactor_1 = B_r_0_1_prefactor_1
-    B_t_1_0_prefactor_1 = B_r_1_0_prefactor_1
-
-    local_obj_subset = locals()
-    
-    cached_obj_key_subset_1_of_coord_transform_set = \
-        _generate_cached_obj_key_subset_1_of_coord_transform_set()
-
-    for key in cached_obj_key_subset_1_of_coord_transform_set:
-        obj_to_cache = local_obj_subset[key]
-        _cache_obj_of_coord_transform_set(cached_objs_of_coord_transform_set,
-                                          key,
-                                          obj_to_cache)
-
-    return None
-
-
-
-def _generate_cached_obj_key_subset_1_of_coord_transform_set():
-    cached_obj_key_subset_1_of_coord_transform_set = \
-        ("u_x",
-         "u_y",
-         "delta_u_x",
-         "delta_u_y",
-         "exponents",
-         "powers_of_u_r",
-         "azimuthal_orders",
-         "cosines_of_scaled_u_thetas",
-         "sines_of_scaled_u_thetas",
-         "A_r_0_2_prefactor_1",
-         "A_r_1_1_prefactor_1",
-         "A_r_2_0_prefactor_1",
-         "B_r_0_1_prefactor_1",
-         "B_r_1_0_prefactor_1",
-         "A_t_0_2_prefactor_1",
-         "A_t_1_1_prefactor_1",
-         "A_t_2_0_prefactor_1",
-         "B_t_0_1_prefactor_1",
-         "B_t_1_0_prefactor_1")
-
-    return cached_obj_key_subset_1_of_coord_transform_set
-
-
-
-def _cache_obj_of_coord_transform_set(cached_objs_of_coord_transform_set,
-                                      key,
-                                      obj_to_cache):
-    if key in cached_objs_of_coord_transform_set:
-        cached_objs_of_coord_transform_set[key][:] = obj_to_cache[:]
-    else:
-        cached_objs_of_coord_transform_set[key] = obj_to_cache
-
-    return None
-
-
-
-def _update_cached_obj_subset_2_of_coord_transform_set(
-        distortion_model_set_params,
-        cached_objs_of_coord_transform_set):
-    kwargs = locals()
-    radial_fourier_series = _calc_radial_fourier_series(**kwargs)
-    tangential_fourier_series = _calc_tangential_fourier_series(**kwargs)
-
-    local_obj_subset = locals()
-    
-    cached_obj_key_subset_2_of_coord_transform_set = \
-        _generate_cached_obj_key_subset_2_of_coord_transform_set()
-
-    for key in cached_obj_key_subset_2_of_coord_transform_set:
-        obj_to_cache = local_obj_subset[key]
-        _cache_obj_of_coord_transform_set(cached_objs_of_coord_transform_set,
-                                          key,
-                                          obj_to_cache)
-
-    return None
-
-
-
-def _calc_radial_fourier_series(distortion_model_set_params,
-                                cached_objs_of_coord_transform_set):
-    A_r_0_2 = \
-        distortion_model_set_params["quadratic_radial_distortion_amplitudes"]
-    A_r_1_1 = \
-        distortion_model_set_params["parabolic_distortion_vectors"][:, 0]
-    A_r_2_0 = \
-        distortion_model_set_params["elliptical_distortion_vectors"][:, 0]
-
-    B_r_0_1 = \
-        distortion_model_set_params["parabolic_distortion_vectors"][:, 1]
-    B_r_1_0 = \
-        distortion_model_set_params["elliptical_distortion_vectors"][:, 1]
-
-    A_r_0_2_prefactor_1 = \
-        cached_objs_of_coord_transform_set["A_r_0_2_prefactor_1"]
-    A_r_1_1_prefactor_1 = \
-        cached_objs_of_coord_transform_set["A_r_1_1_prefactor_1"]
-    A_r_2_0_prefactor_1 = \
-        cached_objs_of_coord_transform_set["A_r_2_0_prefactor_1"]
-    
-    B_r_0_1_prefactor_1 = \
-        cached_objs_of_coord_transform_set["B_r_0_1_prefactor_1"]
-    B_r_1_0_prefactor_1 = \
-        cached_objs_of_coord_transform_set["B_r_1_0_prefactor_1"]
-
-    radial_fourier_series = (A_r_0_2[:, None, None]*A_r_0_2_prefactor_1
-                             + A_r_1_1[:, None, None]*A_r_1_1_prefactor_1
-                             + A_r_2_0[:, None, None]*A_r_2_0_prefactor_1
-                             + B_r_0_1[:, None, None]*B_r_0_1_prefactor_1
-                             + B_r_1_0[:, None, None]*B_r_1_0_prefactor_1)
-
-    return radial_fourier_series
-
-
-
-def _calc_tangential_fourier_series(distortion_model_set_params,
-                                    cached_objs_of_coord_transform_set):
-    A_t_0_2 = \
-        distortion_model_set_params["spiral_distortion_amplitudes"]
-    A_t_1_1 = \
-        distortion_model_set_params["parabolic_distortion_vectors"][:, 1]/3
-    A_t_2_0 = \
-        distortion_model_set_params["elliptical_distortion_vectors"][:, 1]
-
-    B_t_0_1 = \
-        -distortion_model_set_params["parabolic_distortion_vectors"][:, 0]/3
-    B_t_1_0 = \
-        -distortion_model_set_params["elliptical_distortion_vectors"][:, 0]
-
-    A_t_0_2_prefactor_1 = \
-        cached_objs_of_coord_transform_set["A_t_0_2_prefactor_1"]
-    A_t_1_1_prefactor_1 = \
-        cached_objs_of_coord_transform_set["A_t_1_1_prefactor_1"]
-    A_t_2_0_prefactor_1 = \
-        cached_objs_of_coord_transform_set["A_t_2_0_prefactor_1"]
-    
-    B_t_0_1_prefactor_1 = \
-        cached_objs_of_coord_transform_set["B_t_0_1_prefactor_1"]
-    B_t_1_0_prefactor_1 = \
-        cached_objs_of_coord_transform_set["B_t_1_0_prefactor_1"]
-
-    tangential_fourier_series = (A_t_0_2[:, None, None]*A_t_0_2_prefactor_1
-                                 + A_t_1_1[:, None, None]*A_t_1_1_prefactor_1
-                                 + A_t_2_0[:, None, None]*A_t_2_0_prefactor_1
-                                 + B_t_0_1[:, None, None]*B_t_0_1_prefactor_1
-                                 + B_t_1_0[:, None, None]*B_t_1_0_prefactor_1)
-
-    return tangential_fourier_series
-
-
-
-def _generate_cached_obj_key_subset_2_of_coord_transform_set():
-    cached_obj_key_subset_2_of_coord_transform_set = \
-        ("radial_fourier_series",
-         "tangential_fourier_series")
-
-    return cached_obj_key_subset_2_of_coord_transform_set
-
-
-
 _module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLMetricCalculator
 class _MLMetricCalculator(_cls_alias):
@@ -5692,142 +5387,29 @@ class _MLMetricCalculator(_cls_alias):
         kwargs = {"ml_data_dict": ml_predictions, "ml_model": ml_model}
         predicted_shifted_q = _calc_shifted_q(**kwargs)
 
-        method_alias = self._calc_epes_of_distortion_fields
+        method_alias = self._calc_epes_of_adjusted_distortion_fields
         kwargs = {"target_shifted_q": target_shifted_q,
                   "predicted_shifted_q": predicted_shifted_q}
-        epes_of_distortion_fields = method_alias(**kwargs)
+        epes_of_adjusted_distortion_fields = method_alias(**kwargs)
 
-        metrics_of_current_mini_batch = {"epes_of_distortion_fields": \
-                                         epes_of_distortion_fields}
+        metrics_of_current_mini_batch = {"epes_of_adjusted_distortion_fields": \
+                                         epes_of_adjusted_distortion_fields}
 
         return metrics_of_current_mini_batch
 
 
 
-    def _calc_scalar_rejection_maes_of_distortion_fields(self,
-                                                         target_shifted_q,
-                                                         predicted_shifted_q):
-        a = target_shifted_q
-        b = predicted_shifted_q
-
-        mag_a = torch.sqrt(a[:, 0]*a[:, 0] + a[:, 1]*a[:, 1])
-        mag_b = torch.sqrt(b[:, 0]*b[:, 0] + b[:, 1]*b[:, 1])
-
-        a_dot_b = a[:, 0]*b[:, 0] + a[:, 1]*b[:, 1]
-        phi_ab = torch.acos(a_dot_b / mag_a / mag_b)
-
-        eps = 1e-8
-        bool_mat = (phi_ab < (np.pi/2))
-
-        abs_scalar_rejection_errors = \
-            torch.abs(b[:, 0]*a[:, 1] - b[:, 1]*a[:, 0]) / (mag_b + eps)
-        abs_scalar_rejection_errors = \
-            (bool_mat*abs_scalar_rejection_errors
-             + (~bool_mat)*(2*mag_a - abs_scalar_rejection_errors))
-
-        scalar_rejection_maes_of_distortion_fields = \
-            abs_scalar_rejection_errors.mean(dim=(1, 2))
-
-        return scalar_rejection_maes_of_distortion_fields
-
-
-
-    def _calc_vec_mag_maes_of_distortion_fields(self,
-                                                target_shifted_q,
-                                                predicted_shifted_q):
-        a = target_shifted_q
-        b = predicted_shifted_q
-
-        mag_a = torch.sqrt(a[:, 0]*a[:, 0] + a[:, 1]*a[:, 1])
-        mag_b = torch.sqrt(b[:, 0]*b[:, 0] + b[:, 1]*b[:, 1])
-
-        calc_abs_errors = torch.nn.functional.l1_loss
-        abs_errors = calc_abs_errors(mag_a, mag_b, reduction="none")
-
-        vec_mag_maes_of_distortion_fields = abs_errors.mean(dim=(1, 2))
-
-        return vec_mag_maes_of_distortion_fields
-
-
-
-    def _calc_epes_of_distortion_fields(self,
-                                        target_shifted_q,
-                                        predicted_shifted_q):
+    def _calc_epes_of_adjusted_distortion_fields(self,
+                                                 target_shifted_q,
+                                                 predicted_shifted_q):
         calc_euclidean_distances = torch.linalg.vector_norm
         kwargs = {"x": target_shifted_q-predicted_shifted_q, "dim": 1}
         euclidean_distances = calc_euclidean_distances(**kwargs)
 
-        epes_of_distortion_fields = euclidean_distances.mean(dim=(1, 2))
+        epes = euclidean_distances.mean(dim=(1, 2))
+        epes_of_adjusted_distortion_fields = epes
 
-        return epes_of_distortion_fields
-
-
-
-    def _calc_single_ml_data_instance_losses(self,
-                                             ml_predictions,
-                                             ml_model,
-                                             ml_targets):
-        kwargs = \
-            {"ml_data_dict": ml_predictions, "ml_model": ml_model}
-        predicted_distortion_model_set_params = \
-            _generate_distortion_model_set_params(**kwargs)
-
-        kwargs = \
-            {"ml_data_dict": ml_targets, "ml_model": ml_model}
-        target_distortion_model_set_params = \
-            _generate_distortion_model_set_params(**kwargs)
-
-        single_ml_data_instance_loss_weights = \
-            _calc_single_ml_data_instance_loss_weights(ml_targets, ml_model)
-
-        keys = ("quadratic_radial_distortion_amplitudes",
-                "spiral_distortion_amplitudes",
-                "parabolic_distortion_vectors",
-                "parabolic_distortion_vectors",
-                "elliptical_distortion_vectors",
-                "elliptical_distortion_vectors",
-                "distortion_centers",
-                "distortion_centers")
-
-        vec_cmpnt_idx = 0
-
-        for key_idx, key in enumerate(keys):
-            if "amplitudes" in key:
-                multi_dim_slice = (slice(None),)
-            else:
-                multi_dim_slice = (slice(None), vec_cmpnt_idx)
-                vec_cmpnt_idx = (vec_cmpnt_idx+1)%2
-
-            predicted_p = \
-                predicted_distortion_model_set_params[key][multi_dim_slice]
-            target_p = \
-                target_distortion_model_set_params[key][multi_dim_slice]
-            w = \
-                single_ml_data_instance_loss_weights[key_idx]
-
-            if key_idx == 0:
-                single_ml_data_instance_losses = w*torch.abs(predicted_p
-                                                             - target_p)
-            else:
-                single_ml_data_instance_losses += w*torch.abs(predicted_p
-                                                              - target_p)
-
-        return single_ml_data_instance_losses
-
-
-
-    def _calc_rmlces_of_distortion_fields(self,
-                                          target_shifted_q,
-                                          predicted_shifted_q):
-        diff = target_shifted_q - predicted_shifted_q
-        mlces = 4*(diff
-                   + torch.nn.functional.softplus(-2*diff)
-                   - torch.log(2.0*torch.ones_like(diff))).mean(dim=(1, 2, 3))
-        rmlces = torch.sqrt(mlces)
-
-        rmlces_of_distortion_fields = rmlces
-
-        return rmlces_of_distortion_fields
+        return epes_of_adjusted_distortion_fields
 
 
 
@@ -5854,7 +5436,7 @@ class _MLLossCalculator(_cls_alias):
 
         losses_of_current_mini_batch = {"total": 0.0}
 
-        key_set_1 = ("epes_of_distortion_fields",)
+        key_set_1 = ("epes_of_adjusted_distortion_fields",)
 
         for key_1 in key_set_1:
             key_2 = \
@@ -5865,34 +5447,6 @@ class _MLLossCalculator(_cls_alias):
                 losses_of_current_mini_batch[key_1]
 
         return losses_of_current_mini_batch
-
-
-
-    def _calc_distortion_model_losses(self,
-                                      ml_model,
-                                      ml_inputs,
-                                      ml_targets,
-                                      ml_predictions,
-                                      phase):
-        kwargs = {"ml_data_dict": ml_targets, "ml_model": ml_model}
-        target_shifted_q = _calc_shifted_q(**kwargs)
-
-        kwargs = {"ml_data_dict": ml_predictions, "ml_model": ml_model}
-        predicted_shifted_q = _calc_shifted_q(**kwargs)
-
-        calc_se_losses = torch.nn.functional.mse_loss
-        se_losses = calc_se_losses(target_shifted_q,
-                                   predicted_shifted_q,
-                                   reduction="none")
-
-        epe_losses = torch.sqrt(se_losses[:, 0]
-                                + se_losses[:, 1]).mean(dim=(1, 2))
-
-        distortion_model_losses = (epe_losses
-                                   if (phase == "testing")
-                                   else epe_losses.mean())
-
-        return distortion_model_losses
 
 
 

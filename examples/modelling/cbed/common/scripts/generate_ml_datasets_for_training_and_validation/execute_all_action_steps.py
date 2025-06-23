@@ -85,7 +85,8 @@ path_to_script_to_execute = \
 
 # Execute the script at ``path_to_script_to_execute`` multiple times to generate
 # multiple ML datasets.
-num_ml_datasets = 10
+# num_ml_datasets = 10
+num_ml_datasets = 2
 for ml_dataset_idx in range(num_ml_datasets):
     unformatted_cmd_str = ("python {} "
                            "--ml_model_task={} "

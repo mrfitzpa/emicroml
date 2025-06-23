@@ -2871,7 +2871,7 @@ class MLModelTrainer(_cls_alias):
 
           - training: <HDF5 group>
 
-            * epes_of_distortion_fields <HDF5 1D dataset>
+            * epes_of_adjusted_distortion_fields <HDF5 1D dataset>
 
               + dim_0: "ml training data instance idx"
 
@@ -2971,7 +2971,7 @@ class MLModelTrainer(_cls_alias):
         the performance metrics that are tracked during training.
 
         The HDF5 dataset at the HDF5 path
-        ``"/ml_data_instance_metrics/training/epes_of_distortion_fields"``
+        ``"/ml_data_instance_metrics/training/epes_of_adjusted_distortion_fields"``
         stores the end-point errors (EPEs) of the "adjusted" standard distortion
         fields specified by the predicted standard coordinate transformation
         parameter sets, during training. For every nonnegative integer ``m``
@@ -2987,7 +2987,7 @@ class MLModelTrainer(_cls_alias):
         If performance metrics are also calculated during validation, then the
         output HDF5 file will also include an additional HDF5 dataset, located
         at the HDF5 path
-        ``"/ml_data_instance_metrics/validation/epes_of_distortion_fields"``.
+        ``"/ml_data_instance_metrics/validation/epes_of_adjusted_distortion_fields"``.
         One can simply replace every instance of the word "training" with
         "validation" in the previous paragraph to yield a description of the
         HDF5 dataset stored in HDF5 group at the HDF5 path
@@ -3225,7 +3225,7 @@ class MLModelTester(_cls_alias):
 
           - testing: <HDF5 group>
 
-            * epes_of_distortion_fields <HDF5 1D dataset>
+            * epes_of_adjusted_distortion_fields <HDF5 1D dataset>
 
               + dim_0: "ml testing data instance idx"
 
@@ -3275,22 +3275,18 @@ class MLModelTester(_cls_alias):
         the performance metrics that are tracked during testing.
 
         The HDF5 dataset at the HDF5 path
-        ``"/ml_data_instance_metrics/testing/epes_of_distortion_fields"`` stores
-        the end-point errors (EPEs) of the "adjusted" standard distortion fields
-        specified by the predicted standard coordinate transformation parameter
-        sets, during testing. For every nonnegative integer ``m`` less than the
-        the total number of ML testing data instances, the ``m`` th element of
-        the aforementioned HDF5 dataset is the EPE of the adjusted standard
-        distortion field specified by the ``m`` th predicted standard standard
-        coordinate transformation set, during testing. See the summary
+        ``"/ml_data_instance_metrics/testing/epes_of_adjusted_distortion_fields"``
+        stores the end-point errors (EPEs) of the "adjusted" standard distortion
+        fields specified by the predicted standard coordinate transformation
+        parameter sets, during testing. For every nonnegative integer ``m`` less
+        than the the total number of ML testing data instances, the ``m`` th
+        element of the aforementioned HDF5 dataset is the EPE of the adjusted
+        standard distortion field specified by the ``m`` th predicted standard
+        standard coordinate transformation set, during testing. See the summary
         documentation of the class
         :class:`emicroml.modelling.cbed.distortion.estimation.MLModelTrainer`
         for a definition of an adjusted standard distortion field, and how the
         EPE is calculated exactly.
-
-        For further discussion on how losses are calculated, see the summary
-        documentation of the class
-        :class:`emicroml.modelling.cbed.distortion.estimation.MLModelTester`.
 
         Parameters
         ----------

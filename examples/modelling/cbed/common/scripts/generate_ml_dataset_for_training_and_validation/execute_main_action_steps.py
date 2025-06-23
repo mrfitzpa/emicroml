@@ -160,8 +160,13 @@ unformatted_output_filename = (path_to_data_dir_1
                                + "/ml_dataset_{}.h5")
 output_filename = unformatted_output_filename.format(ml_dataset_idx)
 
+# kwargs = \
+#     {"num_cbed_patterns": 11520,
+#      "cbed_pattern_generator": cbed_pattern_generator,
+#      "output_filename": output_filename,
+#      "max_num_ml_data_instances_per_file_update": 576}
 kwargs = \
-    {"num_cbed_patterns": 11520,
+    {"num_cbed_patterns": 5,
      "cbed_pattern_generator": cbed_pattern_generator,
      "output_filename": output_filename,
      "max_num_ml_data_instances_per_file_update": 576}

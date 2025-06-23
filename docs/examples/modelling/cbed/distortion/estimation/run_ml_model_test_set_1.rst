@@ -54,7 +54,7 @@ aforementioned ML model will have been tested against the ML testing dataset
 stored in the HDF5 file at the file path
 ``<top_level_data_dir>/ml_datasets/ml_datasets_for_ml_model_test_set_1/ml_datasets_with_cbed_patterns_of_MoS2_on_amorphous_C/ml_dataset_with_<disk_size>_sized_disks.h5``,
 with the ML model testing having been performed using the class
-:class:`emicroml.modelling.cbed.distortion.estimation.MLModelTester`, with the
+:class:`emicroml.modelling.cbed.distortion.estimation.MLModelTester`, and the
 output data files having been saved in the directory
 ``<top_level_data_dir>/ml_models/ml_model_0/ml_model_test_set_1_results/results_for_cbed_patterns_of_MoS2_on_amorphous_C_with_<disk_size>_sized_disks``,
 where ``<top_level_data_dir>`` is

@@ -172,9 +172,11 @@ if ml_model_task == "cbed/distortion/estimation":
     ml_model_task_module = emicroml.modelling.cbed.distortion.estimation
     architecture_set = ("distoptica_net",)
 
-    mini_batch_size_set = (64,)
+    # mini_batch_size_set = (64,)
+    mini_batch_size_set = (2,)
 
-    num_epochs_during_warmup_set = (20,)
+    # num_epochs_during_warmup_set = (20,)
+    num_epochs_during_warmup_set = (1,)
     initial_lr_set = (1e-8,)
     max_lr_set = (5e-3,)
 
@@ -183,7 +185,8 @@ if ml_model_task == "cbed/distortion/estimation":
     
     min_lr_in_first_annealing_cycle_set = (2e-5,)
     num_lr_annealing_cycles_set = (1,)
-    num_epochs_in_first_lr_annealing_cycle_set = (40,)
+    # num_epochs_in_first_lr_annealing_cycle_set = (40,)
+    num_epochs_in_first_lr_annealing_cycle_set = (1,)
     multiplicative_decay_factor_set = (0.5,)
 
 

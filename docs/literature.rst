@@ -23,4 +23,9 @@ Below is a list of references that are cited in the ``emicroml`` documentation:
 		  C. Mahr et al., Ultramicroscopy **196**, 74-82 (2019),
 		  :doi:`10.1016/j.ultramic.2018.09.010`
 
+.. [Hawkes1] |nbspc|"Principles of Electron Optics, Volume One: Basic
+	            Geometrical Optics", P. Hawkes and E. Kasper, Academic Press
+		    (2018),
+		    :doi:`10.1016/C2015-0-06653-9`
+
 .. |nbspc| unicode:: U+00A0 .. non-breaking space

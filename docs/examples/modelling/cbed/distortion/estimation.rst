@@ -6,6 +6,9 @@ Examples of distortion estimation of CBED patterns
 Below are links to some code examples of "actions" that are related to the
 estimation of distortion in CBED patterns, using deep learning.
 
+The majority of the data presented in Ref. (INSERT REFERENCE) can be reproduced
+by running all of the examples listed on this current page.
+
 .. toctree::
 
    estimation/generate_ml_datasets_for_training_and_validation.rst
@@ -17,4 +20,4 @@ estimation of distortion in CBED patterns, using deep learning.
    estimation/run_rgm_test_set_1.rst
    estimation/analyzing_ml_model_training_results.rst
    estimation/analyzing_ml_model_testing_results.rst
-   estimation/correcting_distortion_in_parallel_beam_diffraction_pattern.rst
+   estimation/correcting_distortion_in_saed_data.rst
