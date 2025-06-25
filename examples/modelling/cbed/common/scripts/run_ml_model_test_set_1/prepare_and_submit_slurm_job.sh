@@ -43,10 +43,10 @@
 
 #SBATCH --job-name=run_ml_model_test_set_1
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=8        # CPU cores/threads
-#SBATCH --gpus-per-node=v100l:1  # GPU type and number of GPUs per node.
-#SBATCH --mem=46G                # CPU memory per node
-#SBATCH --time=00-11:59          # time (DD-HH:MM)
+#SBATCH --cpus-per-task=12      # CPU cores/threads
+#SBATCH --gpus-per-node=a100:1  # GPU type and number of GPUs per node.
+#SBATCH --mem=124G              # CPU memory per node
+#SBATCH --time=00-02:59         # time (DD-HH:MM)
 #SBATCH --mail-type=ALL
 
 

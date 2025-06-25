@@ -44,9 +44,9 @@
 
 #SBATCH --job-name=generate_cbed_pattern_set
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=32       # CPU cores/threads
-#SBATCH --gpus-per-node=v100l:4  # GPU type and number of GPUs per node.
-#SBATCH --mem=0                  # CPU memory per node
+#SBATCH --cpus-per-task=12       # CPU cores/threads
+#SBATCH --gpus-per-node=a100:1   # GPU type and number of GPUs per node.
+#SBATCH --mem=124G                  # CPU memory per node
 #SBATCH --time=00-02:59          # time (DD-HH:MM)
 #SBATCH --mail-type=ALL
 

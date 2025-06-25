@@ -42,10 +42,10 @@
 
 #SBATCH --job-name=train_ml_model
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=32       # CPU cores/threads
-#SBATCH --gpus-per-node=v100l:1  # GPU type and number of GPUs per node.
-#SBATCH --mem=187G               # CPU memory per node
-#SBATCH --time=00-35:59          # time (DD-HH:MM)
+#SBATCH --cpus-per-task=12      # CPU cores/threads
+#SBATCH --gpus-per-node=a100:1  # GPU type and number of GPUs per node.
+#SBATCH --mem=124G              # CPU memory per node
+#SBATCH --time=00-23:59         # time (DD-HH:MM)
 #SBATCH --mail-type=ALL
 
 

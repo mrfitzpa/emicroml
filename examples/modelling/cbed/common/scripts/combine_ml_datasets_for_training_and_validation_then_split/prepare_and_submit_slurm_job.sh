@@ -46,7 +46,7 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1  # CPU cores/threads
 #SBATCH --mem=4G           # CPU memory per node
-#SBATCH --time=00-02:59    # time (DD-HH:MM)
+#SBATCH --time=00-11:59    # time (DD-HH:MM)
 #SBATCH --mail-type=ALL
 
 

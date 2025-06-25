@@ -77,7 +77,7 @@ The HDF5 file is guaranteed to contain the following HDF5 objects:
 
   - testing: <HDF5 group>
 
-    * epes_of_distortion_fields <HDF5 1D dataset>
+    * epes_of_adjusted_distortion_fields <HDF5 1D dataset>
 
       + dim_0: "ml testing data instance idx"
 
@@ -91,7 +91,7 @@ The HDF5 dataset at the HDF5 path ``"/path_to_ml_testing_dataset"`` stores the
 path, as a string, to the ML testing dataset used for the test.
 
 The HDF5 dataset at the HDF5 path
-``"/ml_data_instance_metrics/testing/epes_of_distortion_fields"`` stores the
+``"/ml_data_instance_metrics/testing/epes_of_adjusted_distortion_fields"`` stores the
 end-point errors (EPEs) of the "adjusted" standard distortion fields specified
 by the predicted standard coordinate transformation parameter sets, during
 testing. For every nonnegative integer ``m`` less than the the total number of
@@ -1273,9 +1273,10 @@ def test_rgm_approach_against_ml_data_dict(ml_data_dict):
     kwargs = {"x": diff, "dim": 0}
     euclidean_distances = calc_euclidean_distances(**kwargs)
 
-    epe_of_distortion_field = euclidean_distances.mean(dim=(0, 1)).item()
+    epe_of_adjusted_distortion_field = \
+        euclidean_distances.mean(dim=(0, 1)).item()
 
-    return epe_of_distortion_field
+    return epe_of_adjusted_distortion_field
 
 
 
@@ -1978,14 +1979,16 @@ def initialize_rgm_testing_summary_output_data_file(output_filename,
 
 
 
-def save_ml_data_instance_metrics(output_filename, epes_of_distortion_fields):
-    path_in_file = "ml_data_instance_metrics/testing/epes_of_distortion_fields"
+def save_ml_data_instance_metrics(output_filename,
+                                  epes_of_adjusted_distortion_fields):
+    path_in_file = ("ml_data_instance_metrics"
+                    "/testing/epes_of_adjusted_distortion_fields")
 
     kwargs = {"filename": output_filename,
               "path_in_file": path_in_file}
     hdf5_dataset_id = h5pywrappers.obj.ID(**kwargs)
 
-    kwargs = {"dataset": epes_of_distortion_fields,
+    kwargs = {"dataset": epes_of_adjusted_distortion_fields,
               "dataset_id": hdf5_dataset_id,
               "write_mode": "a"}
     h5pywrappers.dataset.save(**kwargs)
@@ -2084,7 +2087,7 @@ print(msg)
 
 total_num_ml_testing_data_instances = len(ml_testing_dataset)
 
-epes_of_distortion_fields = tuple()
+epes_of_adjusted_distortion_fields = tuple()
 
 for ml_testing_data_instance_idx in range(total_num_ml_testing_data_instances):
     start_time_2 = time.time()
@@ -2098,21 +2101,24 @@ for ml_testing_data_instance_idx in range(total_num_ml_testing_data_instances):
               "unnormalize_normalizable_elems": True}
     ml_data_dict = ml_testing_dataset.get_ml_data_instances(**kwargs)
 
-    kwargs = {"ml_data_dict": ml_data_dict}
-    epe_of_distortion_field = test_rgm_approach_against_ml_data_dict(**kwargs)
+    kwargs = \
+        {"ml_data_dict": ml_data_dict}
+    epe_of_adjusted_distortion_field = \
+        test_rgm_approach_against_ml_data_dict(**kwargs)
     
-    epes_of_distortion_fields += (epe_of_distortion_field,)
+    epes_of_adjusted_distortion_fields += (epe_of_adjusted_distortion_field,)
 
     elapsed_time = time.time() - start_time_2
     unformatted_msg = ("Machine learning (ML) testing data instance #{} has "
                        "been processed; End-point error = {}; "
                        "Processing time for ML data instance = {} s.")
     msg = unformatted_msg.format(ml_testing_data_instance_idx,
-                                 epe_of_distortion_field,
+                                 epe_of_adjusted_distortion_field,
                                  elapsed_time)
     print(msg)
 
-save_ml_data_instance_metrics(output_filename, epes_of_distortion_fields)
+save_ml_data_instance_metrics(output_filename,
+                              epes_of_adjusted_distortion_fields)
 
 print("\n\n")
 

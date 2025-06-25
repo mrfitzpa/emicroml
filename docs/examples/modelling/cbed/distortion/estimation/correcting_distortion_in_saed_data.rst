@@ -11,7 +11,7 @@ where ``<root>`` is the root of the ``emicroml`` repository.
 In this notebook, we show how one can use the machine learning (ML) model that
 is trained as a result of executing the "action" described in the page
 :ref:`examples_modelling_cbed_distortion_estimation_train_ml_model_set_sec` to
-correct distortion in selected area electron diffraction (SAED). Strictly
+correct distortion in selected area electron diffraction (SAED) data. Strictly
 speaking, this ML model is trained to estimate distortion in convergent beam
 electron diffraction (CBED) patterns. However, by exploiting the fact that
 distortions predominantly come from post-specimen lenses [Hawkes1]_,
@@ -22,6 +22,11 @@ as follows:
 2. Modify only pre-specimen lenses to produce CBED data;
 3. Use ML model to estimate distortion field in CBED data;
 4. Correct distortion in SAED data using distortion field from step 3.
+
+We demonstrate steps 3 and 4 using pre-collected experimental SAED and CBED data
+of a calibration sample of single-crystal Au oriented in the [100]
+direction. This experimental data was collected on a modified Hitachi SU9000
+scanning electron microscope operated at 20 keV.
 
 In order to execute the cells in this notebook, a set of Python libraries need
 to be installed in the Python environment within which the cells of the notebook

@@ -80,6 +80,8 @@ slurm-*.out
 
 # Ignore .h5 data files.
 *.h5
+!examples/modelling/cbed/distortion/estimation/data/for_demo_of_distortion_correction_in_saed_data/distorted_saed_dataset.h5
+!examples/modelling/cbed/distortion/estimation/data/for_demo_of_distortion_correction_in_saed_data/distorted_cbed_dataset.h5
 
 # Ignore temporary files.
 _temp_*

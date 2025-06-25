@@ -92,7 +92,7 @@ is guaranteed to contain the following HDF5 objects:
 
   - testing: <HDF5 group>
 
-    * epes_of_distortion_fields <HDF5 1D dataset>
+    * epes_of_adjusted_distortion_fields <HDF5 1D dataset>
 
       + dim_0: "ml testing data instance idx"
 
@@ -106,13 +106,13 @@ The HDF5 dataset at the HDF5 path ``"/path_to_ml_testing_dataset"`` stores the
 path, as a string, to the ML testing dataset used for the test.
 
 The HDF5 dataset at the HDF5 path
-``"/ml_data_instance_metrics/testing/epes_of_distortion_fields"`` stores the
-end-point errors (EPEs) of the "adjusted" standard distortion fields specified
-by the predicted standard coordinate transformation parameter sets, during
-testing. For every nonnegative integer ``m`` less than the the total number of
-ML testing data instances, the ``m`` th element of the aforementioned HDF5
-dataset is the EPE of the adjusted standard distortion field specified by the
-``m`` th predicted standard standard coordinate transformation set, during
+``"/ml_data_instance_metrics/testing/epes_of_adjusted_distortion_fields"``
+stores the end-point errors (EPEs) of the "adjusted" standard distortion fields
+specified by the predicted standard coordinate transformation parameter sets,
+during testing. For every nonnegative integer ``m`` less than the the total
+number of ML testing data instances, the ``m`` th element of the aforementioned
+HDF5 dataset is the EPE of the adjusted standard distortion field specified by
+the ``m`` th predicted standard standard coordinate transformation set, during
 testing. See the summary documentation of the class
 :class:`emicroml.modelling.cbed.distortion.estimation.MLModelTrainer` for a
 definition of an adjusted standard distortion field, and how the EPE is
