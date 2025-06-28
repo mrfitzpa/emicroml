@@ -43,10 +43,10 @@
 
 #SBATCH --job-name=run_ml_model_test_set_1
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=12      # CPU cores/threads
-#SBATCH --gpus-per-node=a100:1  # GPU type and number of GPUs per node.
-#SBATCH --mem=124G              # CPU memory per node
-#SBATCH --time=00-02:59         # time (DD-HH:MM)
+#SBATCH --cpus-per-task=6               # CPU cores/threads
+#SBATCH --gpus-per-node=a100_3g.20gb:1  # GPU type and number of GPUs per node.
+#SBATCH --mem=62G                       # CPU memory per node
+#SBATCH --time=00-01:59                 # time (DD-HH:MM)
 #SBATCH --mail-type=ALL
 
 
@@ -63,7 +63,7 @@ overwrite_slurm_tmpdir=${5}
 # Overwrite ``SLURM_TMPDIR`` if specified to do so.
 if [ "${overwrite_slurm_tmpdir}" = true ]
 then
-    SLURM_TMPDIR=${path_to_data_dir_1}
+    SLURM_TMPDIR=${path_to_data_dir_1}/tmp_dir
 fi
 
 

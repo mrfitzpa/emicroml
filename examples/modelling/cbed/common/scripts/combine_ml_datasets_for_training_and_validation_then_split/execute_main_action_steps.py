@@ -168,7 +168,7 @@ output_ml_dataset_filename = (path_to_data_dir_1
 
 # Combine the input ML dataset files and then remove the directory containing
 # said input ML dataset files.
-max_num_ml_data_instances_per_file_update = 240
+max_num_ml_data_instances_per_file_update = 480
 
 kwargs = {"input_ml_dataset_filenames": \
           input_ml_dataset_filenames,

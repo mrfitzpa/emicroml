@@ -65,7 +65,7 @@ overwrite_slurm_tmpdir=${8}
 # Overwrite ``SLURM_TMPDIR`` if specified to do so.
 if [ "${overwrite_slurm_tmpdir}" = true ]
 then
-    SLURM_TMPDIR=${path_to_data_dir_1}
+    SLURM_TMPDIR=${path_to_data_dir_1}/tmp_dir
 fi
 
 basename=custom_env_setup_for_slurm_jobs.sh

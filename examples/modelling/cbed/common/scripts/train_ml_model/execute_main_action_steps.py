@@ -174,16 +174,16 @@ if ml_model_task == "cbed/distortion/estimation":
 
     mini_batch_size_set = (64,)
 
-    num_epochs_during_warmup_set = (5,)
+    num_epochs_during_warmup_set = (10,)
     initial_lr_set = (1e-8,)
     max_lr_set = (5e-3,)
 
-    weight_decay_set = (1.25e3,)
+    weight_decay_set = (1.5e-3,)
     momentum_factor_set = (0.9,)
     
     min_lr_in_first_annealing_cycle_set = (2e-5,)
     num_lr_annealing_cycles_set = (1,)
-    num_epochs_in_first_lr_annealing_cycle_set = (10,)
+    num_epochs_in_first_lr_annealing_cycle_set = (20,)
     multiplicative_decay_factor_set = (0.5,)
 
 

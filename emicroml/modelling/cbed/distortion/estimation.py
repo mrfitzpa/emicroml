@@ -2569,7 +2569,7 @@ class MLModelTrainer(_cls_alias):
 
     Consider an abstract undistorted CBED intensity pattern of non-overlapping
     CBED disks that share a common radius, and that outside the CBED disk
-    support the intensity is zero, and inside the any CBED disk support the
+    supports the intensity is zero, and inside each CBED disk support the
     intensity is a common positive value. Next, consider an abstract distorted
     CBED intensity pattern obtained by distorting the abstract undistorted CBED
     intensity pattern according to a standard coordinate
