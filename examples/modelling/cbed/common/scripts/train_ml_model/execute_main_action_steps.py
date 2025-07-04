@@ -178,10 +178,10 @@ if ml_model_task == "cbed/distortion/estimation":
     initial_lr_set = (1e-8,)
     max_lr_set = (5e-3,)
 
-    weight_decay_set = (1.5e-3,)
+    weight_decay_set = (5e-3,)
     momentum_factor_set = (0.9,)
     
-    min_lr_in_first_annealing_cycle_set = (2e-5,)
+    min_lr_in_first_annealing_cycle_set = (5e-6,)
     num_lr_annealing_cycles_set = (1,)
     num_epochs_in_first_lr_annealing_cycle_set = (20,)
     multiplicative_decay_factor_set = (0.5,)

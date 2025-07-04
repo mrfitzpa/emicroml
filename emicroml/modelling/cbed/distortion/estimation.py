@@ -2560,31 +2560,19 @@ class MLModelTrainer(_cls_alias):
     refer to distortions fields that are specified by standard coordinate
     transformation parameters sets as standard distortion fields.
 
-    A standard distortion field can be decomposed into four components, with
-    each component being a distortion field as well, sharing the same distortion
-    center. These components are: the quadratic radial distortion field; the
-    spiral distortion field; the parabolic distortion field; and the elliptical
-    distortion field. The sum of these components yields the original standard
-    distortion field.
-
     Consider an abstract undistorted CBED intensity pattern of non-overlapping
     CBED disks that share a common radius, and that outside the CBED disk
     supports the intensity is zero, and inside each CBED disk support the
     intensity is a common positive value. Next, consider an abstract distorted
     CBED intensity pattern obtained by distorting the abstract undistorted CBED
-    intensity pattern according to a standard coordinate
-    transformation. Generally speaking, i.e. except under special circumstances,
-    the abstract distorted CBED intensity pattern will not be perfectly
-    correlated with the standard distortion field corresponding to the standard
-    coordinate transformation. However, the abstract distorted CBED intensity
-    pattern should be perfectly correlated with a vector field obtained by
-    taking the original standard distortion field, and then adding a constant
-    vector to the elliptical distortion field such that the distortion center of
-    said component is shifted to coincide with the center of the distorted CBED
-    intensity pattern. We refer to this vector field as the "adjusted" standard
-    distortion field, corresponding to the original standard distortion
-    field. We refer to the aforementioned constant vector as the "adjustment"
-    vector.
+    intensity pattern according to a standard coordinate transformation. Under
+    special circumstances, the abstract distorted CBED intensity pattern will
+    not be perfectly correlated with the standard distortion field corresponding
+    to the standard coordinate transformation. However, the abstract distorted
+    CBED intensity pattern should be perfectly correlated with a vector field
+    obtained by subtracting the original standard distortion field by its
+    mean. We refer to the mean of the original standard distortion field as the
+    "adjustment" vector.
 
     Mathematically, the loss associated with a given predicted mini-batch of
     standard coordinate transformation parameter sets, during either training or

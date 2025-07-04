@@ -1913,29 +1913,8 @@ def _identify_outliers_of_predicted_q_sample(predicted_q_sample,
 
 
 def _add_flow_field_offset(distortion_model, flow_field):
-    distortion_model_core_attrs = \
-        distortion_model.get_core_attrs(deep_copy=False)
-    
-    coord_transform_params = \
-        distortion_model_core_attrs["coord_transform_params"]
-    coord_transform_params_core_attrs = \
-        coord_transform_params.get_core_attrs(deep_copy=False)
-
-    x_c_D, y_c_D = \
-        coord_transform_params_core_attrs["center"]
-    radial_cosine_coefficient_matrix = \
-        coord_transform_params_core_attrs["radial_cosine_coefficient_matrix"]
-    radial_sine_coefficient_matrix = \
-        coord_transform_params_core_attrs["radial_sine_coefficient_matrix"]
-
-    delta_x_c_D = x_c_D-0.5
-    delta_y_c_D = y_c_D-0.5
-
-    A_r_2_0 = radial_cosine_coefficient_matrix[2][0]
-    B_r_1_0 = radial_sine_coefficient_matrix[1][0]
-
-    flow_field[0][:, :] += delta_x_c_D*A_r_2_0 + delta_y_c_D*B_r_1_0
-    flow_field[1][:, :] += delta_x_c_D*B_r_1_0 - delta_y_c_D*A_r_2_0
+    flow_field[0][:, :] -= flow_field[0].mean()
+    flow_field[1][:, :] -= flow_field[1].mean()
 
     return None
 

@@ -5157,10 +5157,8 @@ def _calc_shifted_q(ml_data_dict, ml_model):
               distortion_model_set_params}
     q = _calc_q(**kwargs)
 
-    kwargs = {"distortion_model_set_params": distortion_model_set_params,
-              "q": q}
-    _add_distortion_field_offset_to_q(**kwargs)
     shifted_q = q
+    shifted_q[:, :] -= q.mean(dim=(2, 3))[:, :, None, None]
 
     return shifted_q
 
@@ -5336,28 +5334,6 @@ def _add_elliptical_distortion_field_to_q(cached_objs_of_coord_transform_set,
                 + u_r_sin_of_u_theta*B_r_1_0[:, None, None])
     q[:, 1] += (-u_r_sin_of_u_theta*A_r_2_0[:, None, None]
                 + u_r_cos_of_u_theta*B_r_1_0[:, None, None])
-
-    return None
-
-
-
-def _add_distortion_field_offset_to_q(distortion_model_set_params, q):
-    distortion_centers = \
-        distortion_model_set_params["distortion_centers"]
-    elliptical_distortion_vectors = \
-        distortion_model_set_params["elliptical_distortion_vectors"]
-
-    x_c_D = distortion_centers[:, 0]
-    y_c_D = distortion_centers[:, 1]
-    
-    A_r_2_0 = elliptical_distortion_vectors[:, 0]
-    B_r_1_0 = elliptical_distortion_vectors[:, 1]
-
-    delta_x_c_D = x_c_D-0.5
-    delta_y_c_D = y_c_D-0.5
-
-    q[:, 0] += (delta_x_c_D*A_r_2_0 + delta_y_c_D*B_r_1_0)[:, None, None]
-    q[:, 1] += (delta_x_c_D*B_r_1_0 - delta_y_c_D*A_r_2_0)[:, None, None]
 
     return None
 
