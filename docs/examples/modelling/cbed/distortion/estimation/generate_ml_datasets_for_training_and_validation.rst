@@ -40,7 +40,7 @@ successfully are installed. See :ref:`this page
 customize the sequence of commands.
 
 Upon successful completion of the action, for every nonnegative integer ``<k>``
-less than 10, the ``<k>`` th ML dataset is stored in the HDF5 file at the file
+less than 55, the ``<k>`` th ML dataset is stored in the HDF5 file at the file
 path
 ``<root>/examples/modelling/cbed/distortion/estimation/data/ml_datasets/ml_datasets_for_training_and_validation/ml_dataset_<k>.h5``.
 The file structure of each HDF5 file storing an ML dataset is described in the
@@ -48,7 +48,9 @@ documentation for the function
 :func:`emicroml.modelling.cbed.distortion.estimation.generate_and_save_ml_dataset`.
 Each ML dataset contains 11520 ML data instances, where each ML data instance
 stores a :math:`512 \times 512` "fake" CBED pattern containing at most 90 CBED
-disks.
+disks. **Be advised that each file storing an ML dataset is approximately 13.55
+GB in size. Hence, in total, the output resulting from the action is
+approximately 745 GB of data**.
 
 In executing the action described at the beginning of the current page, multiple
 scripts are executed. The particular scripts that are executed depend on the

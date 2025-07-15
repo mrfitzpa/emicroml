@@ -56,7 +56,10 @@ the final CBED pattern of a CBED experiment simulated via the multislice
 technique, where the sample is a 5-layer :math:`\text{MoS}_2` thin film with a
 :math:`0.5 \ \text{nm}` thick layer of amorphous carbon (C). By small-, medium-,
 and large-sized CBED disks, we mean CBED disks with radii equal roughly to 1/35,
-(1/35+1/10)/2, and 1/10 in units of the image width, respectively.
+(1/35+1/10)/2, and 1/10 in units of the image width, respectively. **Be advised
+that each file storing an ML dataset is approximately 3.6 GB in size. Hence, in
+total, the output resulting from the action described at the beginning of the
+current page is approximately 11 GB of data**.
 
 In executing the action described at the beginning of the current page, multiple
 scripts are executed. The particular scripts that are executed depend on the

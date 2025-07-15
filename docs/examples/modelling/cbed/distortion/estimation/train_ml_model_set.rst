@@ -52,6 +52,9 @@ the ML model training procedure, and ``<top_level_data_dir>`` is
 ``<root>/examples/modelling/cbed/distortion/estimation/data``. Additionally, the
 ML model training summary output data file is saved to
 ``<top_level_data_dir>/ml_models/ml_model_0/ml_model_training_summary_output_data.h5"``.
+**Be advised that the files storing the dictionary representation of the ML
+model and the ML model training summary output data are 338 MB and 61 MB in size
+respectively**.
 
 In executing the action described at the beginning of the current page, multiple
 scripts are executed. The particular scripts that are executed depend on the

@@ -57,7 +57,11 @@ HDF5 files at the file paths
 and
 ``<top_level_data_dir>/ml_datasets/ml_datasets_for_training_and_validation/ml_dataset_for_validation.h5``
 respectively, where ``<top_level_data_dir>`` is
-``<root>/examples/modelling/cbed/distortion/estimation/data``.
+``<root>/examples/modelling/cbed/distortion/estimation/data``. **Be advised that
+the files storing the ML datasets intended for training and validating the ML
+models are approximately 620 GB and 125 GB in size respectively. Moreover,
+approximately 1500 GB of free temporary storage space is required to complete
+successfully the action described at the beginning of the curent page**.
 
 In executing the action described at the beginning of the current page, multiple
 scripts are executed. The particular scripts that are executed depend on the

@@ -38,6 +38,21 @@
 # addition to installing ``emicroml``. Otherwise, the script will attempt to
 # install only ``emicroml`` and its dependencies, i.e. not the additional
 # libraries required to run the examples.
+#
+# If the virtual environment is to be created on either the ``narval``,
+# ``beluga``, or ``graham`` HPC server belonging to DRAC, and the script with
+# the basename ``download_wheels_for_offline_env_setup_on_drac_server.sh`` at
+# the root of the repository has never been executed, then one must first change
+# into the root of the repository, and subsequently execute that script via the
+# following command::
+#
+#  bash download_wheels_for_offline_env_setup_on_drac_server.sh
+#
+# Upon completion of that script, a set of Python wheels will be downloaded to
+# the directory ``<root>/_wheels_for_offline_env_setup_on_drac_server``, where
+# ``<root>`` is the root of the repository. Note that that script only needs to
+# be executed once, assuming one does not modify or delete the directory
+# ``<root>/_wheels_for_offline_env_setup_on_drac_server``.
 
 
 
@@ -60,8 +75,10 @@ path_to_repo_root=$(${cmd})
 
 
 # Automatically determine whether the script is being executed on a DRAC HPC
-# server.
+# server. Also determine whether we need to install some libraries from wheels
+# that were previously downloaded.
 current_machine_is_on_a_drac_server=false
+drac_compute_nodes_have_internet_access=false
 
 dns_domain_name_of_current_machine=$(hostname -d)
 if [ -z "${dns_domain_name_of_current_machine}" ]
@@ -69,16 +86,35 @@ then
     dns_domain_name_of_current_machine=$(hostname | grep -oP '(?<=\.).*$')
 fi
 
-readarray -t drac_dns_domain_names < ${path_to_repo_root}/drac_dns_domain_names
+basename=drac_dns_domain_name_to_internet_accessibility_map
+path_to_file_to_read=${path_to_repo_root}/${basename}
 
-for drac_dns_domain_name in "${drac_dns_domain_names[@]}"
+while read line
 do
-    if [ "${drac_dns_domain_name}" = "${dns_domain_name_of_current_machine}" ]
+    key_val_pair=(${line})
+    key=${key_val_pair[0]}
+    val=${key_val_pair[1]}
+
+    drac_dns_domain_name=${key}
+    if [ "${key}" = "${dns_domain_name_of_current_machine}" ]
     then
-	current_machine_is_on_a_drac_server=true
-	break
+    	current_machine_is_on_a_drac_server=true
+
+    	internet_accessibility=${val}
+    	if [ "${val}" = "compute_nodes_have_internet_access" ]
+    	then
+    	    drac_compute_nodes_have_internet_access=true
+    	fi	
+
+    	break
     fi
-done
+done < ${path_to_file_to_read}
+
+
+
+# Create a temporary directory, in which to install ``emicroml`` further below.
+path_to_temp_dir=${path_to_repo_root}/temp_${SLURM_JOB_ID}
+mkdir -p ${path_to_temp_dir}
 
 
 
@@ -97,7 +133,8 @@ then
 
 
     # Load some DRAC software modules.
-    source ${path_to_repo_root}/load_drac_modules.sh
+    module load StdEnv/2023
+    module load python/3.11 hdf5 cuda
 
 
 
@@ -116,12 +153,33 @@ then
     # Install the remaining libraries in the virtual environment, except for
     # ``emicroml``. Where applicable, GPU-supported versions of libraries are
     # installed.
-    pkgs="numpy numba hyperspy h5py pytest ipympl jupyter torch kornia"
+    pkgs="numpy<2.0.0 numba hyperspy h5py pytest ipympl jupyter torch kornia"
     pkgs=${pkgs}" blosc2 msgpack"
+    if [ "${install_libs_required_to_run_all_examples}" = true ]
+    then
+	pkgs=${pkgs}" pyopencl pyFAI pyprismatic-gpu"
+    fi
     pip install --no-index ${pkgs}
 
-    pkgs="fakecbed>=0.3.6 h5pywrappers"
-    pip install ${pkgs}
+    if [ "${drac_compute_nodes_have_internet_access}" = false ]
+    then
+	cd ${path_to_repo_root}/_wheels_for_offline_env_setup_on_drac_server
+
+	pkgs="czekitout*.whl fancytypes*.whl h5pywrappers*.whl"
+	pkgs=${pkgs}" distoptica*.whl fakecbed*.whl"
+	if [ "${install_libs_required_to_run_all_examples}" = true ]
+	then
+	    pkgs=${pkgs}" empix*.whl embeam*.whl prismatique*.whl"
+	fi
+	pip install ${pkgs}
+    else
+	pkgs="fakecbed>=0.3.6 h5pywrappers"
+	if [ "${install_libs_required_to_run_all_examples}" = true ]
+	then
+	    pkgs=${pkgs}" prismatique"
+	fi
+	pip install ${pkgs}
+    fi	
 
     if [ "${install_libs_required_to_run_all_examples}" = true ]
     then
@@ -200,7 +258,7 @@ else
 
     # Create the ``conda`` virtual environment and install a subset of
     # libraries, then activate the virtual environment.
-    pkgs="python=3.10 numpy numba hyperspy h5py pytest ipympl jupyter"
+    pkgs="python=3.11 numpy numba hyperspy h5py pytest ipympl jupyter"
     pkgs=${pkgs}" fakecbed>=0.3.6 h5pywrappers"
     conda create -n ${virtual_env_name} ${pkgs} -y -c conda-forge
     conda activate ${virtual_env_name}
@@ -226,9 +284,17 @@ fi
 
 
 
-# Install ``emicroml``.
-cd ${path_to_repo_root}
+# Install ``emicroml`` and then remove the temporary directory that we created
+# above.
+path_to_required_git_repos=${path_to_repo_root}/required_git_repos
+path_to_copy_of_required_git_repos=${path_to_temp_dir}/required_git_repos
+cp -r ${path_to_required_git_repos} ${path_to_copy_of_required_git_repos}
+
+cd ${path_to_copy_of_required_git_repos}/emicroml
 pip install .
+
+cd ${path_to_repo_root}
+rm -rf ${path_to_temp_dir}
 
 
 

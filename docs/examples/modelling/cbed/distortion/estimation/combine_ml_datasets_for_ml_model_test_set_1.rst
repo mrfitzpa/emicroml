@@ -51,7 +51,9 @@ the sequence ``(small, medium, large)``, the HDF5 file at the file path
 is moved to
 ``<top_level_data_dir>/ml_datasets/ml_datasets_for_ml_model_test_set_1/ml_datasets_with_cbed_patterns_of_MoS2_on_amorphous_C/ml_dataset_with_<disk_size>_sized_disks.h5``,
 where ``<top_level_data_dir>`` is
-``<root>/examples/modelling/cbed/distortion/estimation/data``.
+``<root>/examples/modelling/cbed/distortion/estimation/data``. **Be advised that
+approximately 22 GB of free temporary storage space is required to complete
+successfully the action described at the beginning of the curent page**.
 
 In executing the action described at the beginning of the current page, multiple
 scripts are executed. The particular scripts that are executed depend on the

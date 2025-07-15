@@ -1,0 +1,5 @@
+int.cedar.computecanada.ca compute_nodes_have_internet_access
+scinet.local compute_nodes_have_internet_access
+narval.calcul.quebec compute_nodes_do_not_have_internet_access
+int.ets1.calculquebec.ca compute_nodes_do_not_have_internet_access
+graham.sharcnet compute_nodes_do_not_have_internet_access

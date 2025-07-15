@@ -15,7 +15,7 @@ models/
 examples/modelling/cbed/simulations/MoS2_backup/
 *_backup_*
 test_data/
-_wheels_for_custom_env_setup/
+_wheels_for_offline_env_setup_on_drac_server/
 
 # Ignore select files
 .coverage
@@ -88,3 +88,6 @@ _temp_*
 
 # Ignore legacy files.
 *_legacy.py
+
+# Ignore subset of .ipynb files.
+*_sandbox.ipynb
