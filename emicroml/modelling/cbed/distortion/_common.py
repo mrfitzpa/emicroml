@@ -352,6 +352,9 @@ class _DefaultDistortionModelGenerator(fancytypes.PreSerializableAndUpdatable):
         self._parabolic_distortion_phase_min = 0
         self._parabolic_distortion_phase_max = 2*np.pi
 
+        self._min_fractional_mask_frame_width = 0/6
+        self._max_fractional_mask_frame_width = 1/6
+
         return None
 
 
@@ -426,13 +429,13 @@ class _DefaultDistortionModelGenerator(fancytypes.PreSerializableAndUpdatable):
                 func_alias = distoptica.generate_standard_distortion_model
                 distortion_model = func_alias(**kwargs)
 
-                attr_name = "convergence_map_of_distorted_then_resampled_images"
-                convergence_map = getattr(distortion_model, attr_name)
+                method_alias = \
+                    self._distortion_model_requires_an_invalid_mask_frame
+                distortion_model_requires_an_invalid_mask_frame = \
+                    method_alias(distortion_model)
 
-                if not torch.all(convergence_map):
-                    unformatted_err_msg = \
-                        _default_distortion_model_generator_err_msg_1
-                    
+                if distortion_model_requires_an_invalid_mask_frame:
+                    err_msg = default_distortion_model_generator_err_msg_1
                     raise ValueError(err_msg)
 
                 distortion_model_generation_has_not_been_completed = False
@@ -541,6 +544,31 @@ class _DefaultDistortionModelGenerator(fancytypes.PreSerializableAndUpdatable):
                                        parabolic_distortion_vector[1].item())
 
         return parabolic_distortion_vector
+
+
+
+    def _distortion_model_requires_an_invalid_mask_frame(self,
+                                                         distortion_model):
+        attr_name = "convergence_map_of_distorted_then_resampled_images"
+        convergence_map = getattr(distortion_model, attr_name)
+
+        attr_name = "mask_frame_of_distorted_then_resampled_images"
+        mask_frame = getattr(distortion_model, attr_name)
+
+        L, R, B, T = mask_frame
+        sampling_grid_dims_in_pixels = self._sampling_grid_dims_in_pixels
+        fractional_mask_frame = (L/sampling_grid_dims_in_pixels[0],
+                                 R/sampling_grid_dims_in_pixels[0],
+                                 B/sampling_grid_dims_in_pixels[1],
+                                 T/sampling_grid_dims_in_pixels[1])
+
+        min_w = self._min_fractional_mask_frame_width
+        max_w = self._max_fractional_mask_frame_width
+
+        distortion_model_requires_an_invalid_mask_frame = \
+            np.any(tuple((w<min_w) or (max_w<w) for w in fractional_mask_frame))
+
+        return distortion_model_requires_an_invalid_mask_frame
 
 
 
@@ -671,13 +699,10 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             attr = self_core_attrs[self_core_attr_name]
             setattr(self, attr_name, attr)
         
-        sampling_grid_dims_in_pixels = \
-            2*(self._num_pixels_across_each_cbed_pattern,)
-
         kwargs = \
             {"reference_pt": (0.5, 0.5),
              "rng_seed": self._rng_seed,
-             "sampling_grid_dims_in_pixels": sampling_grid_dims_in_pixels,
+             "sampling_grid_dims_in_pixels": self._sampling_grid_dims_in_pixels,
              "least_squares_alg_params": self._least_squares_alg_params,
              "device_name": self._device_name,
              "skip_validation_and_conversion": True}
@@ -699,6 +724,11 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             self._generate_characteristic_sizes_of_orbitals()
         self._characteristic_scales_of_orbitals = \
             self._generate_characteristic_scales_of_orbitals()
+
+        self._min_fractional_mask_frame_width = \
+            self._distortion_model_generator._min_fractional_mask_frame_width
+        self._max_fractional_mask_frame_width = \
+            self._distortion_model_generator._max_fractional_mask_frame_width
 
         return None
 
@@ -904,9 +934,12 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         distortion_model = \
             self._generate_distortion_model(undistorted_tds_model_1)
         
+        mask_frame = self._generate_mask_frame(distortion_model)
+        
         kwargs = \
             {"undistorted_tds_model_1": undistorted_tds_model_1,
-             "distortion_model": distortion_model}
+             "distortion_model": distortion_model,
+             "mask_frame": mask_frame}
         undistorted_outer_illumination_shape = \
             self._generate_undistorted_outer_illumination_shape(**kwargs)
             
@@ -939,7 +972,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                                "detector_partition_width_in_pixels": \
                                2*self._rng.integers(low=0, high=4).item(),
                                "mask_frame": \
-                               (0, 0, 0, 0)}
+                               mask_frame}
 
         return cbed_pattern_params
 
@@ -1086,8 +1119,38 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
+    def _generate_mask_frame(self, distortion_model):
+        sampling_grid_dims_in_pixels = \
+            self._sampling_grid_dims_in_pixels
+        num_pixels_across_each_cbed_pattern = \
+            self._num_pixels_across_each_cbed_pattern
+
+        attr_name = "mask_frame_of_distorted_then_resampled_images"
+        quadruple_1 = np.array(getattr(distortion_model, attr_name),
+                               dtype=float)
+        quadruple_1[:2] /= sampling_grid_dims_in_pixels[0]
+        quadruple_1[2:] /= sampling_grid_dims_in_pixels[1]
+
+        kwargs = {"low": self._min_fractional_mask_frame_width,
+                  "high": self._max_fractional_mask_frame_width,
+                  "size": 4}
+        quadruple_2 = self._rng.uniform(**kwargs)
+
+        trivial_mask_frame_is_not_to_be_generated = \
+            self._rng.choice((True, False), p=(1/2, 1-1/2)).item()
+
+        mask_frame = \
+            tuple(np.round(((quadruple_1>=quadruple_2)*quadruple_1
+                            + (quadruple_1<quadruple_2)*quadruple_2)
+                           * num_pixels_across_each_cbed_pattern).astype(int)
+                  * trivial_mask_frame_is_not_to_be_generated)
+
+        return mask_frame
+
+
+
     def _generate_undistorted_outer_illumination_shape(
-            self, undistorted_tds_model_1, distortion_model):
+            self, undistorted_tds_model_1, distortion_model, mask_frame):
         kwargs = \
             {"undistorted_tds_model_1": undistorted_tds_model_1}
         reference_pt_of_distortion_model_generator = \
@@ -1107,7 +1170,9 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         kwargs = {"reference_pt_of_distortion_model_generator": \
                   reference_pt_of_distortion_model_generator,
                   "distortion_model": \
-                  distortion_model}
+                  distortion_model,
+                  "mask_frame": \
+                  mask_frame}
         undistorted_outer_illumination_shape = method_alias(**kwargs)
 
         return undistorted_outer_illumination_shape
@@ -1115,7 +1180,10 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_elliptical_undistorted_outer_illumination_shape(
-            self, reference_pt_of_distortion_model_generator, distortion_model):
+            self,
+            reference_pt_of_distortion_model_generator,
+            distortion_model,
+            mask_frame):
         rng = self._rng
 
         u_r_E = abs(rng.normal(loc=0, scale=1/20))
@@ -1130,7 +1198,9 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         center = (center[0].item(), center[1].item())
 
         kwargs = {"reference_pt_of_distortion_model_generator": \
-                  reference_pt_of_distortion_model_generator}
+                  reference_pt_of_distortion_model_generator,
+                  "mask_frame": \
+                  mask_frame}
         semi_major_axis = self._generate_semi_major_axis(**kwargs)
 
         kwargs = {"center": center,
@@ -1146,14 +1216,17 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_semi_major_axis(self,
-                                  reference_pt_of_distortion_model_generator):
+                                  reference_pt_of_distortion_model_generator,
+                                  mask_frame):
         rng = self._rng
+
+        choices = ((sum(mask_frame) != 0)*1e6, 1e6)
 
         loc = (max(reference_pt_of_distortion_model_generator[0],
                    1-reference_pt_of_distortion_model_generator[0],
                    reference_pt_of_distortion_model_generator[1],
                    1-reference_pt_of_distortion_model_generator[1])
-               + rng.choice((0.0, 1e6), p=(3/4, 1-3/4)).item())
+               + rng.choice(choices, p=(3/4, 1-3/4)).item())
         semi_major_axis = loc + rng.uniform(low=-loc/6, high=loc/6)
 
         return semi_major_axis
@@ -1161,7 +1234,10 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_generic_undistorted_outer_illumination_shape(
-            self, reference_pt_of_distortion_model_generator, distortion_model):
+            self,
+            reference_pt_of_distortion_model_generator,
+            distortion_model,
+            mask_frame):
         rng = self._rng
 
         u_r_GB = abs(rng.normal(loc=0, scale=1/20))
@@ -1176,7 +1252,9 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
              - u_r_GB*sin(u_phi_GB).item())
 
         kwargs = {"reference_pt_of_distortion_model_generator": \
-                  reference_pt_of_distortion_model_generator}
+                  reference_pt_of_distortion_model_generator,
+                  "mask_frame": \
+                  mask_frame}
         radial_amplitude = self._generate_radial_amplitude(**kwargs)
 
         num_amplitudes = rng.integers(low=2, high=4, endpoint=True).item()
@@ -1207,9 +1285,12 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_radial_amplitude(self,
-                                   reference_pt_of_distortion_model_generator):
+                                   reference_pt_of_distortion_model_generator,
+                                   mask_frame):
         kwargs = {"reference_pt_of_distortion_model_generator": \
-                  reference_pt_of_distortion_model_generator}
+                  reference_pt_of_distortion_model_generator,
+                  "mask_frame": \
+                  mask_frame}
         semi_major_axis = self._generate_semi_major_axis(**kwargs)
         radial_amplitude = semi_major_axis
 
@@ -5557,7 +5638,9 @@ def _pre_serialize_ml_model_tester(ml_model_tester):
 _default_distortion_model_generator_err_msg_1 = \
     ("The distortion model generator generated a distortion model with a "
      "flow-field of the right-inverse of its corresponding coordinate "
-     "transformation that is not well-defined for all pixels.")
+     "transformation that is not well-defined for pixels outside of the mask "
+     "frame of the maximum permitted width, which is one sixth of the image "
+     "width.")
 _default_distortion_model_generator_err_msg_2 = \
     ("The distortion model generator has exceeded its programmed maximum "
      "number of attempts {} to generate a valid distortion model: see "

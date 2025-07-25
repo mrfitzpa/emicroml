@@ -155,6 +155,7 @@ path_to_input_ml_datasets = (path_to_data_dir_1
 input_ml_dataset_filenames = [path_to_input_ml_datasets + "/" + name
                               for name in os.listdir(path_to_input_ml_datasets)
                               if re.fullmatch(pattern, name)]
+input_ml_dataset_filenames.sort()
 
 
 
