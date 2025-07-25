@@ -49,6 +49,8 @@ module load python/3.11
 pip download --no-deps czekitout
 pip download --no-deps fancytypes
 pip download --no-deps h5pywrappers
+pip download --no-deps distoptica
+pip download --no-deps fakecbed
 pip download --no-deps empix
 pip download --no-deps embeam
 pip download --no-deps prismatique
