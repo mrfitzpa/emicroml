@@ -3524,6 +3524,7 @@ _cls_alias = _module_alias._MLDataSplitter
 class _MLDataSplitter(_cls_alias):
     def __init__(self,
                  input_ml_dataset_filename,
+                 enable_shuffling,
                  rng_seed,
                  max_num_ml_data_instances_per_file_update,
                  split_ratio):
@@ -3539,6 +3540,8 @@ class _MLDataSplitter(_cls_alias):
                   input_ml_dataset_filename,
                   "ml_data_normalization_weights_and_biases_loader": \
                   ml_data_normalization_weights_and_biases_loader,
+                  "enable_shuffling": \
+                  enable_shuffling,
                   "rng_seed": \
                   rng_seed,
                   "max_num_ml_data_instances_per_file_update": \
@@ -3757,6 +3760,8 @@ _default_output_ml_dataset_filename_3 = \
     _module_alias._default_output_ml_dataset_filename_3
 _default_split_ratio = \
     _module_alias._default_split_ratio
+_default_enable_shuffling = \
+    _module_alias._default_enable_shuffling
 _default_rm_input_ml_dataset_file = \
     _module_alias._default_rm_input_ml_dataset_file
 
@@ -3768,6 +3773,7 @@ def _split_ml_dataset_file(output_ml_dataset_filename_1,
                            max_num_ml_data_instances_per_file_update,
                            input_ml_dataset_filename,
                            split_ratio,
+                           enable_shuffling,
                            rng_seed,
                            rm_input_ml_dataset_file,
                            start_time):
@@ -3784,6 +3790,8 @@ def _split_ml_dataset_file(output_ml_dataset_filename_1,
 
     kwargs = {"input_ml_dataset_filename": \
               input_ml_dataset_filename,
+              "enable_shuffling": \
+              enable_shuffling,
               "rng_seed": \
               rng_seed,
               "max_num_ml_data_instances_per_file_update": \

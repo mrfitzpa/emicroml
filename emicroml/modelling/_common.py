@@ -1824,6 +1824,7 @@ class _MLDataSplitter():
     def __init__(self,
                  input_ml_dataset_filename,
                  ml_data_normalization_weights_and_biases_loader,
+                 enable_shuffling,
                  rng_seed,
                  max_num_ml_data_instances_per_file_update,
                  split_ratio):
@@ -1831,6 +1832,8 @@ class _MLDataSplitter():
             input_ml_dataset_filename
         self._ml_data_normalization_weights_and_biases_loader = \
             ml_data_normalization_weights_and_biases_loader
+        self._enable_shuffling = \
+            enable_shuffling
         self._rng_seed = \
             rng_seed
 
@@ -1870,6 +1873,7 @@ class _MLDataSplitter():
     def _calc_partition_plan(self):
         rng = np.random.default_rng(self._rng_seed)
         adjusted_split_ratio = self._adjusted_split_ratio
+        enable_shuffling = self._enable_shuffling
 
         ml_data_instance_idx_to_output_ml_dataset_idx_map = \
             tuple()
@@ -1884,8 +1888,9 @@ class _MLDataSplitter():
                 (ml_dataset_idx,)*num_ml_data_instances_in_ml_dataset
         ml_data_instance_idx_to_output_ml_dataset_idx_map = \
             np.array(ml_data_instance_idx_to_output_ml_dataset_idx_map)
-        _ = \
-            rng.shuffle(ml_data_instance_idx_to_output_ml_dataset_idx_map)
+        if enable_shuffling:
+            _ = \
+                rng.shuffle(ml_data_instance_idx_to_output_ml_dataset_idx_map)
 
         output_ml_dataset_idx_to_ml_data_instance_idx_subset_map = \
             tuple()
@@ -2742,6 +2747,11 @@ def _check_and_convert_split_ml_dataset_file_params(params):
         func_alias(params)
 
     func_alias = \
+        _check_and_convert_enable_shuffling
+    params["enable_shuffling"] = \
+        func_alias(params)
+
+    func_alias = \
         _check_and_convert_rng_seed
     params["rng_seed"] = \
         func_alias(params)
@@ -2845,6 +2855,15 @@ def _check_and_convert_split_ratio(params):
 
 
 
+def _check_and_convert_enable_shuffling(params):
+    obj_name = "enable_shuffling"
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    enable_shuffling = czekitout.convert.to_bool(**kwargs)
+    
+    return enable_shuffling
+
+
+
 def _check_and_convert_rng_seed(params):
     obj_name = "rng_seed"
 
@@ -2885,6 +2904,7 @@ _default_output_ml_dataset_filename_1 = "ml_dataset_for_training.h5"
 _default_output_ml_dataset_filename_2 = "ml_dataset_for_validation.h5"
 _default_output_ml_dataset_filename_3 = "ml_dataset_for_testing.h5"
 _default_split_ratio = (80, 10, 10)
+_default_enable_shuffling = False
 _default_rng_seed = None
 _default_rm_input_ml_dataset_file = False
 

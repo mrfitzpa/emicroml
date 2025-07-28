@@ -44,8 +44,8 @@
 
 #SBATCH --job-name=combine_ml_datasets_for_training_and_validation_then_split
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=2  # CPU cores/threads
-#SBATCH --mem=8G           # CPU memory per node
+#SBATCH --cpus-per-task=8  # CPU cores/threads
+#SBATCH --mem=32G          # CPU memory per node
 #SBATCH --time=00-23:59    # time (DD-HH:MM)
 #SBATCH --mail-type=ALL
 

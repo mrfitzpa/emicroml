@@ -291,6 +291,7 @@ path_to_copy_of_required_git_repos=${path_to_temp_dir}/required_git_repos
 cp -r ${path_to_required_git_repos} ${path_to_copy_of_required_git_repos}
 
 cd ${path_to_copy_of_required_git_repos}/emicroml
+git status
 pip install .
 
 cd ${path_to_repo_root}

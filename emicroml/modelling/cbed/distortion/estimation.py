@@ -904,6 +904,8 @@ _default_output_ml_dataset_filename_2 = \
     _module_alias._default_output_ml_dataset_filename_2
 _default_output_ml_dataset_filename_3 = \
     _module_alias._default_output_ml_dataset_filename_3
+_default_enable_shuffling = \
+    _module_alias._default_enable_shuffling
 _default_split_ratio = \
     _module_alias._default_split_ratio
 _default_rm_input_ml_dataset_file = \
@@ -921,6 +923,8 @@ def split_ml_dataset_file(
         _default_output_ml_dataset_filename_3,
         split_ratio=\
         _default_split_ratio,
+        enable_shuffling=\
+        _default_enable_shuffling,
         rng_seed=\
         _default_split_ratio,
         rm_input_ml_dataset_file=\
@@ -950,8 +954,8 @@ def split_ml_dataset_file(
     The actual number of output HDF5 files is determined by the parameter
     ``split_ratio``. The distribution of the copies of the input ML data
     instances is determined by the total number of input ML data instances
-    ``num_input_ml_data_instances``, and the parameters ``split_ratio``, and
-    ``rng_seed``.
+    ``num_input_ml_data_instances``, and the parameters ``split_ratio``,
+    ``enable_shuffling``, and ``rng_seed``.
 
     From ``split_ratio`` and ``num_input_ml_data_instances``, the current
     function calculates an adjusted split ratio ``adjusted_split_ratio`` and
@@ -981,8 +985,10 @@ def split_ml_dataset_file(
 
     1. Copy the input ML data instances.
 
-    2. Reorder the copy of the input ML data instances using a random number
-    generator with the seed specified by ``rng_seed``.
+    2. If ``enable_shuffling`` is set to ``True``, then reorder the copy of the
+    input ML data instances using a random number generator with the seed
+    specified by ``rng_seed``. Otherwise, if ``enable_shuffling`` is set to
+    ``False``, then no reordering is performed.
 
     3. If ``adjusted_split_ratio[0] > 0`` go to instruction 4. Otherwise, go to
     instruction 7.
@@ -1035,6 +1041,11 @@ def split_ml_dataset_file(
     split_ratio : `array_like` (`float`, ndim=1), optional
         The split ratio. Must be a triplet of nonnegative numbers that add up to
         a positive number.
+    enable_shuffling : `bool`, optional
+        If ``enable_shuffling`` is set to ``True``, then the copy of the input
+        ML data instances is reordered using a random number generator prior to
+        splitting. Otherwise, if ``enable_shuffling`` is set to ``False``, then
+        no reordering is performed.
     rng_seed : `int` | `None`, optional
         ``rng_seed`` specifies the seed used in the random number generator, 
         which specifies the distribution of the ML data instances. 
@@ -1080,6 +1091,7 @@ def _split_ml_dataset_file(output_ml_dataset_filename_1,
                            max_num_ml_data_instances_per_file_update,
                            input_ml_dataset_filename,
                            split_ratio,
+                           enable_shuffling,
                            rng_seed,
                            rm_input_ml_dataset_file,
                            start_time):

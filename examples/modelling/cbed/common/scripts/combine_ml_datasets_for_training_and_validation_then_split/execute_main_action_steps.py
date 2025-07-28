@@ -169,7 +169,7 @@ output_ml_dataset_filename = (path_to_data_dir_1
 
 # Combine the input ML dataset files and then remove the directory containing
 # said input ML dataset files.
-max_num_ml_data_instances_per_file_update = 480
+max_num_ml_data_instances_per_file_update = 11520
 
 kwargs = {"input_ml_dataset_filenames": \
           input_ml_dataset_filenames,
@@ -211,6 +211,8 @@ kwargs = {"input_ml_dataset_filename": \
           output_ml_dataset_filename_3,
           "split_ratio": \
           (80, 20, 0),
+          "enable_shuffling": \
+          False,
           "rng_seed": \
           1100,
           "rm_input_ml_dataset_file": \
