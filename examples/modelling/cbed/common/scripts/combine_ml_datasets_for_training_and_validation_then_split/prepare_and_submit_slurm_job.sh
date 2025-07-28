@@ -44,9 +44,10 @@
 
 #SBATCH --job-name=combine_ml_datasets_for_training_and_validation_then_split
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=8  # CPU cores/threads
-#SBATCH --mem=32G          # CPU memory per node
-#SBATCH --time=00-23:59    # time (DD-HH:MM)
+#SBATCH --cpus-per-task=6               # CPU cores/threads
+#SBATCH --gpus-per-node=a100_3g.20gb:1  # GPU type and number of GPUs per node.
+#SBATCH --mem=60G                       # CPU memory per node
+#SBATCH --time=00-23:59                 # time (DD-HH:MM)
 #SBATCH --mail-type=ALL
 
 
@@ -78,13 +79,40 @@ source ${path_to_repo_root}/${basename} ${SLURM_TMPDIR}/tempenv false
 
 
 
+# Copy the input data to temporary directories.
+partial_path_1=ml_datasets
+partial_path_2=${partial_path_1}/ml_datasets_for_training_and_validation
+
+dirname_1=${path_to_data_dir_1}/${partial_path_2}
+for filename_1 in ${dirname_1}/ml_dataset_*.h5
+do
+    basename_1=$(basename "${filename_1}")
+    basename_2=${basename_1}
+    dirname_2=${SLURM_TMPDIR}/${partial_path_2}
+    filename_2=${dirname_2}/${basename_2}
+
+    mkdir -p ${dirname_2}
+    if [ "${filename_1}" != "${filename_2}" ]
+    then
+	cp ${filename_1} ${filename_2}
+	msg="Copied file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
+	echo ${msg}
+	echo ""
+    fi
+done
+
+echo ""
+echo ""
+
+
+
 # Execute the script which executes the main action steps.
 basename=execute_main_action_steps.py
 path_to_script_to_execute=${path_to_dir_containing_current_script}/${basename}
 
 python ${path_to_script_to_execute} \
        --ml_model_task=${ml_model_task} \
-       --data_dir_1=${path_to_data_dir_1}
+       --data_dir_1=${SLURM_TMPDIR}
 python_script_exit_code=$?
 
 if [ "${python_script_exit_code}" != 0 ];
@@ -96,6 +124,34 @@ then
 fi
 
 
+
+# Move the non-temporary output data that is generated from the main steps to
+# their expected final destinations. Also delete/remove any remaining temporary
+# files or directories.
+cd ${SLURM_TMPDIR}
+
+ml_dataset_types=(training validation)
+
+for ml_dataset_type in "${ml_dataset_types[@]}"
+do
+    dirname_1=${SLURM_TMPDIR}/${partial_path_1}
+    dirname_2=${path_to_data_dir_1}/${partial_path_1}
+    basename_1=ml_dataset_for_${ml_dataset_type}.h5
+    basename_2=${basename_1}
+    filename_1=${dirname_1}/${basename_1}
+    filename_2=${dirname_2}/${basename_2}
+
+    mkdir -p ${dirname_2}
+    if [ "${filename_1}" != "${filename_2}" ]
+    then
+	mv ${filename_1} ${filename_2}
+	msg="Moved file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
+	echo ${msg}
+	echo ""
+    fi
+done
+
+rm -rf ${path_to_data_dir_1}/${partial_path_2}
 
 if [ "${overwrite_slurm_tmpdir}" = true ]
 then

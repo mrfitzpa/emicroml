@@ -2078,6 +2078,8 @@ class _MLDataSplitter():
                          input_hdf5_dataset):
         ml_data_instance_idx_subset_of_input_ml_dataset = \
             self._partition_plan[output_ml_dataset_idx]
+        shuffling_has_been_enabled = \
+            self._enable_shuffling
 
         start = chunk_idx*max_num_ml_data_instances_per_chunk
         stop_candidate_1 = len(ml_data_instance_idx_subset_of_input_ml_dataset)
@@ -2087,7 +2089,10 @@ class _MLDataSplitter():
 
         idx_subset = ml_data_instance_idx_subset_of_input_ml_dataset
         idx_subsubset = list(idx_subset[single_dim_slice])
-        data_chunk = input_hdf5_dataset[idx_subsubset]
+        
+        data_chunk = (input_hdf5_dataset[idx_subsubset]
+                      if shuffling_has_been_enabled
+                      else input_hdf5_dataset[single_dim_slice])
 
         return data_chunk
 
