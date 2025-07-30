@@ -452,8 +452,14 @@ class CBEDPatternGenerator():
             try:
                 cbed_pattern_params["distortion_model"] = \
                     self._distortion_model_generator.generate()
-                cbed_pattern_params["undistorted_outer_illumination_shape"] = \
-                    self._generate_undistorted_outer_illumination_shape()
+
+                key_subset = ("mask_frame",
+                              "undistorted_outer_illumination_shape")
+                for key in key_subset:
+                    method_name = "_generate_{}".format(key)
+                    method_alias = getattr(self, method_name)
+                    kwargs = {"cbed_pattern_params": cbed_pattern_params}
+                    cbed_pattern_params[key] = method_alias(**kwargs)
 
                 kwargs = cbed_pattern_params
                 cbed_pattern = fakecbed.discretized.CBEDPattern(**kwargs)
@@ -485,9 +491,49 @@ class CBEDPatternGenerator():
 
         return cbed_pattern
 
+
+
+    def _generate_mask_frame(self, cbed_pattern_params):
+        distortion_model = cbed_pattern_params["distortion_model"]
+
+        min_fractional_mask_frame_width = \
+            self._distortion_model_generator._min_fractional_mask_frame_width
+        max_fractional_mask_frame_width = \
+            self._distortion_model_generator._max_fractional_mask_frame_width
+
+        sampling_grid_dims_in_pixels = \
+            self._sampling_grid_dims_in_pixels
+        num_pixels_across_each_cbed_pattern = \
+            sampling_grid_dims_in_pixels[0]
+
+        attr_name = "mask_frame_of_distorted_then_resampled_images"
+        quadruple_1 = np.array(getattr(distortion_model, attr_name),
+                               dtype=float)
+        quadruple_1[:2] /= sampling_grid_dims_in_pixels[0]
+        quadruple_1[2:] /= sampling_grid_dims_in_pixels[1]
+
+        kwargs = {"low": min_fractional_mask_frame_width,
+                  "high": max_fractional_mask_frame_width,
+                  "size": 4}
+        quadruple_2 = self._rng.uniform(**kwargs)
+
+        trivial_mask_frame_is_not_to_be_generated = \
+            self._rng.choice((True, False), p=(1/2, 1-1/2)).item()
+
+        mask_frame = \
+            tuple(np.round(((quadruple_1>=quadruple_2)*quadruple_1
+                            + (quadruple_1<quadruple_2)*quadruple_2)
+                           * num_pixels_across_each_cbed_pattern).astype(int)
+                  * trivial_mask_frame_is_not_to_be_generated)
+
+        return mask_frame
+
     
 
-    def _generate_undistorted_outer_illumination_shape(self):
+    def _generate_undistorted_outer_illumination_shape(self,
+                                                       cbed_pattern_params):
+        mask_frame = cbed_pattern_params["mask_frame"]
+
         undistorted_outer_illumination_shape_is_elliptical = \
             self._rng.choice((True, False), p=(3/4, 1/4)).item()
 
@@ -499,13 +545,15 @@ class CBEDPatternGenerator():
                            "_undistorted_outer_illumination_shape")
             
         method_alias = getattr(self, method_name)
-        undistorted_outer_illumination_shape = method_alias()
+        kwargs = {"mask_frame": mask_frame}
+        undistorted_outer_illumination_shape = method_alias(**kwargs)
 
         return undistorted_outer_illumination_shape
 
 
 
-    def _generate_elliptical_undistorted_outer_illumination_shape(self):
+    def _generate_elliptical_undistorted_outer_illumination_shape(self,
+                                                                  mask_frame):
         rng = self._rng
 
         u_r_E = abs(rng.normal(loc=0, scale=1/20))
@@ -523,7 +571,9 @@ class CBEDPatternGenerator():
         center = (center[0].item(), center[1].item())
 
         kwargs = {"reference_pt_of_distortion_model_generator": \
-                  reference_pt_of_distortion_model_generator}
+                  reference_pt_of_distortion_model_generator,
+                  "mask_frame": \
+                  mask_frame}
         semi_major_axis = self._generate_semi_major_axis(**kwargs)
 
         kwargs = {"center": center,
@@ -539,21 +589,25 @@ class CBEDPatternGenerator():
 
 
     def _generate_semi_major_axis(self,
-                                  reference_pt_of_distortion_model_generator):
+                                  reference_pt_of_distortion_model_generator,
+                                  mask_frame):
         rng = self._rng
+
+        choices = ((sum(mask_frame) != 0)*1e6, 1e6)
 
         loc = (max(reference_pt_of_distortion_model_generator[0],
                    1-reference_pt_of_distortion_model_generator[0],
                    reference_pt_of_distortion_model_generator[1],
                    1-reference_pt_of_distortion_model_generator[1])
-               + rng.choice((0.0, 1e6), p=(3/4, 1-3/4)).item())
+               + rng.choice(choices, p=(3/4, 1-3/4)).item())
         semi_major_axis = loc + rng.uniform(low=-loc/6, high=loc/6)
 
         return semi_major_axis
 
 
 
-    def _generate_generic_undistorted_outer_illumination_shape(self):
+    def _generate_generic_undistorted_outer_illumination_shape(self,
+                                                               mask_frame):
         rng = self._rng
 
         u_r_GB = abs(rng.normal(loc=0, scale=1/20))
@@ -571,7 +625,9 @@ class CBEDPatternGenerator():
              - u_r_GB*sin(u_phi_GB).item())
 
         kwargs = {"reference_pt_of_distortion_model_generator": \
-                  reference_pt_of_distortion_model_generator}
+                  reference_pt_of_distortion_model_generator,
+                  "mask_frame": \
+                  mask_frame}
         radial_amplitude = self._generate_radial_amplitude(**kwargs)
 
         num_amplitudes = rng.integers(low=2, high=4, endpoint=True).item()
@@ -602,9 +658,12 @@ class CBEDPatternGenerator():
 
 
     def _generate_radial_amplitude(self,
-                                   reference_pt_of_distortion_model_generator):
+                                   reference_pt_of_distortion_model_generator,
+                                   mask_frame):
         kwargs = {"reference_pt_of_distortion_model_generator": \
-                  reference_pt_of_distortion_model_generator}
+                  reference_pt_of_distortion_model_generator,
+                  "mask_frame": \
+                  mask_frame}
         semi_major_axis = self._generate_semi_major_axis(**kwargs)
         radial_amplitude = semi_major_axis
 

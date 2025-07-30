@@ -65,9 +65,9 @@ def generate_default_distortion_model_generator_1_ctor_params():
 
 def generate_default_distortion_model_generator_2_ctor_params():
     default_distortion_model_generator_2_ctor_params = \
-        {"reference_pt": (100.5, 0.5),
-         "rng_seed": 366,
-         "sampling_grid_dims_in_pixels": (64, 64),
+        {"reference_pt": (100.5, 10.5),
+         "rng_seed": 0,
+         "sampling_grid_dims_in_pixels": (32, 32),
          "least_squares_alg_params": None,
          "device_name": None,
          "skip_validation_and_conversion": False}
@@ -87,6 +87,20 @@ def generate_default_cbed_pattern_generator_1_ctor_params():
          "skip_validation_and_conversion": False}
 
     return default_cbed_pattern_generator_1_ctor_params
+
+
+
+def generate_default_cbed_pattern_generator_2_ctor_params():
+    default_cbed_pattern_generator_2_ctor_params = \
+        {"num_pixels_across_each_cbed_pattern": 32,
+         "max_num_disks_in_any_cbed_pattern": 90,
+         "rng_seed": 0,
+         "sampling_grid_dims_in_pixels": (32, 32),
+         "least_squares_alg_params": None,
+         "device_name": None,
+         "skip_validation_and_conversion": False}
+
+    return default_cbed_pattern_generator_2_ctor_params
 
 
 
@@ -301,7 +315,7 @@ def test_1_of_generate_and_save_ml_dataset():
     module_alias = emicroml.modelling.cbed.distortion.estimation
     cls_alias = module_alias.DefaultCBEDPatternGenerator
 
-    kwargs = generate_default_cbed_pattern_generator_1_ctor_params()
+    kwargs = generate_default_cbed_pattern_generator_2_ctor_params()
     valid_cbed_pattern_generator_1 = cls_alias(**kwargs)
 
     invalid_cbed_pattern_generator_1 = InvalidCBEDPatternGenerator1()

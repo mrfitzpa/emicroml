@@ -106,34 +106,51 @@ class _UnnormalizedMLDataInstanceGenerator():
 
 
     def _generate(self, num_ml_data_instances=default_num_ml_data_instances):
-        params = {key: val
-                  for key, val in locals().items()
-                  if (key not in ("self", "__class__"))}
+        params = {"num_ml_data_instances": num_ml_data_instances}
         num_ml_data_instances = _check_and_convert_num_ml_data_instances(params)
 
         ml_data_dict_1 = dict()
+
+        method_name = ("_generate_ml_data_dict"
+                       "_containing_only_one_ml_data_instance")
+        method_alias = getattr(self, method_name)
+        ml_data_dict_2 = method_alias()
+
+        for key, ml_data_dict_2_elem in ml_data_dict_2.items():
+            ml_data_dict_2_elem = np.array(ml_data_dict_2_elem)
+                
+            empty_array_shape = ((num_ml_data_instances,)
+                                 + ml_data_dict_2_elem.shape[1:])
+                
+            kwargs = {"shape": empty_array_shape,
+                      "dtype": ml_data_dict_2_elem.dtype}
+            empty_array = np.empty(**kwargs)
+
+            ml_data_dict_1[key] = (ml_data_dict_2_elem
+                                   if (ml_data_dict_2_elem.tolist() is None)
+                                   else empty_array)
         
         for ml_data_instance_idx in range(num_ml_data_instances):
-            method_alias = \
-                self._generate_ml_data_dict_containing_only_one_ml_data_instance
-            ml_data_dict_2 = \
-                method_alias()
-
+            ml_data_dict_2 = (method_alias()
+                              if (ml_data_instance_idx > 0)
+                              else ml_data_dict_2)
+            
             for key, ml_data_dict_2_elem in ml_data_dict_2.items():
-                if ml_data_dict_2_elem is not None:
-                    if ml_data_instance_idx == 0:
-                        empty_array_shape = ((num_ml_data_instances,)
-                                             + ml_data_dict_2_elem.shape[1:])
-                        kwargs = {"shape": empty_array_shape,
-                                  "dtype": ml_data_dict_2_elem.dtype}
-                        empty_array = np.empty(**kwargs)
-                        ml_data_dict_1[key] = empty_array
-                        
-                    ml_data_dict_1[key][ml_data_instance_idx] = \
-                        ml_data_dict_2_elem[0]
-                    
-                else:
-                    ml_data_dict_1[key] = None
+                ml_data_dict_1_elem = ml_data_dict_1[key]
+
+                single_dim_slice = (tuple()
+                                    if (ml_data_dict_1_elem.tolist() is None)
+                                    else (ml_data_instance_idx,))
+                
+                ml_data_dict_1_elem[single_dim_slice] = \
+                    (ml_data_dict_1_elem[single_dim_slice]
+                     if (ml_data_dict_1_elem.tolist() is None)
+                     else ml_data_dict_2_elem[0])
+
+        for key in ml_data_dict_1:
+            ml_data_dict_1[key] = (None
+                                   if (ml_data_dict_1[key].tolist() is None)
+                                   else ml_data_dict_1[key])
 
         ml_data_instances = ml_data_dict_1
         

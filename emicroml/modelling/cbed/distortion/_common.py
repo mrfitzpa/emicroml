@@ -415,6 +415,11 @@ class _DefaultDistortionModelGenerator(fancytypes.PreSerializableAndUpdatable):
         distortion_model_generation_has_not_been_completed = True
         
         while distortion_model_generation_has_not_been_completed:
+            unformatted_err_msg = _default_distortion_model_generator_err_msg_1
+            args = ("({})".format(max_num_generation_attempts),)
+            err_msg = unformatted_err_msg.format(*args)
+            err_type = RuntimeError
+
             try:
                 kwargs = {"standard_coord_transform_params": \
                           self._generate_standard_coord_transform_params(),
@@ -434,21 +439,18 @@ class _DefaultDistortionModelGenerator(fancytypes.PreSerializableAndUpdatable):
                 distortion_model_requires_an_invalid_mask_frame = \
                     method_alias(distortion_model)
 
-                if distortion_model_requires_an_invalid_mask_frame:
-                    err_msg = default_distortion_model_generator_err_msg_1
-                    raise ValueError(err_msg)
+                err_msg = _default_distortion_model_generator_err_msg_2
+                err_type = ValueError
+
+                # Raises an error if the denominator is ``True``.
+                True//(not distortion_model_requires_an_invalid_mask_frame)
 
                 distortion_model_generation_has_not_been_completed = False
             except:
                 generation_attempt_count += 1
                 
                 if generation_attempt_count == max_num_generation_attempts:
-                    unformatted_err_msg = \
-                        _default_distortion_model_generator_err_msg_2
-
-                    args = ("({})".format(max_num_generation_attempts),)
-                    err_msg = unformatted_err_msg.format(*args)
-                    raise RuntimeError(err_msg)
+                    raise err_type(err_msg)
 
         return distortion_model
 
@@ -567,6 +569,8 @@ class _DefaultDistortionModelGenerator(fancytypes.PreSerializableAndUpdatable):
 
         distortion_model_requires_an_invalid_mask_frame = \
             np.any(tuple((w<min_w) or (max_w<w) for w in fractional_mask_frame))
+        distortion_model_requires_an_invalid_mask_frame = \
+            distortion_model_requires_an_invalid_mask_frame.item()
 
         return distortion_model_requires_an_invalid_mask_frame
 
@@ -1169,8 +1173,6 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         method_alias = getattr(self, method_name)
         kwargs = {"reference_pt_of_distortion_model_generator": \
                   reference_pt_of_distortion_model_generator,
-                  "distortion_model": \
-                  distortion_model,
                   "mask_frame": \
                   mask_frame}
         undistorted_outer_illumination_shape = method_alias(**kwargs)
@@ -1182,7 +1184,6 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
     def _generate_elliptical_undistorted_outer_illumination_shape(
             self,
             reference_pt_of_distortion_model_generator,
-            distortion_model,
             mask_frame):
         rng = self._rng
 
@@ -1236,7 +1237,6 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
     def _generate_generic_undistorted_outer_illumination_shape(
             self,
             reference_pt_of_distortion_model_generator,
-            distortion_model,
             mask_frame):
         rng = self._rng
 
@@ -3216,9 +3216,17 @@ class _UnnormalizedMLDataInstanceGenerator(_cls_alias):
         self._expected_cbed_pattern_dims_in_pixels = \
             cbed_pattern_signal.axes_manager.signal_shape
 
+        method_alias = \
+            super()._generate_ml_data_dict_containing_only_one_ml_data_instance
+        ml_data_dict = \
+            method_alias()
+
         func_alias = _extract_ml_data_dict_from_cbed_pattern_signal
-        ml_data_dict = func_alias(cbed_pattern_signal,
-                                  max_num_disks_in_any_cbed_pattern)
+        kwargs = {"cbed_pattern_signal": \
+                  cbed_pattern_signal,
+                  "max_num_disks_in_any_cbed_pattern": \
+                  max_num_disks_in_any_cbed_pattern}
+        ml_data_dict = {**ml_data_dict, **func_alias(**kwargs)}
 
         return ml_data_dict
 
@@ -5644,15 +5652,15 @@ def _pre_serialize_ml_model_tester(ml_model_tester):
 ###########################
 
 _default_distortion_model_generator_err_msg_1 = \
+    ("The distortion model generator has exceeded its programmed maximum "
+     "number of attempts {} to generate a valid distortion model: see "
+     "traceback for details.")
+_default_distortion_model_generator_err_msg_2 = \
     ("The distortion model generator generated a distortion model with a "
      "flow-field of the right-inverse of its corresponding coordinate "
      "transformation that is not well-defined for pixels outside of the mask "
      "frame of the maximum permitted width, which is one sixth of the image "
      "width.")
-_default_distortion_model_generator_err_msg_2 = \
-    ("The distortion model generator has exceeded its programmed maximum "
-     "number of attempts {} to generate a valid distortion model: see "
-     "traceback for details.")
 
 _check_and_convert_num_pixels_across_each_cbed_pattern_err_msg_1 = \
     ("The object ``num_pixels_across_each_cbed_pattern`` must be positive "
