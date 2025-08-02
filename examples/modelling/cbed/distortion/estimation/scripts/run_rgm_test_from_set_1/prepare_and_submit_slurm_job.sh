@@ -75,7 +75,7 @@ if [ ! -f ${path_to_repo_root}/${basename} ]
 then
     basename=default_env_setup_for_slurm_jobs.sh
 fi
-source ${path_to_repo_root}/${basename} ${SLURM_TMPDIR}/tempenv false
+source ${path_to_repo_root}/${basename} ${SLURM_TMPDIR}/tempenv true
 
 
 

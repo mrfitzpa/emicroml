@@ -248,13 +248,12 @@ class _MLDataNormalizer():
 
     def _update_extrema_cache(self, ml_data_dict):
         for key in self._extrema_cache:
-            if key in ml_data_dict:
-                ml_data_dict_elem = ml_data_dict[key]
-            else:
-                ml_data_dict_elem_decoders = self._ml_data_dict_elem_decoders
-                ml_data_dict_item_decoder = ml_data_dict_elem_decoders[key]
-                kwargs = {"ml_data_dict": ml_data_dict}
-                ml_data_dict_elem = ml_data_dict_elem_decoder(**kwargs)
+            ml_data_dict_elem_decoders = self._ml_data_dict_elem_decoders
+            ml_data_dict_item_decoder = ml_data_dict_elem_decoders.get(key,
+                                                                       None)
+            ml_data_dict_elem = (ml_data_dict[key]
+                                 if (key in ml_data_dict)
+                                 else ml_data_dict_elem_decoder(ml_data_dict))
 
             min_candidate_1 = np.min(ml_data_dict_elem).item()
             min_candidate_2 = self._extrema_cache[key]["min"]

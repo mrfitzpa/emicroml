@@ -133,7 +133,8 @@ intersphinx_mapping = \
      "fancytypes": ("https://mrfitzpa.github.io/fancytypes", None),
      "h5pywrappers": ("https://mrfitzpa.github.io/h5pywrappers", None),
      "distoptica": ("https://mrfitzpa.github.io/distoptica", None),
-     "fakecbed": ("https://mrfitzpa.github.io/fakecbed", None)}
+     "fakecbed": ("https://mrfitzpa.github.io/fakecbed", None),
+     "prismatique": ("https://mrfitzpa.github.io/prismatique", None)}
 
 
 

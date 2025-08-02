@@ -45,7 +45,7 @@
 #SBATCH --cpus-per-task=12      # CPU cores/threads
 #SBATCH --gpus-per-node=a100:1  # GPU type and number of GPUs per node.
 #SBATCH --mem=124G              # CPU memory per node
-#SBATCH --time=00-39:59         # time (DD-HH:MM)
+#SBATCH --time=00-71:59         # time (DD-HH:MM)
 #SBATCH --mail-type=ALL
 
 

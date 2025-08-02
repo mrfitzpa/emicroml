@@ -152,7 +152,7 @@ path_to_data_dir_1 = converted_cmd_line_args["path_to_data_dir_1"]
 
 
 # Set a RNG seed for reproducibility.
-rng_seed = 20002
+rng_seed = 20004
     
 torch.manual_seed(seed=rng_seed)
 torch.cuda.manual_seed_all(seed=rng_seed)
@@ -183,7 +183,7 @@ if ml_model_task == "cbed/distortion/estimation":
     
     min_lr_in_first_annealing_cycle_set = (2e-5,)
     num_lr_annealing_cycles_set = (1,)
-    num_epochs_in_first_lr_annealing_cycle_set = (16,)
+    num_epochs_in_first_lr_annealing_cycle_set = (32,)
     multiplicative_decay_factor_set = (0.5,)
 
 
