@@ -28,4 +28,9 @@ Below is a list of references that are cited in the ``emicroml`` documentation:
 		    (2018),
 		    :doi:`10.1016/C2015-0-06653-9`
 
+.. [Fitzpatrick1] |nbspc|"Calibration-sample free distortion correction of
+		         electron diffraction patterns using deep learning",
+			 M.R.C. Fitzpatrick *et al.*, Ultramicroscopy **??**,
+			 ??? (2025), :doi:`???/???`
+
 .. |nbspc| unicode:: U+00A0 .. non-breaking space

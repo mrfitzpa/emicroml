@@ -3236,10 +3236,13 @@ def _generate_ml_data_dict_elem_decoders():
     keys_of_ml_data_dict_elems_having_decoders = \
         _generate_keys_of_ml_data_dict_elems_having_decoders()
 
-    global_symbol_table = globals()
-    ml_data_dict_elem_decoders = {global_symbol_table[key+"_decoder"]
-                                  for key
-                                  in keys_of_ml_data_dict_elems_having_decoders}
+    global_symbol_table = \
+        globals()
+    
+    ml_data_dict_elem_decoders = \
+        {key+"_decoder": global_symbol_table[key+"_decoder"]
+         for key
+         in keys_of_ml_data_dict_elems_having_decoders}
 
     return ml_data_dict_elem_decoders
 

@@ -77,7 +77,7 @@ path_to_script_to_execute = (str(path_to_current_script.parents[1])
 
 # Execute the script at ``path_to_script_to_execute`` multiple times to train
 # multiple ML models.
-num_ml_models_to_train = 1
+num_ml_models_to_train = 10
 for ml_model_idx in range(num_ml_models_to_train):
     unformatted_cmd_str = ("python {} "
                            "--ml_model_task={} "

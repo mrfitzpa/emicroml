@@ -99,8 +99,7 @@ examples.
 
 If, via the script at the file path
 ``<root>/default_env_setup_for_slurm_jobs.sh``, the virtual environment is to be
-created on either the ``narval``, ``beluga``, or ``graham`` HPC server belonging
-to DRAC, and the script at the file path
+created on a HPC server belonging to DRAC, and the script at the file path
 ``<root>/download_wheels_for_offline_env_setup_on_drac_server.sh`` has never
 been executed, then one must first change into the root of the repository, and
 subsequently execute that script via the following command::

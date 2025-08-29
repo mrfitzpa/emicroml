@@ -3,10 +3,10 @@
 Running the RGM test set #1
 ===========================
 
-In this example, we perform the "action" of running "first" set of tests of the
-radial gradient maximization (RGM) approach to the distortion estimation of CBED
-patterns. The RGM tests use the machine learning (ML) datasets generated from
-the action described in :ref:`this page
+In this example, we perform the "action" of running the "first" set of tests of
+the radial gradient maximization (RGM) approach to the distortion estimation of
+CBED patterns. The RGM tests use the machine learning (ML) datasets generated
+from the action described in :ref:`this page
 <examples_modelling_cbed_distortion_estimation_combine_ml_datasets_for_ml_model_test_set_1_sec>`.
 
 NOTE: Users are advised to read the remainder of the current page in its

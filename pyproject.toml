@@ -29,6 +29,7 @@ classifiers = [
 ]
 keywords = [
     "pytorch",
+    "electron microscopy",
     "microscopy",
     "diffraction",
     "cbed",

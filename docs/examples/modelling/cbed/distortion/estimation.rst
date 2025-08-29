@@ -3,11 +3,12 @@
 Examples of distortion estimation of CBED patterns
 ==================================================
 
-Below are links to some code examples of "actions" that are related to the
-estimation of distortion in CBED patterns, using deep learning.
+Below are links to some code examples of "actions" and Jupyter notebooks that
+are related to the estimation of distortion in CBED patterns, using deep
+learning.
 
-The majority of the data presented in Ref. (INSERT REFERENCE) can be reproduced
-by running all of the examples listed on this current page.
+The majority of the data presented in Ref. [Fitzpatrick1]_ can be reproduced by
+running all of the examples listed on this current page.
 
 .. toctree::
 

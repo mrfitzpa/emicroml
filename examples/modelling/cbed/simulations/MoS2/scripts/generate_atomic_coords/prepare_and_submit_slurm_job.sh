@@ -94,23 +94,28 @@ fi
 # Move the non-temporary output data that is generated from the main steps to
 # their expected final destinations. Also delete/remove any remaining temporary
 # files or directories.
-dirname_1=${SLURM_TMPDIR}
-dirname_2=${path_to_data_dir_1}
-basename_1=atomic_coords.xyz
-basename_2=${basename_1}
-filename_1=${dirname_1}/${basename_1}
-filename_2=${dirname_2}/${basename_2}
-
 cd ${SLURM_TMPDIR}
-mkdir -p ${dirname_2}
-if [ "${filename_1}" != "${filename_2}" ]
-then
-    echo ""
-    echo ""
-    mv ${filename_1} ${filename_2}
-    msg="Moved file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
-    echo ${msg}
-fi
+
+basenames=(atomic_coords.xyz sample_model_params_subset.json)
+
+for basename_1 in "${basenames[@]}"
+do
+    dirname_1=${SLURM_TMPDIR}
+    dirname_2=${path_to_data_dir_1}
+    basename_2=${basename_1}
+    filename_1=${dirname_1}/${basename_1}
+    filename_2=${dirname_2}/${basename_2}
+
+    mkdir -p ${dirname_2}
+    if [ "${filename_1}" != "${filename_2}" ]
+    then
+	echo ""
+	echo ""
+	mv ${filename_1} ${filename_2}
+	msg="Moved file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
+	echo ${msg}
+    fi
+done
 
 if [ "${overwrite_slurm_tmpdir}" = true ]
 then

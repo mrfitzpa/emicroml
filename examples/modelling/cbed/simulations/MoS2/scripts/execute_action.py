@@ -117,8 +117,8 @@ _parse_and_convert_cmd_line_args_err_msg_1 = \
      "    python execute_action.py "
      "--action=<action> --use_slurm=<use_slurm>\n"
      "\n"
-     "where ``<action>`` can be {}; and ``<use_slurm>`` can be either ``yes`` "
-     "or ``no``.")
+     "where ``<action>`` can be ``{}``; and ``<use_slurm>`` can be either "
+     "``yes`` or ``no``.")
 
 
 

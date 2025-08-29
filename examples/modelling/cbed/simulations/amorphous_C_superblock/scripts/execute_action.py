@@ -104,7 +104,9 @@ def parse_and_convert_cmd_line_args():
         if (action not in accepted_actions) or (use_slurm not in ("yes", "no")):
             raise
     except:
-        err_msg = globals()["_"+current_func_name+"_err_msg_1"]
+        unformatted_err_msg = globals()["_"+current_func_name+"_err_msg_1"]
+        args = accepted_actions
+        err_msg = unformatted_err_msg.format(*args)
         raise SystemExit(err_msg)
 
     converted_cmd_line_args = {"action": action, "use_slurm": use_slurm}
@@ -118,14 +120,13 @@ def parse_and_convert_cmd_line_args():
 ###########################
 
 _parse_and_convert_cmd_line_args_err_msg_1 = \
-    ("The correct form of the command should be:\n"
+    ("The correct form of the command is:\n"
      "\n"
      "    python execute_action.py "
      "--action=<action> --use_slurm=<use_slurm>\n"
      "\n"
-     "where ``<action>`` can be "
-     "``generate_atomic_coords``; and ``<use_slurm>`` can be either ``yes`` or "
-     "``no``.")
+     "where ``<action>`` can be ``{}``; and ``<use_slurm>`` can be either "
+     "``yes`` or ``no``.")
 
 
 

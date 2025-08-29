@@ -39,12 +39,12 @@
 # install only ``emicroml`` and its dependencies, i.e. not the additional
 # libraries required to run the examples.
 #
-# If the virtual environment is to be created on either the ``narval``,
-# ``beluga``, or ``graham`` HPC server belonging to DRAC, and the script with
-# the basename ``download_wheels_for_offline_env_setup_on_drac_server.sh`` at
-# the root of the repository has never been executed, then one must first change
-# into the root of the repository, and subsequently execute that script via the
-# following command::
+# If the virtual environment is to be created on a HPC server belonging to DRAC,
+# and the script with the basename
+# ``download_wheels_for_offline_env_setup_on_drac_server.sh`` at the root of the
+# repository has never been executed, then one must first change into the root
+# of the repository, and subsequently execute that script via the following
+# command::
 #
 #  bash download_wheels_for_offline_env_setup_on_drac_server.sh
 #
@@ -75,40 +75,15 @@ path_to_repo_root=$(${cmd})
 
 
 # Automatically determine whether the script is being executed on a DRAC HPC
-# server. Also determine whether we need to install some libraries from wheels
-# that were previously downloaded.
+# server.
 current_machine_is_on_a_drac_server=false
-drac_compute_nodes_have_internet_access=false
 
-dns_domain_name_of_current_machine=$(hostname -d)
-if [ -z "${dns_domain_name_of_current_machine}" ]
+path_to_python_wheels=/cvmfs/soft.computecanada.ca/custom/python/wheelhouse
+
+if [ -d "${path_to_python_wheels}" ]
 then
-    dns_domain_name_of_current_machine=$(hostname | grep -oP '(?<=\.).*$')
+    current_machine_is_on_a_drac_server=true
 fi
-
-basename=drac_dns_domain_name_to_internet_accessibility_map
-path_to_file_to_read=${path_to_repo_root}/${basename}
-
-while read line
-do
-    key_val_pair=(${line})
-    key=${key_val_pair[0]}
-    val=${key_val_pair[1]}
-
-    drac_dns_domain_name=${key}
-    if [ "${key}" = "${dns_domain_name_of_current_machine}" ]
-    then
-    	current_machine_is_on_a_drac_server=true
-
-    	internet_accessibility=${val}
-    	if [ "${val}" = "compute_nodes_have_internet_access" ]
-    	then
-    	    drac_compute_nodes_have_internet_access=true
-    	fi	
-
-    	break
-    fi
-done < ${path_to_file_to_read}
 
 
 
@@ -161,25 +136,15 @@ then
     fi
     pip install --no-index ${pkgs}
 
-    if [ "${drac_compute_nodes_have_internet_access}" = false ]
-    then
-	cd ${path_to_repo_root}/_wheels_for_offline_env_setup_on_drac_server
+    cd ${path_to_repo_root}/_wheels_for_offline_env_setup_on_drac_server
 
-	pkgs="czekitout*.whl fancytypes*.whl h5pywrappers*.whl"
-	pkgs=${pkgs}" distoptica*.whl fakecbed*.whl"
-	if [ "${install_libs_required_to_run_all_examples}" = true ]
-	then
-	    pkgs=${pkgs}" empix*.whl embeam*.whl prismatique*.whl"
-	fi
-	pip install ${pkgs}
-    else
-	pkgs="fakecbed>=0.3.6 h5pywrappers"
-	if [ "${install_libs_required_to_run_all_examples}" = true ]
-	then
-	    pkgs=${pkgs}" prismatique"
-	fi
-	pip install ${pkgs}
-    fi	
+    pkgs="czekitout*.whl fancytypes*.whl h5pywrappers*.whl"
+    pkgs=${pkgs}" distoptica*.whl fakecbed*.whl"
+    if [ "${install_libs_required_to_run_all_examples}" = true ]
+    then
+	pkgs=${pkgs}" empix*.whl embeam*.whl prismatique*.whl"
+    fi
+    pip install ${pkgs}
 
     if [ "${install_libs_required_to_run_all_examples}" = true ]
     then

@@ -16,10 +16,10 @@
 
 
 # The current script downloads the Python wheels required to install
-# ``emicroml`` and to run all the examples in this repository, on either the
-# ``narval``, ``beluga``, or ``graham`` high-performance computing server
-# belonging to Digital Alliance of Canada. The correct form of the command to
-# run the script is::
+# ``emicroml`` and to run all of the examples in this repository, on any
+# high-performance computing server belonging to Digital Alliance of Canada,
+# without internet access subsequent to downloading said wheels. The correct
+# form of the command to run the script is::
 #
 #  bash download_wheels_for_offline_env_setup_on_drac_server.sh
 #

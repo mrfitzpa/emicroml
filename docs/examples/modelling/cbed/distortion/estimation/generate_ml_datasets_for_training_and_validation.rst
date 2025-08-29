@@ -3,7 +3,7 @@
 Generating machine learning datasets for training and validation
 ================================================================
 
-In this example, we perform the "action" of generating 10 machine learning (ML)
+In this example, we perform the "action" of generating 55 machine learning (ML)
 datasets that can be used to train and/or evaluate ML models for distortion
 estimation in convergent beam electron diffraction (CBED) patterns.
 

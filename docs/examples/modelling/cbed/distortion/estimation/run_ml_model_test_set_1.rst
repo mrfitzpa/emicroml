@@ -3,8 +3,8 @@
 Running the machine learning model test set #1
 ==============================================
 
-In this example, we perform the "action" of running "first" set of machine
-learning (ML) model tests of the ML model trained from the action described in
+In this example, we perform the "action" of running the "first" set of machine
+learning (ML) model tests of the ML models trained from the action described in
 :ref:`this page
 <examples_modelling_cbed_distortion_estimation_train_ml_model_set_sec>`. The ML
 model tests use the ML datasets generated from the action described in
@@ -49,14 +49,15 @@ and :ref:`examples_modelling_cbed_distortion_estimation_train_ml_model_set_sec`,
 hence one must execute the two actions described in those two pages prior to the
 action described at the beginning of the current page. Upon successful
 completion of the action described at the beginning of the current page, for
-every string ``<disk_size>`` in the sequence ``(small, medium, large)``, the
-aforementioned ML model will have been tested against the ML testing dataset
-stored in the HDF5 file at the file path
+every string ``<disk_size>`` in the sequence ``(small, medium, large)``, for
+every nonnegative integer ``<k>`` less than 10, the ``<k>`` th trained ML model
+will have been tested against the ML testing dataset stored in the HDF5 file at
+the file path
 ``<top_level_data_dir>/ml_datasets/ml_datasets_for_ml_model_test_set_1/ml_datasets_with_cbed_patterns_of_MoS2_on_amorphous_C/ml_dataset_with_<disk_size>_sized_disks.h5``,
 with the ML model testing having been performed using the class
 :class:`emicroml.modelling.cbed.distortion.estimation.MLModelTester`, and the
 output data files having been saved in the directory
-``<top_level_data_dir>/ml_models/ml_model_0/ml_model_test_set_1_results/results_for_cbed_patterns_of_MoS2_on_amorphous_C_with_<disk_size>_sized_disks``,
+``<top_level_data_dir>/ml_models/ml_model_<k>/ml_model_test_set_1_results/results_for_cbed_patterns_of_MoS2_on_amorphous_C_with_<disk_size>_sized_disks``,
 where ``<top_level_data_dir>`` is
 ``<root>/examples/modelling/cbed/distortion/estimation/data``.
 
