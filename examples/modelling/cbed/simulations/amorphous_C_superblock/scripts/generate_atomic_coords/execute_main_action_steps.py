@@ -11,7 +11,7 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
-"""A script that is called by other scripts used for generating the atomic
+r"""A script that is called by other scripts used for generating the atomic
 coordinates of a model of a :math:`25 \times 25 \times 1 \ \text{nm}^3` large
 superblock of amorphous carbon (C), that is subsequently truncated to the same
 lateral dimensions of a model of :math:`\text{MoS}_2`, and to :math:`0.5 \

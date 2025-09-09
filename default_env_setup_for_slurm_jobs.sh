@@ -195,42 +195,45 @@ else
     # according to what NVIDIA drivers are installed, if any.
     if [ "${major_cuda_version}" = 11 ]
     then
-	extra_torch_install_args="pytorch-cuda=11.8 -c pytorch -c nvidia"
+	url="https://download.pytorch.org/whl/cu118"
 	pyprismatic_pkg="pyprismatic=*=gpu*"
     elif [ "${major_cuda_version}" -gt 11 ]
     then
-	extra_torch_install_args="pytorch-cuda=12.1 -c pytorch -c nvidia"
+	url="https://download.pytorch.org/whl/cu121"
 	pyprismatic_pkg="pyprismatic=*=gpu*"
     else
-	extra_torch_install_args="cpuonly -c pytorch"
+	url="https://download.pytorch.org/whl/cpu"
 	pyprismatic_pkg="pyprismatic=*=cpu*"
     fi
+    extra_torch_install_args="--index-url "${url}
 
 
 
     # Create the ``conda`` virtual environment and install a subset of
     # libraries, then activate the virtual environment.
-    pkgs="python=3.11 numpy numba hyperspy h5py pytest ipympl jupyter"
-    pkgs=${pkgs}" h5pywrappers"
-    conda create -n ${virtual_env_name} ${pkgs} -y -c conda-forge
+    pkgs="python=3.11"
+    conda create -n ${virtual_env_name} ${pkgs} -y
     conda activate ${virtual_env_name}
+
+    pkgs="numpy numba hyperspy h5py pytest ipympl jupyter h5pywrappers"
+    conda install -y ${pkgs} -c conda-forge
 
 
 
     # Install the remaining libraries in the virtual environment.
-    conda install -y pytorch ${extra_torch_install_args}
-    conda install -y kornia -c conda-forge
+    pip install torch ${extra_torch_install_args}
+    pip install kornia
 
     if [ "${install_libs_required_to_run_all_examples}" = true ]
     then
-	pkgs="pyopencl[pocl] pyFAI"
-	pip install ${pkgs}
+    	pkgs="pyopencl[pocl] pyFAI"
+    	pip install ${pkgs}
 	
-	conda install -y ${pyprismatic_pkg} -c conda-forge
+    	conda install -y ${pyprismatic_pkg} -c conda-forge
 
-	pkgs="prismatique"
+    	pkgs="prismatique"
     fi
-    pkgs=${pkgs}" fakecbed>=0.3.6 emicroml"
+    pkgs=${pkgs}" emicroml"
     pip install ${pkgs}
 fi
 

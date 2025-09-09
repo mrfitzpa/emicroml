@@ -11,7 +11,7 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
-"""A script that is called by the script ``../execute_action.py`` used for
+r"""A script that is called by the script ``../execute_action.py`` used for
 generating the atomic coordinates of a model of a 5-layer :math:`\text{MoS}_2`
 thin film with a :math:`0.5 \ \text{nm}` thick layer of amorphous carbon (C).
 

@@ -11,7 +11,7 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
-"""A script that is called by various other scripts used for running a single
+r"""A script that is called by various other scripts used for running a single
 test from the "first" set of tests of the radial gradient maximization (RGM)
 approach to the distortion estimation of convergent beam electron diffraction
 (CBED) patterns.

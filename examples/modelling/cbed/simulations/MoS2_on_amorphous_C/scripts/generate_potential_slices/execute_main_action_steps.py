@@ -11,7 +11,7 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
-"""A script that is called by other scripts used for generating the potential
+r"""A script that is called by other scripts used for generating the potential
 slices of the model of a sample of :math:`\text{MoS}_2` on amorphous carbon (C).
 
 The correct form of the command to run the script is::

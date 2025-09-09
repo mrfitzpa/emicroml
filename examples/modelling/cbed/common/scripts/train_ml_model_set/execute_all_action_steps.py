@@ -11,7 +11,7 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
-"""A script that is called by various other scripts used for training sets of
+r"""A script that is called by various other scripts used for training sets of
 machine learning (ML) models for a specified task.
 
 The action of training a set of ML models is broken down effectively into

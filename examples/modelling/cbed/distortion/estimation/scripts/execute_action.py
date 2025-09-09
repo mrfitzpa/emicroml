@@ -11,7 +11,7 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
-"""A script for training and testing machine learning (ML) models for distortion
+r"""A script for training and testing machine learning (ML) models for distortion
 estimation in convergent beam electron diffraction (CBED). The ML models that
 can be used for distortion estimation are described in the documentation for the
 class :class:`emicroml.modelling.cbed.distortion.estimation.MLModel`.

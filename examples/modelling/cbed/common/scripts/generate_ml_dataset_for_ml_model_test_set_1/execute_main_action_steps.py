@@ -11,7 +11,7 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
-"""A script that is called by various other scripts used for generating
+r"""A script that is called by various other scripts used for generating
 individual machine learning (ML) datasets that can be used to test ML models for
 a specified task. The script retrieves an image, presumed to be an simulated
 undistorted CBED pattern, and uses it to generate a set of distorted "fake" CBED

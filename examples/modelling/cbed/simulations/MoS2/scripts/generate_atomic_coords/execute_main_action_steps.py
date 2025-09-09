@@ -11,7 +11,7 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
-"""A script that is called by other scripts used for generating the atomic
+r"""A script that is called by other scripts used for generating the atomic
 coordinates of a model of a 5-layer :math:`\text{MoS}_2` thin film.
 
 The correct form of the command to run the script is::

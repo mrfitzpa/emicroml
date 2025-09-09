@@ -11,7 +11,7 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
-"""A script that is called by various other scripts used for combining a given
+r"""A script that is called by various other scripts used for combining a given
 set of input machine learning (ML) datasets, then splitting the resulting ML
 dataset into two output ML datasets: one intended for training ML models for a
 specified task, the other for validating such ML models.
