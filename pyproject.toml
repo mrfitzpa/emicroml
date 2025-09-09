@@ -42,7 +42,7 @@ dependencies = [
     "kornia",
     "h5pywrappers"
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 
 [project.optional-dependencies]
 tests = [
