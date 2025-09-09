@@ -84,7 +84,7 @@ class BaseLRScheduler(fancytypes.PreSerializableAndUpdatable):
     """
     def __init__(self, ctor_params):
         if type(self) is BaseLRScheduler:
-            self._generate_torch_ml_optimizer(ml_model_param_group=None)
+            self._generate_and_store_torch_lr_scheduler()
         else:
             kwargs = ctor_params
             kwargs["skip_cls_tests"] = True
@@ -229,13 +229,12 @@ class BaseLRScheduler(fancytypes.PreSerializableAndUpdatable):
         func_alias = self._torch_lr_scheduler.step
         func_alias_co_varnames = func_alias.__code__.co_varnames
 
-        kwargs = dict()
-        if "ml_loss_manager" in func_alias_co_varnames:
-            kwargs["ml_loss_manager"] = ml_loss_manager
-        if "phase" in func_alias_co_varnames:
-            kwargs["phase"] = phase
-        if "epoch" in func_alias_co_varnames:
-            kwargs["epoch"] = None
+        kwargs = {"ml_loss_manager": ml_loss_manager,
+                  "phase": phase,
+                  "epoch": None}
+        for key in tuple(kwargs.keys()):
+            if key not in func_alias_co_varnames:
+                del kwargs[key]
 
         func_alias(**kwargs)
 
@@ -803,28 +802,31 @@ class _TorchReduceOnPlateau(_cls_alias):
              epoch=_default_epoch):
         self.last_epoch = self.last_epoch+1 if (epoch is None) else epoch
 
-        if ml_loss_manager is not None:
-            averaging_window_in_steps = self._averaging_window_in_steps
-            
-            mini_batch_losses = \
-                ml_loss_manager._mini_batch_losses
-            mini_batch_indices_for_entire_training_session = \
-                ml_loss_manager._mini_batch_indices_for_entire_training_session
+        averaging_window_in_steps = self._averaging_window_in_steps
 
-            stop = mini_batch_indices_for_entire_training_session[phase]
+        mini_batch_losses = \
+            getattr(ml_loss_manager,
+                    "_mini_batch_losses",
+                    None)
+        mini_batch_indices_for_entire_training_session = \
+            getattr(ml_loss_manager,
+                    "_mini_batch_indices_for_entire_training_session",
+                    {phase: 0})
 
-            if stop >= averaging_window_in_steps:
-                start = max(0, stop-averaging_window_in_steps)
-                single_dim_slice = slice(start, stop)
+        stop = mini_batch_indices_for_entire_training_session[phase]
+        start = max(0, stop-averaging_window_in_steps)
+        single_dim_slice = slice(start, stop)
 
-                total_mini_batch_loss_averaged_over_window = \
-                    mini_batch_losses[phase]["total"][single_dim_slice].mean()
+        total_mini_batch_loss_averaged_over_window = \
+            (mini_batch_losses[phase]["total"][single_dim_slice].mean()
+             if (mini_batch_losses is not None)
+             else None)
 
-                kwargs = {"metrics": \
-                          total_mini_batch_loss_averaged_over_window,
-                          "epoch": \
-                          epoch}
-                self._base_torch_lr_scheduler.step(**kwargs)
+        kwargs = {"metrics": total_mini_batch_loss_averaged_over_window,
+                  "epoch": epoch}
+        _ = (self._base_torch_lr_scheduler.step(**kwargs)
+             if (stop >= averaging_window_in_steps)
+             else None)
 
         torch_optimizer = self._base_torch_lr_scheduler.optimizer
         self._last_lr = [group['lr'] for group in torch_optimizer.param_groups]
@@ -1142,11 +1144,13 @@ class _TorchCosineAnnealingWithWarmRestarts(cls_alias):
                 self._cycle_idx += 1
 
                 key = "weight_decay"
-                if key in torch_ml_optimizer_param_group:                
-                    old_weight_decay = torch_ml_optimizer_param_group[key]
-                    new_weight_decay = (old_weight_decay
-                                        / (cycle_period_scale_factor)**0.5)
-                    torch_ml_optimizer_param_group[key] = new_weight_decay
+                old_weight_decay = torch_ml_optimizer_param_group.get(key, -1)
+                new_weight_decay = (old_weight_decay
+                                    / (cycle_period_scale_factor)**0.5)
+                torch_ml_optimizer_param_group[key] = new_weight_decay
+                _ = (torch_ml_optimizer_param_group.pop(key)
+                     if (old_weight_decay == -1)
+                     else None)
 
             self._base_torch_lr_scheduler.step()
 
@@ -1230,7 +1234,7 @@ def _de_pre_serialize_min_lr_in_first_cycle(serializable_rep):
 
 _default_num_steps_in_first_cycle = 20
 _default_cycle_period_scale_factor = 1
-_default_min_lr_in_first_cycle = 0
+_default_min_lr_in_first_cycle = 1e-8
 
 
 
@@ -1662,25 +1666,6 @@ class Nonsequential(BaseLRScheduler):
 
 
 
-    def _generate_and_store_torch_ml_optimizer(self, ml_model_param_group):
-        self_core_attrs = self.get_core_attrs(deep_copy=False)
-
-        map_alias = _non_sequential_lr_scheduler_name_to_cls_map
-        key = self_core_attrs["lr_scheduler_name"]
-        lr_scheduler_cls = map_alias[key]
-
-        kwargs = self_core_attrs["lr_scheduler_params"]
-        lr_scheduler = lr_scheduler_cls(**kwargs)
-
-        kwargs = {"ml_model_param_group": ml_model_param_group}
-        lr_scheduler._generate_and_store_torch_ml_optimizer(**kwargs)
-
-        self._torch_ml_optimizer = lr_scheduler._torch_ml_optimizer
-
-        return None
-
-
-
     def _generate_and_store_torch_lr_scheduler(self):
         self_core_attrs = self.get_core_attrs(deep_copy=False)
 
@@ -1734,7 +1719,7 @@ class _TorchSequential(torch.optim.lr_scheduler._LRScheduler):
 
         key = "weight_decay"
         self._initial_weight_decay = (torch_ml_optimizer_param_group[key]
-                                      if key in torch_ml_optimizer_param_group
+                                      if (key in torch_ml_optimizer_param_group)
                                       else None)
 
         super().__init__(torch_ml_optimizer)
@@ -1765,9 +1750,12 @@ class _TorchSequential(torch.optim.lr_scheduler._LRScheduler):
                     torch_ml_optimizer_param_group["lr"] = \
                         base_torch_lr_scheduler.get_last_lr()[-1]
 
-                    if self._initial_weight_decay is not None:
-                        torch_ml_optimizer_param_group["weight_decay"] = \
-                            self._initial_weight_decay
+                    key = "weight_decay"
+                    initial_weight_decay = self._initial_weight_decay
+                    torch_ml_optimizer_param_group[key] = initial_weight_decay
+                    _ = (torch_ml_optimizer_param_group.pop(key)
+                         if (self._initial_weight_decay is None)
+                         else None)
                         
                 else:
                     base_step_func = \
@@ -1775,13 +1763,12 @@ class _TorchSequential(torch.optim.lr_scheduler._LRScheduler):
                     base_step_func_co_varnames = \
                         base_step_func.__code__.co_varnames
 
-                    kwargs = dict()
-                    if "ml_loss_manager" in base_step_func_co_varnames:
-                        kwargs["ml_loss_manager"] = ml_loss_manager
-                    if "phase" in base_step_func_co_varnames:
-                        kwargs["phase"] = phase
-                    if "epoch" in base_step_func_co_varnames:
-                        kwargs["epoch"] = None
+                    kwargs = {"ml_loss_manager": ml_loss_manager,
+                              "phase": phase,
+                              "epoch": None}
+                    for key in tuple(kwargs.keys()):
+                        if key not in base_step_func_co_varnames:
+                            del kwargs[key]
 
                     base_step_func(**kwargs)
                     break
@@ -1875,14 +1862,6 @@ def _pre_serialize_non_sequential_lr_schedulers(non_sequential_lr_schedulers):
 
 
 
-def _pre_serialize_non_sequential(non_sequential):
-    obj_to_pre_serialize = non_sequential
-    serializable_rep = obj_to_pre_serialize.pre_serialize()
-    
-    return serializable_rep
-
-
-
 def _de_pre_serialize_non_sequential_lr_schedulers(serializable_rep):
     non_sequential_lr_schedulers = \
         tuple()
@@ -1895,13 +1874,6 @@ def _de_pre_serialize_non_sequential_lr_schedulers(serializable_rep):
             (non_sequential_lr_scheduler,)
 
     return non_sequential_lr_schedulers
-
-
-
-def _de_pre_serialize_non_sequential(serializable_rep):
-    non_sequential = Nonsequential.de_pre_serialize(serializable_rep)
-    
-    return non_sequential
 
 
 
@@ -2306,8 +2278,9 @@ def _check_and_convert_lr_schedulers(params):
                 lr_scheduler = _check_and_convert_lr_scheduler(params)
                 lr_schedulers += (lr_scheduler,)
 
-                if total_num_steps is None:
-                    total_num_steps = lr_scheduler.total_num_steps
+                total_num_steps = (lr_scheduler.total_num_steps
+                                   if (total_num_steps is None)
+                                   else total_num_steps)
                 if total_num_steps != lr_scheduler.total_num_steps:
                     err_msg = globals()[current_func_name+"_err_msg_2"]
                     raise ValueError(err_msg)
@@ -2338,13 +2311,6 @@ def _pre_serialize_lr_schedulers(lr_schedulers):
 
 
 
-def _pre_serialize_lr_scheduler(lr_scheduler):
-    serializable_rep = lr_scheduler.pre_serialize()
-    
-    return serializable_rep
-
-
-
 def _de_pre_serialize_lr_schedulers(serializable_rep):
     lr_schedulers = tuple()
     for serialized_lr_scheduler in serializable_rep:
@@ -2356,13 +2322,6 @@ def _de_pre_serialize_lr_schedulers(serializable_rep):
             (lr_scheduler,)
 
     return lr_schedulers
-
-
-
-def _de_pre_serialize_lr_scheduler(serializable_rep):
-    lr_scheduler = Generic.de_pre_serialize(serializable_rep)
-    
-    return lr_scheduler
 
 
 

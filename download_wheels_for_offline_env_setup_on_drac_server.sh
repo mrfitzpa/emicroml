@@ -54,6 +54,7 @@ pip download --no-deps fakecbed
 pip download --no-deps empix
 pip download --no-deps embeam
 pip download --no-deps prismatique
+pip download --no-deps emicroml
 
 # Change into the root of the repository.
 cd ${path_to_repo_root}

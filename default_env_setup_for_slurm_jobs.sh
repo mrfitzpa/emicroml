@@ -87,12 +87,6 @@ fi
 
 
 
-# Create a temporary directory, in which to install ``emicroml`` further below.
-path_to_temp_dir=${path_to_repo_root}/temp_${SLURM_JOB_ID}
-mkdir -p ${path_to_temp_dir}
-
-
-
 if [ "${current_machine_is_on_a_drac_server}" = true ]
 then
     # Parse the command line arguments.
@@ -125,9 +119,8 @@ then
 
     
 
-    # Install the remaining libraries in the virtual environment, except for
-    # ``emicroml``. Where applicable, GPU-supported versions of libraries are
-    # installed.
+    # Install the remaining libraries in the virtual environment. Where
+    # applicable, GPU-supported versions of libraries are installed.
     pkgs="numpy<2.0.0 numba hyperspy h5py pytest ipympl jupyter torch kornia"
     pkgs=${pkgs}" blosc2 msgpack"
     if [ "${install_libs_required_to_run_all_examples}" = true ]
@@ -144,16 +137,10 @@ then
     then
 	pkgs=${pkgs}" empix*.whl embeam*.whl prismatique*.whl"
     fi
+    pkgs=${pkgs}" emicroml*.whl"
     pip install ${pkgs}
 
-    if [ "${install_libs_required_to_run_all_examples}" = true ]
-    then
-	pkgs="pyopencl pyFAI pyprismatic-gpu"
-	pip install --no-index ${pkgs}
-
-	pkgs="prismatique"
-	pip install ${pkgs}
-    fi
+    cd ${path_to_repo_root}
 else
     # Parse the command line arguments.
     if [ $# -eq 0 ]
@@ -204,7 +191,7 @@ else
 
 
 
-    # Determine which versions of ``pytorch`` and ``pyprismatic`` to installs
+    # Determine which versions of ``pytorch`` and ``pyprismatic`` to install
     # according to what NVIDIA drivers are installed, if any.
     if [ "${major_cuda_version}" = 11 ]
     then
@@ -224,14 +211,13 @@ else
     # Create the ``conda`` virtual environment and install a subset of
     # libraries, then activate the virtual environment.
     pkgs="python=3.11 numpy numba hyperspy h5py pytest ipympl jupyter"
-    pkgs=${pkgs}" fakecbed>=0.3.6 h5pywrappers"
+    pkgs=${pkgs}" h5pywrappers"
     conda create -n ${virtual_env_name} ${pkgs} -y -c conda-forge
     conda activate ${virtual_env_name}
 
 
 
-    # Install the remaining libraries in the virtual environment, except
-    # for``emicroml``.
+    # Install the remaining libraries in the virtual environment.
     conda install -y pytorch ${extra_torch_install_args}
     conda install -y kornia -c conda-forge
 
@@ -243,24 +229,10 @@ else
 	conda install -y ${pyprismatic_pkg} -c conda-forge
 
 	pkgs="prismatique"
-	pip install ${pkgs}
     fi
+    pkgs=${pkgs}" fakecbed>=0.3.6 emicroml"
+    pip install ${pkgs}
 fi
-
-
-
-# Install ``emicroml`` and then remove the temporary directory that we created
-# above.
-path_to_required_git_repos=${path_to_repo_root}/required_git_repos
-path_to_copy_of_required_git_repos=${path_to_temp_dir}/required_git_repos
-cp -r ${path_to_required_git_repos} ${path_to_copy_of_required_git_repos}
-
-cd ${path_to_copy_of_required_git_repos}/emicroml
-git status
-pip install .
-
-cd ${path_to_repo_root}
-rm -rf ${path_to_temp_dir}
 
 
 

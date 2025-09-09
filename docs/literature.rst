@@ -30,7 +30,7 @@ Below is a list of references that are cited in the ``emicroml`` documentation:
 
 .. [Fitzpatrick1] |nbspc|"Calibration-sample free distortion correction of
 		         electron diffraction patterns using deep learning",
-			 M.R.C. Fitzpatrick *et al.*, Ultramicroscopy **??**,
-			 ??? (2025), :doi:`???/???`
+			 M.R.C. Fitzpatrick *et al.*, arXiv:2509.01075 (2025),
+			 :doi:`10.48550/arXiv.2509.01075`
 
 .. |nbspc| unicode:: U+00A0 .. non-breaking space

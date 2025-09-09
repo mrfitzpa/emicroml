@@ -3423,15 +3423,23 @@ def _custom_value_checker_for_cbed_pattern_images(
         if ((abs(cbed_pattern_image.min().item()-lower_value_limit) > tol)
             or (abs(cbed_pattern_image.max().item()-upper_value_limit) > tol)):
             obj_alias = obj_alias_from_which_data_chunk_was_obtained
-            if isinstance(obj_alias, h5py.Dataset):
-                unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
-                args = (key_used_to_get_data_chunk,
-                        obj_alias.file.filename)
-                obj_alias.file.close()
-            else:
-                unformatted_err_msg = globals()[current_func_name+"_err_msg_2"]
-                args = (name_of_obj_alias_from_which_data_chunk_was_obtained,
-                        key_used_to_get_data_chunk)
+
+            unformatted_err_msg = \
+                (globals()[current_func_name+"_err_msg_1"]
+                 if isinstance(obj_alias, h5py.Dataset)
+                 else globals()[current_func_name+"_err_msg_2"])
+
+            format_arg_1 = \
+                (key_used_to_get_data_chunk
+                 if isinstance(obj_alias, h5py.Dataset)
+                 else name_of_obj_alias_from_which_data_chunk_was_obtained)
+            format_arg_2 = \
+                (obj_alias.file.filename
+                 if isinstance(obj_alias, h5py.Dataset)
+                 else key_used_to_get_data_chunk)
+
+            args = (format_arg_1, format_arg_2)
+            
             err_msg = unformatted_err_msg.format(*args)
             raise ValueError(err_msg)
 
@@ -3643,7 +3651,9 @@ def _check_and_convert_cbed_pattern_generator(params):
                   "least_squares_alg_params": \
                   _default_least_squares_alg_params,
                   "device_name": \
-                  _default_device_name}
+                  _default_device_name,
+                  "skip_validation_and_conversion": \
+                  False}
         cbed_pattern_generator = _DefaultCBEDPatternGenerator(**kwargs)
     else:
         cbed_pattern_generator = obj
@@ -3857,39 +3867,6 @@ def _get_max_num_disks_in_any_cbed_pattern(path_to_ml_dataset,
         hdf5_dataset_shape[-1]
 
     return max_num_disks_in_any_cbed_pattern
-
-
-
-def _get_ml_data_instance_chunk(ml_dataset, chunk_idx, device_name):
-    max_num_ml_data_instances_per_chunk = \
-        ml_dataset._get_torch_ml_dataset()._max_num_ml_data_instances_per_chunk
-    total_num_ml_data_instances = \
-        ml_dataset._get_torch_ml_dataset()._num_ml_data_instances_in_ml_dataset
-
-    start = chunk_idx*max_num_ml_data_instances_per_chunk
-    stop_candidate_1 = total_num_ml_data_instances
-    stop_candidate_2 = start + max_num_ml_data_instances_per_chunk
-    stop = min(stop_candidate_1, stop_candidate_2)
-    single_dim_slice = slice(start, stop)
-
-    kwargs = {"single_dim_slice": single_dim_slice,
-              "device_name": device_name,
-              "decode": True,
-              "unnormalize_normalizable_elems": True}
-    ml_data_instances = ml_dataset.get_ml_data_instances(**kwargs)
-
-    ml_data_instance_chunk = ml_data_instances
-
-    return ml_data_instance_chunk
-
-
-
-def _check_and_convert_check_ml_data_dict_first(params):
-    module_alias = emicroml.modelling._common
-    func_alias = module_alias._check_and_convert_check_ml_data_dict_first
-    check_ml_data_dict_first = func_alias(params)
-
-    return check_ml_data_dict_first
 
 
 
@@ -4138,10 +4115,10 @@ def _check_and_convert_cbed_pattern_images(params):
 
     current_func_name = "_check_and_convert_cbed_pattern_images"
 
-    if len(obj.shape) < 3:
+    if len(obj.shape) != 3:
         unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
-        format_args = (name_of_obj_alias_of_cbed_pattern_images,)
-        err_msg = unformatted_err_msg.format(*format_args)
+        args = (name_of_obj_alias_of_cbed_pattern_images,)
+        err_msg = unformatted_err_msg.format(*args)
         raise ValueError(err_msg)
 
     kwargs = {"image_stack": obj}
@@ -4453,6 +4430,8 @@ class _MLDataset(_cls_alias):
 
 
     def _generate_ml_data_normalization_weights_and_biases_loader(self):
+        super()._generate_ml_data_normalization_weights_and_biases_loader()
+
         self_core_attrs = self.get_core_attrs(deep_copy=False)
         
         kwargs = \
@@ -4466,6 +4445,8 @@ class _MLDataset(_cls_alias):
 
 
     def _generate_torch_ml_dataset(self):
+        super()._generate_torch_ml_dataset()
+
         self_core_attrs = \
             self.get_core_attrs(deep_copy=False)
         ml_data_normalization_weights_and_biases_loader = \
@@ -4536,7 +4517,7 @@ class _MLDataset(_cls_alias):
 
         Parameters
         ----------
-        single_dim_slice : `slice`, optional
+        single_dim_slice : `int` | `array_like` (`int`, ndim=1)  | `slice`, optional
             ``single_dim_slice`` specifies the subset of ML data instances to
             return as a dictionary. The ML data instances are indexed from ``0``
             to ``total_num_ml_data_instances-1``, where
@@ -4757,21 +4738,6 @@ def _pre_serialize_ml_dataset_manager(ml_dataset_manager):
 
 
 
-def _initialize_layer_weights_according_to_activation_func(activation_func,
-                                                           layer):
-    kwargs = \
-        locals()
-    module_alias = \
-        emicroml.modelling._common
-    func_alias = \
-        module_alias._initialize_layer_weights_according_to_activation_func
-    _ = \
-        func_alias(**kwargs)
-
-    return None
-
-
-
 def _min_max_normalize_image_stack(image_stack):
     maxima_over_last_two_dims = image_stack.amax(dim=(-2, -1))
     minima_over_last_two_dims = image_stack.amin(dim=(-2, -1))
@@ -4832,8 +4798,6 @@ class _DistopticaNet(torch.nn.Module):
                   3,
                   "building_block_counts_in_stages": \
                   building_block_counts_in_stages,
-                  "return_intermediate_tensor_subset_upon_call_to_forward": \
-                  False,
                   "height_of_input_tensor_in_pixels": \
                   self._num_pixels_across_each_cbed_pattern,
                   "width_of_input_tensor_in_pixels": \
@@ -5443,6 +5407,11 @@ _module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLMetricCalculator
 class _MLMetricCalculator(_cls_alias):
     def __init__(self):
+        module_alias = emicroml.modelling._common
+        cls_alias = module_alias._MLMetricCalculator
+        kwargs = dict()
+        cls_alias.__init__(self, **kwargs)
+
         return None
 
 
@@ -5455,7 +5424,12 @@ class _MLMetricCalculator(_cls_alias):
             ml_model,
             ml_dataset_manager,
             mini_batch_indices_for_entire_training_session):
-        metrics_of_current_mini_batch = dict()
+        kwargs = \
+            {key: val
+             for key, val in locals().items()
+             if (key not in ("self", "__class__"))}
+        metrics_of_current_mini_batch = \
+            super()._calc_metrics_of_current_mini_batch(**kwargs)
 
         kwargs = {"ml_data_dict": ml_targets, "ml_model": ml_model}
         target_shifted_q = _calc_shifted_q(**kwargs)
@@ -5493,6 +5467,11 @@ _module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLLossCalculator
 class _MLLossCalculator(_cls_alias):
     def __init__(self):
+        module_alias = emicroml.modelling._common
+        cls_alias = module_alias._MLLossCalculator
+        kwargs = dict()
+        cls_alias.__init__(self, **kwargs)
+
         return None
 
 
@@ -5507,6 +5486,13 @@ class _MLLossCalculator(_cls_alias):
             phase,
             ml_metric_manager,
             mini_batch_indices_for_entire_training_session):
+        kwargs = \
+            {key: val
+             for key, val in locals().items()
+             if (key not in ("self", "__class__"))}
+        losses_of_current_mini_batch = \
+            super()._calc_losses_of_current_mini_batch(**kwargs)
+
         metrics_of_current_mini_batch = \
             ml_metric_manager._metrics_of_current_mini_batch
 
@@ -5574,25 +5560,6 @@ class _MLModelTrainer(_cls_alias):
 
 
 
-def _check_and_convert_ml_model_trainer(params):
-    module_alias = emicroml.modelling._common
-    func_alias = module_alias._check_and_convert_ml_model_trainer
-    ml_model_trainer = func_params(params)
-
-    return ml_model_trainer
-
-
-
-def _pre_serialize_ml_model_trainer(ml_model_trainer):
-    obj_to_pre_serialize = ml_model_trainer
-    module_alias = emicroml.modelling._common
-    func_alias = module_alias._pre_serialize_ml_model_trainer
-    serializable_rep = func_alias(obj_to_pre_serialize)
-    
-    return serializable_rep
-
-
-
 _module_alias = \
     emicroml.modelling._common
 _default_misc_model_testing_metadata = \
@@ -5628,25 +5595,6 @@ class _MLModelTester(_cls_alias):
         super().test_ml_model(**kwargs)
 
         return None
-
-
-
-def _check_and_convert_ml_model_tester(params):
-    module_alias = emicroml.modelling._common
-    func_alias = module_alias._check_and_convert_ml_model_tester
-    ml_model_tester = func_params(params)
-
-    return ml_model_tester
-
-
-
-def _pre_serialize_ml_model_tester(ml_model_tester):
-    obj_to_pre_serialize = ml_model_tester
-    module_alias = emicroml.modelling._common
-    func_alias = module_alias._pre_serialize_ml_model_tester
-    serializable_rep = func_alias(obj_to_pre_serialize)
-    
-    return serializable_rep
 
 
 
@@ -5714,4 +5662,4 @@ _custom_value_checker_for_cbed_pattern_images_err_msg_2 = \
      "unity respectively for each image.")
 
 _check_and_convert_cbed_pattern_images_err_msg_1 = \
-    {"The object ``{}`` must be an array of at least three dimensions."}
+    ("The object ``{}`` must be an array of three dimensions.")

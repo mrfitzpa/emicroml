@@ -143,13 +143,6 @@ class BaseMLOptimizer(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _step(self):
-        self._torch_ml_optimizer.step()
-
-        return None
-
-
-
 def _check_and_convert_base_lr(params):
     obj_name = "base_lr"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}

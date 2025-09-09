@@ -323,15 +323,6 @@ class LRSchedulerManager(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _get_current_lrs(self):
-        current_lrs = tuple()
-        for lr_scheduler in self._lr_schedulers:
-            current_lrs += (lr_scheduler._get_current_lr(),)
-
-        return current_lrs
-
-
-
     def _step(self, ml_loss_manager):
         self._lr_step_idx += 1
 

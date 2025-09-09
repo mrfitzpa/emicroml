@@ -926,7 +926,7 @@ def split_ml_dataset_file(
         enable_shuffling=\
         _default_enable_shuffling,
         rng_seed=\
-        _default_split_ratio,
+        _default_rng_seed,
         rm_input_ml_dataset_file=\
         _default_rm_input_ml_dataset_file,
         max_num_ml_data_instances_per_file_update=\
@@ -1489,10 +1489,9 @@ def _pre_serialize_ml_training_dataset(ml_training_dataset):
 
 
 def _de_pre_serialize_ml_training_dataset(serializable_rep):
-    if serializable_rep is None:
-        ml_training_dataset = serializable_rep
-    else:
-        ml_training_dataset = MLDataset.de_pre_serialize(serializable_rep)
+    ml_training_dataset = (serializable_rep
+                           if (serializable_rep is None)
+                           else MLDataset.de_pre_serialize(serializable_rep))
 
     return ml_training_dataset
 
@@ -2386,7 +2385,8 @@ def _normalize_normalizable_elems_in_ml_data_dict(check_ml_data_dict_first,
                                                   normalization_weights,
                                                   normalization_biases,
                                                   ml_data_dict):
-    kwargs = locals()
+    params = locals()
+    kwargs = params.copy()
     del kwargs["check_ml_data_dict_first"]
     try:
         current_func_name = "_normalize_normalizable_elems_in_ml_data_dict"
@@ -2515,7 +2515,8 @@ def _unnormalize_normalizable_elems_in_ml_data_dict(check_ml_data_dict_first,
                                                     normalization_weights,
                                                     normalization_biases,
                                                     ml_data_dict):
-    kwargs = locals()
+    params = locals()
+    kwargs = params.copy()
     del kwargs["check_ml_data_dict_first"]
     try:
         current_func_name = "_unnormalize_normalizable_elems_in_ml_data_dict"
@@ -3036,35 +3037,6 @@ class MLModelTrainer(_cls_alias):
 
 
 
-def _check_and_convert_ml_model_trainer(params):
-    key = "ml_model_trainer_cls"
-    params[key] = MLModelTrainer
-    
-    module_alias = emicroml.modelling.cbed.distortion._common
-    func_alias = module_alias._check_and_convert_ml_model_trainer
-    ml_model_trainer = func_alias(params)
-
-    return ml_model_trainer
-
-
-
-def _pre_serialize_ml_model_trainer(ml_model_trainer):
-    obj_to_pre_serialize = ml_model_trainer
-    module_alias = emicroml.modelling.cbed.distortion._common
-    func_alias = module_alias._pre_serialize_ml_model_trainer
-    serializable_rep = func_alias(obj_to_pre_serialize)
-    
-    return serializable_rep
-
-
-
-def _de_pre_serialize_ml_model_trainer(serializable_rep):
-    ml_model_trainer = MLModelTrainer.de_pre_serialize(serializable_rep)
-
-    return ml_model_trainer
-
-
-
 _module_alias = \
     emicroml.modelling.cbed.distortion._common
 _default_misc_model_testing_metadata = \
@@ -3300,51 +3272,6 @@ class MLModelTester(_cls_alias):
         super().test_ml_model(**kwargs)
 
         return None
-
-
-
-def _check_and_convert_ml_model_tester(params):
-    key = "ml_model_tester_cls"
-    params[key] = MLModelTester
-    
-    module_alias = emicroml.modelling.cbed.distortion._common
-    func_alias = module_alias._check_and_convert_ml_model_tester
-    ml_model_tester = func_alias(params)
-
-    return ml_model_tester
-
-
-
-def _pre_serialize_ml_model_tester(ml_model_tester):
-    obj_to_pre_serialize = ml_model_tester
-    module_alias = emicroml.modelling.cbed.distortion._common
-    func_alias = module_alias._pre_serialize_ml_model_tester
-    serializable_rep = func_alias(obj_to_pre_serialize)
-    
-    return serializable_rep
-
-
-
-def _de_pre_serialize_ml_model_tester(serializable_rep):
-    ml_model_tester = MLModelTester.de_pre_serialize(serializable_rep)
-
-    return ml_model_tester
-
-
-    
-def _check_and_convert_train_ml_model_params(params):
-    params = params.copy()
-    params["ml_dataset_cls"] = MLDataset
-    params["ml_model_cls"] = MLModel
-
-    module_alias = emicroml.modelling.cbed.distortion._common
-    func_alias = module_alias._check_and_convert_train_ml_model_params
-    params = func_alias(params)
-
-    del params["ml_dataset_cls"]
-    del params["ml_model_cls"]
-
-    return params
 
 
 

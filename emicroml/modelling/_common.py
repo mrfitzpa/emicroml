@@ -286,34 +286,41 @@ class _MLDataNormalizer():
         self._normalization_biases = dict()
 
         for key in self._extrema_cache:
-            overriding_quantities = \
-                self._overriding_normalization_weights_and_biases
+            overriding_normalization_weight_and_bias = \
+                self._overriding_normalization_weights_and_biases.get(key, None)
 
-            if key in overriding_quantities:
-                overriding_normalization_weight_and_bias = \
-                    overriding_quantities[key]
-                normalization_weight = \
-                    overriding_normalization_weight_and_bias["weight"]
-                normalization_bias = \
-                    overriding_normalization_weight_and_bias["bias"]
-            else:
-                maximum_cache = self._extrema_cache[key]["max"]
-                minimum_cache = self._extrema_cache[key]["min"]
+            maximum_cache = self._extrema_cache[key]["max"]
+            minimum_cache = self._extrema_cache[key]["min"]
+            cache_range = (0.0
+                           if np.isnan(abs(maximum_cache-minimum_cache))
+                           else abs(maximum_cache-minimum_cache))
 
-                tol = _tol_for_comparing_floats
-                if abs(maximum_cache-minimum_cache) > tol:
-                    normalization_weight = 1 / (maximum_cache-minimum_cache)
-                    normalization_bias = -normalization_weight*minimum_cache
-                else:
-                    if abs(minimum_cache) > tol:
-                        normalization_weight = 1 / minimum_cache
-                        normalization_bias = 0
-                    else:
-                        normalization_weight = 0
-                        normalization_bias = -minimum_cache
+            tol = _tol_for_comparing_floats
 
-            self._normalization_weights[key] = normalization_weight
-            self._normalization_biases[key] = normalization_bias
+            normalization_weight_candidate = \
+                (((cache_range > tol)
+                  / (cache_range
+                     + (cache_range <= tol)))
+                 + (((cache_range <= tol)
+                     * (abs(minimum_cache) > tol))
+                    / (minimum_cache
+                       + (abs(minimum_cache) <= tol))))
+
+            normalization_bias_candidate = \
+                -((((cache_range > tol)
+                    * normalization_weight_candidate)
+                   + ((cache_range <= tol)
+                      * (abs(minimum_cache) <= tol)))
+                  * (minimum_cache, 1)[minimum_cache == float("inf")])
+
+            self._normalization_weights[key] = \
+                (normalization_weight_candidate
+                 if (overriding_normalization_weight_and_bias is None)
+                 else overriding_normalization_weight_and_bias["weight"])
+            self._normalization_biases[key] = \
+                (normalization_bias_candidate
+                 if (overriding_normalization_weight_and_bias is None)
+                 else overriding_normalization_weight_and_bias["bias"])
 
         return None
 
@@ -329,36 +336,36 @@ class _MLDataNormalizer():
             normalization_bias = self._normalization_biases[key]
             hdf5_dataset_path = key
 
-            if key not in self._ml_data_dict_elem_decoders:
-                kwargs = {"filename": path_to_ml_dataset,
-                          "path_in_file": hdf5_dataset_path}
-                hdf5_dataset_id = h5pywrappers.obj.ID(**kwargs)
+            kwargs = {"filename": path_to_ml_dataset,
+                      "path_in_file": hdf5_dataset_path}
+            hdf5_dataset_id = h5pywrappers.obj.ID(**kwargs)
 
-                kwargs = {"dataset_id": hdf5_dataset_id, "read_only": False}
-                hdf5_dataset = h5pywrappers.dataset.load(**kwargs)
+            kwargs = {"dataset_id": hdf5_dataset_id, "read_only": False}
+            hdf5_dataset = (h5pywrappers.dataset.load(**kwargs)
+                            if (key not in self._ml_data_dict_elem_decoders)
+                            else np.zeros((0,)))
 
-                total_num_ml_data_instances = hdf5_dataset.shape[0]
+            total_num_ml_data_instances = hdf5_dataset.shape[0]
+
+            max_num_ml_data_instances_per_chunk = \
+                (self._max_num_ml_data_instances_per_file_update
+                 if (self._max_num_ml_data_instances_per_file_update < np.inf)
+                 else total_num_ml_data_instances)
             
-                if self._max_num_ml_data_instances_per_file_update < np.inf:
-                    max_num_ml_data_instances_per_chunk = \
-                        self._max_num_ml_data_instances_per_file_update
-                else:
-                    max_num_ml_data_instances_per_chunk = \
-                        total_num_ml_data_instances
+            fraction = (total_num_ml_data_instances
+                        / max_num_ml_data_instances_per_chunk)
+            num_chunks = np.ceil(fraction).astype(int)
 
-                fraction = (total_num_ml_data_instances
-                            / max_num_ml_data_instances_per_chunk)
-                num_chunks = np.ceil(fraction).astype(int)
+            for chunk_idx in range(num_chunks):
+                self._normalize_data_chunk(chunk_idx,
+                                           max_num_ml_data_instances_per_chunk,
+                                           hdf5_dataset,
+                                           normalization_weight,
+                                           normalization_bias)
 
-                for chunk_idx in range(num_chunks):
-                    normalize_data_chunk = self._normalize_data_chunk
-                    normalize_data_chunk(chunk_idx,
-                                         max_num_ml_data_instances_per_chunk,
-                                         hdf5_dataset,
-                                         normalization_weight,
-                                         normalization_bias)
-
-                hdf5_dataset.file.close()
+            _ = (hdf5_dataset.file.close()
+                 if (key not in self._ml_data_dict_elem_decoders)
+                 else None)
 
             self._save_normalization_weight_and_bias(hdf5_dataset_path,
                                                      path_to_ml_dataset)
@@ -460,11 +467,9 @@ class _MLDataTypeValidator():
         kwargs = {"dataset_id": hdf5_dataset_id, "read_only": True}
         hdf5_dataset = h5pywrappers.dataset.load(**kwargs)
 
-        if hdf5_dataset.shape is None:
-            data_chunk = hdf5_dataset
-        else:
-            multi_dim_slice = tuple(0 for _ in hdf5_dataset.shape)
-            data_chunk = hdf5_dataset[multi_dim_slice]
+        data_chunk = (hdf5_dataset
+                      if (hdf5_dataset.shape is None)
+                      else hdf5_dataset[tuple(0 for _ in hdf5_dataset.shape)])
 
         kwargs = {"data_chunk": \
                   data_chunk,
@@ -489,46 +494,77 @@ class _MLDataTypeValidator():
             name_of_obj_alias_from_which_data_chunk_was_obtained,
             obj_alias_from_which_data_chunk_was_obtained):
         map_alias = self._ml_data_dict_key_to_dtype_map
+        key = key_used_to_get_data_chunk
 
-        if isinstance(data_chunk, torch.Tensor):
-            temp_numpy_array_1 = \
-                np.empty(tuple(), dtype=map_alias[key_used_to_get_data_chunk])
-            temp_tensor_1 = \
-                torch.from_numpy(temp_numpy_array_1)
-            expected_dtype = \
-                temp_tensor_1.dtype
+        temp_numpy_array_1 = np.empty(tuple(), dtype=map_alias[key])
+        temp_tensor_1 = torch.from_numpy(temp_numpy_array_1)
+        
+        expected_dtype = (temp_tensor_1.dtype
+                          if isinstance(data_chunk, torch.Tensor)
+                          else map_alias[key])
 
-            temp_tensor_2 = \
-                torch.empty(tuple(), dtype=data_chunk.dtype, device="cpu")
-            temp_numpy_array_2 = \
-                temp_tensor_2.numpy()
-            kwargs = \
-                {"arg1": temp_numpy_array_2.dtype,
-                 "arg2": temp_numpy_array_1.dtype}
-            dtype_of_data_chunk_is_invalid = \
-                not np.issubdtype(**kwargs)
-        else:
-            expected_dtype = \
-                map_alias[key_used_to_get_data_chunk]
-            dtype_of_data_chunk_is_invalid = \
-                not np.issubdtype(data_chunk.dtype, expected_dtype)
+        temp_tensor_2_dtype = (data_chunk.dtype
+                               if isinstance(data_chunk, torch.Tensor)
+                               else None)
+        temp_tensor_2 = torch.empty(tuple(),
+                                    dtype=temp_tensor_2_dtype,
+                                    device="cpu")
+        temp_numpy_array_2 = (temp_tensor_2.numpy()
+                              if isinstance(data_chunk, torch.Tensor)
+                              else data_chunk)
+
+        kwargs = {"arg1": temp_numpy_array_2.dtype,
+                  "arg2": temp_numpy_array_1.dtype}
+        dtype_of_data_chunk_is_invalid = not np.issubdtype(**kwargs)
 
         if dtype_of_data_chunk_is_invalid:
-            name_of_expected_dtype = self._name_of_dtype(dtype=expected_dtype)
-            obj_alias = obj_alias_from_which_data_chunk_was_obtained
-            if isinstance(obj_alias, h5py.Dataset):
-                unformatted_err_msg = _ml_data_type_validator_err_msg_1
-                args = (key_used_to_get_data_chunk,
-                        obj_alias.file.filename,
-                        name_of_expected_dtype)
-                obj_alias.file.close()
-            else:
-                unformatted_err_msg = _ml_data_type_validator_err_msg_2
-                args = (name_of_obj_alias_from_which_data_chunk_was_obtained,
-                        key_used_to_get_data_chunk,
-                        name_of_expected_dtype)
-            err_msg = unformatted_err_msg.format(*args)
-            raise TypeError(err_msg)
+            kwargs = {"expected_dtype": \
+                      expected_dtype,
+                      "obj_alias_from_which_data_chunk_was_obtained": \
+                      obj_alias_from_which_data_chunk_was_obtained,
+                      "key_used_to_get_data_chunk": \
+                      key_used_to_get_data_chunk,
+                      "name_of_obj_alias_from_which_data_chunk_was_obtained": \
+                      name_of_obj_alias_from_which_data_chunk_was_obtained}
+            self._raise_error_related_to_invalid_data_chunk_dtype(**kwargs)
+
+        return None
+
+
+
+    def _raise_error_related_to_invalid_data_chunk_dtype(
+            self,
+            expected_dtype,
+            obj_alias_from_which_data_chunk_was_obtained,
+            key_used_to_get_data_chunk,
+            name_of_obj_alias_from_which_data_chunk_was_obtained):
+        name_of_expected_dtype = self._name_of_dtype(dtype=expected_dtype)
+        obj_alias = obj_alias_from_which_data_chunk_was_obtained
+        key = key_used_to_get_data_chunk
+
+        unformatted_err_msg = (_ml_data_type_validator_err_msg_1
+                               if isinstance(obj_alias, h5py.Dataset)
+                               else _ml_data_type_validator_err_msg_2)
+
+        format_arg_0 = \
+            (key
+             if isinstance(obj_alias, h5py.Dataset)
+             else name_of_obj_alias_from_which_data_chunk_was_obtained)
+        format_arg_1 = \
+            (obj_alias.file.filename
+             if isinstance(obj_alias, h5py.Dataset)
+             else key)
+        format_arg_2 = \
+            name_of_expected_dtype
+
+        args = (format_arg_0, format_arg_1, format_arg_2)
+        err_msg = unformatted_err_msg.format(*args)
+
+        _ = (obj_alias.file.close()
+             if isinstance(obj_alias, h5py.Dataset)
+             else None)
+        
+        raise TypeError(err_msg)
 
         return None
 
@@ -552,21 +588,6 @@ class _MLDataValueValidator():
             ml_data_dict_key_to_custom_value_checker_map
         self._keys_of_normalizable_ml_data_dict_elems = \
             ml_data_normalizer._keys_of_normalizable_ml_data_dict_elems
-
-        return None
-
-
-
-    def _check_values_of_hdf5_datasets_of_ml_dataset_files(
-            self,
-            paths_to_ml_datasets,
-            max_num_ml_data_instances_per_chunk):
-        for path_to_ml_dataset in paths_to_ml_datasets:
-            kwargs = {"path_to_ml_dataset": \
-                      path_to_ml_dataset,
-                      "max_num_ml_data_instances_per_chunk": \
-                      max_num_ml_data_instances_per_chunk}
-            self._check_values_of_hdf5_datasets_of_ml_dataset_file(**kwargs)
 
         return None
 
@@ -603,25 +624,28 @@ class _MLDataValueValidator():
         hdf5_dataset = h5pywrappers.dataset.load(**kwargs)
         hdf5_dataset_shape = hdf5_dataset.shape
 
-        if hdf5_dataset_shape is not None:
-            total_num_ml_data_instances = hdf5_dataset_shape[0]
-            fraction = (total_num_ml_data_instances
-                        / max_num_ml_data_instances_per_chunk)
-            num_chunks = np.ceil(fraction).astype(int)
+        modified_hdf5_dataset_shape = (hdf5_dataset_shape
+                                       if (hdf5_dataset_shape is not None)
+                                       else (0,))
 
-            for chunk_idx in range(num_chunks):
-                kwargs = {"chunk_idx": \
-                          chunk_idx,
-                          "max_num_ml_data_instances_per_chunk": \
-                          max_num_ml_data_instances_per_chunk,
-                          "input_hdf5_dataset": hdf5_dataset}
-                data_chunk = _load_contiguous_data_chunk(**kwargs)
-                hdf5_datasubset = data_chunk
+        total_num_ml_data_instances = modified_hdf5_dataset_shape[0]
+        fraction = (total_num_ml_data_instances
+                    / max_num_ml_data_instances_per_chunk)
+        num_chunks = np.ceil(fraction).astype(int)
 
-                method_alias = \
-                    self._check_values_of_hdf5_datasubset_of_ml_dataset_file
-                _ = \
-                    method_alias(hdf5_dataset, hdf5_datasubset)
+        for chunk_idx in range(num_chunks):
+            kwargs = {"chunk_idx": \
+                      chunk_idx,
+                      "max_num_ml_data_instances_per_chunk": \
+                      max_num_ml_data_instances_per_chunk,
+                      "input_hdf5_dataset": hdf5_dataset}
+            data_chunk = _load_contiguous_data_chunk(**kwargs)
+            hdf5_datasubset = data_chunk
+
+            method_alias = \
+                self._check_values_of_hdf5_datasubset_of_ml_dataset_file
+            _ = \
+                method_alias(hdf5_dataset, hdf5_datasubset)
 
         hdf5_dataset.file.close()
 
@@ -696,20 +720,59 @@ class _MLDataValueValidator():
         tol = _tol_for_comparing_floats
         if ((data_chunk.min().item()+tol < lower_value_limit)
             or (upper_value_limit < data_chunk.max().item()-tol)):
-            obj_alias = obj_alias_from_which_data_chunk_was_obtained
-            if isinstance(obj_alias, h5py.Dataset):
-                unformatted_err_msg = _ml_data_value_validator_err_msg_1
-                args = (key_used_to_get_data_chunk, obj_alias.file.filename)
-                obj_alias.file.close()
-            else:
-                unformatted_err_msg = _ml_data_value_validator_err_msg_2
-                args = (name_of_obj_alias_from_which_data_chunk_was_obtained,
-                        key_used_to_get_data_chunk)
-            args += (lower_value_limit, upper_value_limit)
-            err_msg = unformatted_err_msg.format(*args)
-            raise ValueError(err_msg)
+            kwargs = {"obj_alias_from_which_data_chunk_was_obtained": \
+                      obj_alias_from_which_data_chunk_was_obtained,
+                      "key_used_to_get_data_chunk": \
+                      key_used_to_get_data_chunk,
+                      "name_of_obj_alias_from_which_data_chunk_was_obtained": \
+                      name_of_obj_alias_from_which_data_chunk_was_obtained,
+                      "lower_value_limit": \
+                      lower_value_limit,
+                      "upper_value_limit": \
+                      upper_value_limit}
+            self._raise_error_related_to_invalid_data_value(**kwargs)
 
         return None
+
+
+
+    def _raise_error_related_to_invalid_data_value(
+            self,
+            obj_alias_from_which_data_chunk_was_obtained,
+            key_used_to_get_data_chunk,
+            name_of_obj_alias_from_which_data_chunk_was_obtained,
+            lower_value_limit,
+            upper_value_limit):
+        obj_alias = obj_alias_from_which_data_chunk_was_obtained
+        key = key_used_to_get_data_chunk
+
+        unformatted_err_msg = (_ml_data_value_validator_err_msg_1
+                               if isinstance(obj_alias, h5py.Dataset)
+                               else _ml_data_value_validator_err_msg_2)
+
+        format_arg_0 = \
+            (key
+             if isinstance(obj_alias, h5py.Dataset)
+             else name_of_obj_alias_from_which_data_chunk_was_obtained)
+        format_arg_1 = \
+            (obj_alias.file.filename
+             if isinstance(obj_alias, h5py.Dataset)
+             else key)
+        format_arg_2 = \
+            lower_value_limit
+        format_arg_3 = \
+            upper_value_limit
+
+        args = (format_arg_0, format_arg_1, format_arg_2, format_arg_3)
+        err_msg = unformatted_err_msg.format(*args)
+
+        _ = (obj_alias.file.close()
+             if isinstance(obj_alias, h5py.Dataset)
+             else None)
+        
+        raise ValueError(err_msg)
+
+        return None                                
 
 
 
@@ -767,9 +830,9 @@ class _MLDataNormalizationWeightsAndBiasesLoader():
                                              normalization_weight,
                                              path_to_ml_dataset)
             self._check_normalization_bias(hdf5_dataset_path,
-                                          normalization_bias,
-                                          normalization_weight,
-                                          path_to_ml_dataset)
+                                           normalization_bias,
+                                           normalization_weight,
+                                           path_to_ml_dataset)
 
             normalization_weights[hdf5_dataset_path] = normalization_weight
             normalization_biases[hdf5_dataset_path] = normalization_bias
@@ -782,70 +845,77 @@ class _MLDataNormalizationWeightsAndBiasesLoader():
                                     hdf5_dataset_path,
                                     normalization_weight,
                                     path_to_ml_dataset):
-        if path_to_ml_dataset is None:
-            unformatted_err_msg = \
-                _ml_data_normalization_weights_and_biases_loader_err_msg_2
-            format_args = \
-                ("weights", hdf5_dataset_path)
-        else:
-            unformatted_err_msg = \
-                _ml_data_normalization_weights_and_biases_loader_err_msg_3
-            format_args = \
-                ("weight", "weight", hdf5_dataset_path, path_to_ml_dataset)
+        method_alias = \
+            self._calc_lowest_valid_normalization_weight_lower_limit
+        lowest_valid_normalization_weight_lower_limit = \
+            method_alias(hdf5_dataset_path)
 
         ml_data_normalizer = \
             self._ml_data_normalizer
         overriding_normalization_weights_and_biases = \
             ml_data_normalizer._overriding_normalization_weights_and_biases
-
-        if hdf5_dataset_path in overriding_normalization_weights_and_biases:
-            overriding_normalization_weight_and_bias = \
-                overriding_normalization_weights_and_biases[hdf5_dataset_path]
-            expected_normalization_weight = \
-                overriding_normalization_weight_and_bias["weight"]
-
-            tol = _tol_for_comparing_floats
-            diff = normalization_weight - expected_normalization_weight            
-            if abs(diff) > tol:
-                format_args += ("equal to", expected_normalization_weight)
-                args = format_args
-                err_msg = unformatted_err_msg.format(*args)
-                raise ValueError(err_msg)
-        else:
-            method_alias = \
-                self._calc_lowest_valid_normalization_weight_lower_limit
-            lowest_valid_normalization_weight_lower_limit = \
-                method_alias(hdf5_dataset_path)
-
-            diff = (normalization_weight
-                    - lowest_valid_normalization_weight_lower_limit)            
-            if (diff < 0) or (normalization_weight == np.inf):
-                format_args += ("finite, and greater than or equal to",
-                                lowest_valid_normalization_weight_lower_limit)
-                args = format_args
-                err_msg = unformatted_err_msg.format(*args)
-                raise ValueError(err_msg)
         
+        map_alias = overriding_normalization_weights_and_biases
+        key = hdf5_dataset_path        
+
+        unformatted_err_msg = \
+            (_ml_data_normalization_weights_and_biases_loader_err_msg_2
+             if (path_to_ml_dataset is None)
+             else _ml_data_normalization_weights_and_biases_loader_err_msg_3)
+        format_args = \
+            (("weights", hdf5_dataset_path)
+             if (path_to_ml_dataset is None)
+             else ("weight", "weight", hdf5_dataset_path, path_to_ml_dataset))
+        format_args += \
+            ((key not in map_alias)*"finite, and greater than or " + "equal to",
+             lowest_valid_normalization_weight_lower_limit)
+
+        diff = (normalization_weight
+                - lowest_valid_normalization_weight_lower_limit)
+        tol = _tol_for_comparing_floats
+        
+        normalization_weight_is_invalid = \
+            ((abs(diff) > tol)
+             if (key in map_alias)
+             else ((diff < 0) or (normalization_weight == np.inf)))
+
+        if normalization_weight_is_invalid:
+            args = format_args
+            err_msg = unformatted_err_msg.format(*args)
+            raise ValueError(err_msg)
+
         return None
 
 
 
     def _calc_lowest_valid_normalization_weight_lower_limit(self,
                                                             hdf5_dataset_path):
-        map_alias = \
+        ml_data_normalizer = \
+            self._ml_data_normalizer
+        overriding_normalization_weights_and_biases = \
+            ml_data_normalizer._overriding_normalization_weights_and_biases
+
+        map_alias_1 = \
             self._ml_data_dict_key_to_unnormalized_hdf5_dataset_value_limits_map
-        key = \
-            hdf5_dataset_path
-        unnormalized_hdf5_dataset_value_limits = \
-            map_alias[key]
+        map_alias_2 = \
+            overriding_normalization_weights_and_biases
+        
+        key = hdf5_dataset_path
+        unnormalized_hdf5_dataset_value_limits = map_alias_1.get(key,
+                                                                 (None, None))
 
         lower_unnormalized_hdf5_dataset_value_limit = \
             unnormalized_hdf5_dataset_value_limits[0]
         upper_unnormalized_hdf5_dataset_value_limit = \
             unnormalized_hdf5_dataset_value_limits[1]
+
+        float_alias_1 = lower_unnormalized_hdf5_dataset_value_limit
+        float_alias_2 = upper_unnormalized_hdf5_dataset_value_limit
+
         lowest_valid_normalization_weight_lower_limit = \
-            (upper_unnormalized_hdf5_dataset_value_limit
-             - lower_unnormalized_hdf5_dataset_value_limit)**(-1)
+            ((float_alias_2-float_alias_1)**(-1)
+             if (key not in map_alias_2)
+             else map_alias_2[key]["weight"])
 
         return lowest_valid_normalization_weight_lower_limit
 
@@ -856,49 +926,44 @@ class _MLDataNormalizationWeightsAndBiasesLoader():
                                   normalization_bias,
                                   normalization_weight,
                                   path_to_ml_dataset):
-        if path_to_ml_dataset is None:
-            unformatted_err_msg = \
-                _ml_data_normalization_weights_and_biases_loader_err_msg_2
-            format_args = \
-                ("biases", hdf5_dataset_path)
-        else:
-            unformatted_err_msg = \
-                _ml_data_normalization_weights_and_biases_loader_err_msg_3
-            format_args = \
-                ("bias", "bias", hdf5_dataset_path, path_to_ml_dataset)
+        method_alias = \
+            self._calc_highest_valid_normalization_bias_upper_limit
+        highest_valid_normalization_bias_upper_limit = \
+            method_alias(hdf5_dataset_path, normalization_weight)
 
         ml_data_normalizer = \
             self._ml_data_normalizer
         overriding_normalization_weights_and_biases = \
             ml_data_normalizer._overriding_normalization_weights_and_biases
+        
+        map_alias = overriding_normalization_weights_and_biases
+        key = hdf5_dataset_path        
 
-        if hdf5_dataset_path in overriding_normalization_weights_and_biases:
-            overriding_normalization_weight_and_bias = \
-                overriding_normalization_weights_and_biases[hdf5_dataset_path]
-            expected_normalization_bias = \
-                overriding_normalization_weight_and_bias["bias"]
+        unformatted_err_msg = \
+            (_ml_data_normalization_weights_and_biases_loader_err_msg_2
+             if (path_to_ml_dataset is None)
+             else _ml_data_normalization_weights_and_biases_loader_err_msg_3)
+        format_args = \
+            (("biases", hdf5_dataset_path)
+             if (path_to_ml_dataset is None)
+             else ("bias", "bias", hdf5_dataset_path, path_to_ml_dataset))
+        format_args += \
+            ((key not in map_alias)*"finite, and lesser than or " + "equal to",
+             highest_valid_normalization_bias_upper_limit)
 
-            tol = _tol_for_comparing_floats
-            diff = normalization_bias - expected_normalization_bias            
-            if abs(diff) > tol:
-                format_args += ("equal to", expected_normalization_bias)
-                args = format_args
-                err_msg = unformatted_err_msg.format(*args)
-                raise ValueError(err_msg)
-        else:
-            method_alias = \
-                self._calc_highest_valid_normalization_bias_upper_limit
-            highest_valid_normalization_bias_upper_limit = \
-                method_alias(hdf5_dataset_path, normalization_weight)
+        diff = (normalization_bias
+                - highest_valid_normalization_bias_upper_limit)
+        tol = _tol_for_comparing_floats
+        
+        normalization_bias_is_invalid = \
+            ((abs(diff) > tol)
+             if (key in map_alias)
+             else ((diff > 0) or (normalization_bias == -np.inf)))
 
-            diff = (normalization_bias
-                    - highest_valid_normalization_bias_upper_limit)
-            if (diff > 0) or (normalization_bias == -np.inf):
-                format_args += ("finite, and lesser than or equal to",
-                                highest_valid_normalization_bias_upper_limit)
-                args = format_args
-                err_msg = unformatted_err_msg.format(*args)
-                raise ValueError(err_msg)
+        if normalization_bias_is_invalid:
+            args = format_args
+            err_msg = unformatted_err_msg.format(*args)
+            raise ValueError(err_msg)
         
         return None
 
@@ -906,18 +971,27 @@ class _MLDataNormalizationWeightsAndBiasesLoader():
 
     def _calc_highest_valid_normalization_bias_upper_limit(
             self, hdf5_dataset_path, normalization_weight):
-        map_alias = \
+        ml_data_normalizer = \
+            self._ml_data_normalizer
+        overriding_normalization_weights_and_biases = \
+            ml_data_normalizer._overriding_normalization_weights_and_biases
+
+        map_alias_1 = \
             self._ml_data_dict_key_to_unnormalized_hdf5_dataset_value_limits_map
-        key = \
-            hdf5_dataset_path
-        unnormalized_hdf5_dataset_value_limits = \
-            map_alias[key]
+        map_alias_2 = \
+            overriding_normalization_weights_and_biases
+        
+        key = hdf5_dataset_path
+        unnormalized_hdf5_dataset_value_limits = map_alias_1.get(key,
+                                                                 (None, None))
 
         lower_unnormalized_hdf5_dataset_value_limit = \
             unnormalized_hdf5_dataset_value_limits[0]
 
         highest_valid_normalization_bias_upper_limit = \
-            -normalization_weight * lower_unnormalized_hdf5_dataset_value_limit
+            (-normalization_weight*lower_unnormalized_hdf5_dataset_value_limit
+             if (key not in map_alias_2)
+             else map_alias_2[key]["bias"])
 
         return highest_valid_normalization_bias_upper_limit
 
@@ -1034,6 +1108,8 @@ def _check_and_convert_normalization_biases(params):
 
 def _calc_num_ml_data_instances_in_input_ml_dataset(ml_data_normalizer,
                                                     input_ml_dataset_filename):
+    num_ml_data_instances_in_input_ml_dataset = 0
+
     for key in ml_data_normalizer._ml_data_dict_keys:
         random_hdf5_dataset_path = key
 
@@ -1046,10 +1122,10 @@ def _calc_num_ml_data_instances_in_input_ml_dataset(ml_data_normalizer,
         hdf5_dataset_shape = hdf5_dataset.shape
         hdf5_dataset.file.close()
 
-        if hdf5_dataset_shape is not None:
-            break
-        
-    num_ml_data_instances_in_input_ml_dataset = hdf5_dataset_shape[0]
+        num_ml_data_instances_in_input_ml_dataset = \
+            (hdf5_dataset_shape[0]
+             if (hdf5_dataset_shape is not None)
+             else num_ml_data_instances_in_input_ml_dataset)
 
     return num_ml_data_instances_in_input_ml_dataset
 
@@ -1255,12 +1331,10 @@ class _MLDataRenormalizer():
         max_num_ml_data_instances_per_file_update = \
             ml_data_normalizer._max_num_ml_data_instances_per_file_update
 
-        if max_num_ml_data_instances_per_file_update < np.inf:
-            max_num_ml_data_instances_per_chunk = \
-                max_num_ml_data_instances_per_file_update
-        else:
-            max_num_ml_data_instances_per_chunk = \
-                self._total_num_ml_data_instances
+        max_num_ml_data_instances_per_chunk = \
+            (max_num_ml_data_instances_per_file_update
+             if (max_num_ml_data_instances_per_file_update < np.inf)
+             else self._total_num_ml_data_instances)
 
         return max_num_ml_data_instances_per_chunk
 
@@ -1331,18 +1405,18 @@ class _MLDataRenormalizer():
         key = input_ml_dataset_filename
         fraction = (self._ml_data_instance_counts_of_input_ml_datasets[key]
                     / self._max_num_ml_data_instances_per_chunk)
-        num_chunks_per_hdf5_dataset = np.ceil(fraction).astype(int)
+        num_chunks_per_hdf5_dataset = (np.ceil(fraction).astype(int)
+                                       * (input_hdf5_dataset.shape is not None))
 
         method_alias = \
             self._copy_and_renormalize_input_data_chunk_and_save_to_output_file
 
-        if input_hdf5_dataset.shape is not None:
-            for chunk_idx in range(num_chunks_per_hdf5_dataset):
-                method_alias(chunk_idx,
-                             input_hdf5_dataset,
-                             renormalization_weight,
-                             renormalization_bias,
-                             output_hdf5_dataset)
+        for chunk_idx in range(num_chunks_per_hdf5_dataset):
+            method_alias(chunk_idx,
+                         input_hdf5_dataset,
+                         renormalization_weight,
+                         renormalization_bias,
+                         output_hdf5_dataset)
 
         input_hdf5_dataset.file.close()
         output_hdf5_dataset.file.close()
@@ -1470,11 +1544,12 @@ def _calc_adjusted_split_ratio(original_split_ratio, num_ml_data_instances):
 
     for idx, _ in enumerate(adjusted_split_ratio):
         discrepancy = num_ml_data_instances - np.sum(adjusted_split_ratio)
-        if discrepancy*adjusted_split_ratio[idx] != 0:
-            adjustment_candidate = (adjusted_split_ratio[idx]
-                                    + np.sign(discrepancy))
-            if adjustment_candidate >= 0:
-                adjusted_split_ratio[idx] = adjustment_candidate
+        adjustment_candidate = adjusted_split_ratio[idx] + np.sign(discrepancy)
+        readjustment_is_needed = ((discrepancy*adjusted_split_ratio[idx] != 0)
+                                  and (adjustment_candidate >= 0))
+        adjusted_split_ratio[idx] = (adjustment_candidate
+                                     if readjustment_is_needed
+                                     else adjusted_split_ratio[idx])
 
     return adjusted_split_ratio
 
@@ -1586,35 +1661,45 @@ class _MLDataShapeAnalyzer():
                                   variable_axis_size_key_to_axis_id_map,
                                   hdf5_dataset_path,
                                   path_to_ml_dataset):
-        unformatted_err_msg_1 = _ml_data_shape_analyzer_err_msg_1
-        unformatted_err_msg_2 = _ml_data_shape_analyzer_err_msg_2
+        modified_hdf5_dataset_shape = (hdf5_dataset_shape
+                                       if (hdf5_dataset_shape != None)
+                                       else tuple())
 
         key = hdf5_dataset_path
 
-        if key not in self._ml_data_dict_elem_decoders:
-            num_axes = len(hdf5_dataset_shape)
-            expected_num_axes = len(shape_template)
-            if ((num_axes != expected_num_axes)
-                or (np.prod(hdf5_dataset_shape) == 0)):
-                err_msg = unformatted_err_msg_1.format(hdf5_dataset_path,
-                                                       path_to_ml_dataset,
-                                                       expected_num_axes)
-                raise ValueError(err_msg)
+        num_axes = len(modified_hdf5_dataset_shape)
+        expected_num_axes = (len(shape_template)
+                             if (key not in self._ml_data_dict_elem_decoders)
+                             else 0)
 
-            for current_axis_idx, _ in enumerate(hdf5_dataset_shape):
-                current_axis_size = hdf5_dataset_shape[current_axis_idx]
-                self._check_current_axis(shape_template,
-                                         current_axis_idx,
-                                         current_axis_size,
-                                         variable_axis_size_dict,
-                                         variable_axis_size_key_to_axis_id_map,
-                                         path_to_ml_dataset,
-                                         hdf5_dataset_path)
-        else:
-            if hdf5_dataset_shape != None:
-                err_msg = unformatted_err_msg_2.format(hdf5_dataset_path,
-                                                       path_to_ml_dataset)
-                raise ValueError(err_msg)
+        num_elems = np.prod(modified_hdf5_dataset_shape)
+        num_elems_lower_limit = int(key
+                                    not in
+                                    self._ml_data_dict_elem_decoders)
+
+        unformatted_err_msg = (_ml_data_shape_analyzer_err_msg_1
+                               if (key not in self._ml_data_dict_elem_decoders)
+                               else _ml_data_shape_analyzer_err_msg_2)
+
+        if (((num_axes != expected_num_axes)
+             or (num_elems < num_elems_lower_limit))
+            or ((key in self._ml_data_dict_elem_decoders)
+                and (hdf5_dataset_shape != None))):
+            args = ((hdf5_dataset_path, path_to_ml_dataset, expected_num_axes)
+                    if (key not in self._ml_data_dict_elem_decoders)
+                    else (hdf5_dataset_path, path_to_ml_dataset))
+            err_msg = unformatted_err_msg.format(*args)
+            raise ValueError(err_msg)
+
+        for current_axis_idx, _ in enumerate(modified_hdf5_dataset_shape):
+            current_axis_size = modified_hdf5_dataset_shape[current_axis_idx]
+            self._check_current_axis(shape_template,
+                                     current_axis_idx,
+                                     current_axis_size,
+                                     variable_axis_size_dict,
+                                     variable_axis_size_key_to_axis_id_map,
+                                     path_to_ml_dataset,
+                                     hdf5_dataset_path)
 
         return None
 
@@ -1643,11 +1728,12 @@ class _MLDataShapeAnalyzer():
                             path_to_ml_dataset,
                             current_axis_idx,
                             axis_id[1])
-                    if hdf5_dataset_path != axis_id[0]:
-                        args = (hdf5_dataset_path,) + args
-                        err_msg = unformatted_err_msg_3.format(*args)
-                    else:
-                        err_msg = unformatted_err_msg_4.format(*args)
+                    args = ((hdf5_dataset_path,) + args
+                            if (hdf5_dataset_path != axis_id[0])
+                            else args)
+                    err_msg = (unformatted_err_msg_3.format(*args)
+                               if (hdf5_dataset_path != axis_id[0])
+                               else unformatted_err_msg_4.format(*args))
                     raise ValueError(err_msg)
             axis_id = (hdf5_dataset_path, current_axis_idx)
             variable_axis_size_key_to_axis_id_map[key] = axis_id
@@ -1686,20 +1772,21 @@ class _MLDataShapeAnalyzer():
             hdf5_dataset_2_shape = \
                 hdf5_dataset_path_to_shape_map_2[hdf5_dataset_path]
 
-            if key not in self._ml_data_dict_elem_decoders:
-                for axis_idx, _ in enumerate(shape_template):
-                    key = first_key_of_variable_axis_size_dict
-                    if shape_template[axis_idx] != key:
-                        axis_1_size = hdf5_dataset_1_shape[axis_idx]
-                        axis_2_size = hdf5_dataset_2_shape[axis_idx]
-                        if axis_1_size != axis_2_size:
-                            args = (path_to_ml_dataset_1,
-                                    path_to_ml_dataset_2,
-                                    hdf5_dataset_path,
-                                    axis_idx,
-                                    axis_idx)
-                            err_msg = unformatted_err_msg.format(*args)
-                            raise ValueError(err_msg)
+            num_axes = (len(shape_template)
+                        * (key not in self._ml_data_dict_elem_decoders))
+            for axis_idx in range(num_axes):
+                key = first_key_of_variable_axis_size_dict
+                if shape_template[axis_idx] != key:
+                    axis_1_size = hdf5_dataset_1_shape[axis_idx]
+                    axis_2_size = hdf5_dataset_2_shape[axis_idx]
+                    if axis_1_size != axis_2_size:
+                        args = (path_to_ml_dataset_1,
+                                path_to_ml_dataset_2,
+                                hdf5_dataset_path,
+                                axis_idx,
+                                axis_idx)
+                        err_msg = unformatted_err_msg.format(*args)
+                        raise ValueError(err_msg)
         
         return None
 
@@ -1716,25 +1803,24 @@ class _MLDataShapeAnalyzer():
 
         for key in self._ml_data_dict_key_to_shape_template_map:
             shape_template = \
-                self._ml_data_dict_key_to_shape_template_map[key]
+                self._ml_data_dict_key_to_shape_template_map.get(key, tuple())
             hdf5_dataset_path = \
                 key
 
-            if key not in self._ml_data_dict_elem_decoders:
-                hdf5_dataset_shape = \
-                    list(hdf5_dataset_path_to_shape_map[hdf5_dataset_path])
-                
-                for axis_idx, _ in enumerate(shape_template):
-                    key = \
-                        first_key_of_variable_axis_size_dict
-                    if shape_template[axis_idx] == key:
-                        hdf5_dataset_shape[axis_idx] = \
-                            num_ml_data_instances_after_resizing
+            hdf5_dataset_shape = \
+                list(hdf5_dataset_path_to_shape_map.get(hdf5_dataset_path, []))
 
-                hdf5_dataset_shape = \
-                    tuple(hdf5_dataset_shape)
-                hdf5_dataset_path_to_shape_map[hdf5_dataset_path] = \
-                    hdf5_dataset_shape
+            for axis_idx, _ in enumerate(shape_template):
+                key = \
+                    first_key_of_variable_axis_size_dict
+                if shape_template[axis_idx] == key:
+                    hdf5_dataset_shape[axis_idx] = \
+                        num_ml_data_instances_after_resizing
+
+            hdf5_dataset_shape = \
+                tuple(hdf5_dataset_shape)
+            hdf5_dataset_path_to_shape_map[hdf5_dataset_path] = \
+                hdf5_dataset_shape
 
         return None
 
@@ -1751,12 +1837,14 @@ class _MLDataShapeAnalyzer():
         kwargs = {"path_to_ml_dataset": input_ml_dataset_filename}
         hdf5_dataset_path_to_shape_map = method_aliases[0](**kwargs)
 
+        num_ml_data_instances = 0
         for hdf5_dataset_path in hdf5_dataset_path_to_shape_map:
             key = hdf5_dataset_path
-            if key not in self._ml_data_dict_elem_decoders:
-                hdf5_dataset_shape = hdf5_dataset_path_to_shape_map[key]
-                num_ml_data_instances = hdf5_dataset_shape[0]
-                break
+            hdf5_dataset_shape = ((0,)
+                                  if (key in self._ml_data_dict_elem_decoders)
+                                  else hdf5_dataset_path_to_shape_map[key])
+            num_ml_data_instances = max(num_ml_data_instances,
+                                        hdf5_dataset_shape[0])
 
         kwargs = {"original_split_ratio": split_ratio,
                   "num_ml_data_instances": num_ml_data_instances}
@@ -1991,12 +2079,10 @@ class _MLDataSplitter():
         max_num_ml_data_instances_per_file_update = \
             ml_data_normalizer._max_num_ml_data_instances_per_file_update
 
-        if max_num_ml_data_instances_per_file_update < np.inf:
-            max_num_ml_data_instances_per_chunk = \
-                max_num_ml_data_instances_per_file_update
-        else:
-            max_num_ml_data_instances_per_chunk = \
-                self._adjusted_split_ratio[output_ml_dataset_idx]
+        max_num_ml_data_instances_per_chunk = \
+            (max_num_ml_data_instances_per_file_update
+             if (max_num_ml_data_instances_per_file_update < np.inf)
+             else self._adjusted_split_ratio[output_ml_dataset_idx])
 
         return max_num_ml_data_instances_per_chunk
 
@@ -2023,19 +2109,21 @@ class _MLDataSplitter():
         kwargs = {"dataset_id": output_hdf5_dataset_id, "read_only": False}
         output_hdf5_dataset = h5pywrappers.dataset.load(**kwargs)
 
-        if input_hdf5_dataset.shape is not None:
-            for chunk_idx in range(num_chunks_per_hdf5_dataset):
-                kwargs = {"output_ml_dataset_idx": \
-                          output_ml_dataset_idx,
-                          "chunk_idx": \
-                          chunk_idx,
-                          "max_num_ml_data_instances_per_chunk": \
-                          max_num_ml_data_instances_per_chunk,
-                          "input_hdf5_dataset": \
-                          input_hdf5_dataset,
-                          "output_hdf5_dataset": \
-                          output_hdf5_dataset}
-                self._copy_input_data_chunk_and_save_to_output_file(**kwargs)
+        chunk_indices = range((input_hdf5_dataset.shape is not None)
+                              * num_chunks_per_hdf5_dataset)
+
+        for chunk_idx in chunk_indices:
+            kwargs = {"output_ml_dataset_idx": \
+                      output_ml_dataset_idx,
+                      "chunk_idx": \
+                      chunk_idx,
+                      "max_num_ml_data_instances_per_chunk": \
+                      max_num_ml_data_instances_per_chunk,
+                      "input_hdf5_dataset": \
+                      input_hdf5_dataset,
+                      "output_hdf5_dataset": \
+                      output_hdf5_dataset}
+            self._copy_input_data_chunk_and_save_to_output_file(**kwargs)
 
         input_hdf5_dataset.file.close()
         output_hdf5_dataset.file.close()
@@ -2189,14 +2277,12 @@ def _check_and_convert_max_num_ml_data_instances_per_file_update(params):
     obj_name = "max_num_ml_data_instances_per_file_update"
     obj = params[obj_name]
 
-    if obj == float("inf"):
-        max_num_ml_data_instances_per_file_update = \
-            obj
-    else:
-        kwargs = \
-            {"obj": obj, "obj_name": obj_name}
-        max_num_ml_data_instances_per_file_update = \
-            czekitout.convert.to_positive_int(**kwargs)
+    kwargs = \
+        {"obj": obj, "obj_name": obj_name}
+    max_num_ml_data_instances_per_file_update = \
+        (obj
+         if (obj == float("inf"))
+         else czekitout.convert.to_positive_int(**kwargs))
 
     return max_num_ml_data_instances_per_file_update
 
@@ -2279,16 +2365,18 @@ def _generate_hdf5_dataset_path_to_shape_map_of_ml_dataset_file(
 
     ml_data_dict = ml_data_instances
 
-    hdf5_dataset_path_to_shape_map = dict()
+    hdf5_dataset_path_to_shape_map = \
+        dict()
     for key, ml_data_dict_elem in ml_data_dict.items():
-        if ml_data_dict_elem is None:
-            hdf5_dataset_shape = None
-        else:
-            hdf5_dataset_shape = ((num_ml_data_instances,)
-                                  + ml_data_dict_elem.shape[1:])
+        hdf5_dataset_shape = \
+            (None
+             if (ml_data_dict_elem is None)
+             else (num_ml_data_instances,) + ml_data_dict_elem.shape[1:])
 
-        hdf5_dataset_path = key
-        hdf5_dataset_path_to_shape_map[hdf5_dataset_path] = hdf5_dataset_shape
+        hdf5_dataset_path = \
+            key
+        hdf5_dataset_path_to_shape_map[hdf5_dataset_path] = \
+            hdf5_dataset_shape
 
     return hdf5_dataset_path_to_shape_map
 
@@ -2354,6 +2442,8 @@ def _save_axes_labels_of_hdf5_dataset_as_attrs(axes_labels_of_hdf5_dataset,
 
 
 def _make_output_dir(output_dirname):
+    current_func_name = "_make_output_dir"
+
     try:
         pathlib.Path(output_dirname).mkdir(parents=True, exist_ok=True)
     except:
@@ -2435,17 +2525,25 @@ def _initialize_ml_dataset_buffer(unnormalized_ml_data_instance_generator,
     num_ml_data_instances_in_ml_dataset_buffer = min(*args)
     
     for hdf5_dataset_path in hdf5_dataset_path_to_shape_map:
-        hdf5_dataset_shape = hdf5_dataset_path_to_shape_map[hdf5_dataset_path]
+        hdf5_dataset_shape = \
+            hdf5_dataset_path_to_shape_map.get(hdf5_dataset_path, None)
+        modified_hdf5_dataset_shape = \
+            (hdf5_dataset_shape
+             if (hdf5_dataset_shape != None)
+             else tuple())
 
-        if hdf5_dataset_shape is not None:
-            hdf5_dataset_dtype = \
-                ml_data_dict_key_to_dtype_map[hdf5_dataset_path]
-            shape_of_array_to_be_initialized = \
-                ((num_ml_data_instances_in_ml_dataset_buffer,)
-                 + hdf5_dataset_shape[1:])
-            ml_dataset_buffer[hdf5_dataset_path] = \
-                np.zeros(shape_of_array_to_be_initialized,
-                         dtype=hdf5_dataset_dtype)
+        hdf5_dataset_dtype = \
+            ml_data_dict_key_to_dtype_map.get(hdf5_dataset_path, None)
+        shape_of_array_to_be_initialized = \
+            ((num_ml_data_instances_in_ml_dataset_buffer,)
+             + modified_hdf5_dataset_shape[1:])
+        ml_dataset_buffer[hdf5_dataset_path] = \
+            np.zeros(shape_of_array_to_be_initialized,
+                     dtype=hdf5_dataset_dtype)
+
+        _ = (None
+             if (hdf5_dataset_shape is not None)
+             else ml_dataset_buffer.pop(hdf5_dataset_path))
 
     return ml_dataset_buffer
 
@@ -2503,20 +2601,19 @@ def _update_and_flush_buffer_and_return_updated_ml_data_instance_idx(
 
 def _store_ml_data_instances_in_respective_buffers(
         ml_data_instances, buffered_ml_data_instance_idx, ml_dataset_buffer):
-    for key in ml_data_instances:
-        if ml_data_instances[key] is not None:
-            num_ml_data_instances = ml_data_instances[key].shape[0]
-
-            start_1 = buffered_ml_data_instance_idx
-            stop_1 = buffered_ml_data_instance_idx + num_ml_data_instances
-            single_dim_slice_1 = slice(start_1, stop_1)
-
-            start_2 = 0
-            stop_2 = num_ml_data_instances
-            single_dim_slice_2 = slice(start_2, stop_2)
+    for key in ml_dataset_buffer:
+        num_ml_data_instances = ml_data_instances[key].shape[0]
             
-            ml_dataset_buffer[key][single_dim_slice_1] = \
-                ml_data_instances[key][single_dim_slice_2]
+        start_1 = buffered_ml_data_instance_idx
+        stop_1 = buffered_ml_data_instance_idx + num_ml_data_instances
+        single_dim_slice_1 = slice(start_1, stop_1)
+
+        start_2 = 0
+        stop_2 = num_ml_data_instances
+        single_dim_slice_2 = slice(start_2, stop_2)
+            
+        ml_dataset_buffer[key][single_dim_slice_1] = \
+            ml_data_instances[key][single_dim_slice_2]
 
     return None
 
@@ -2863,12 +2960,15 @@ def _check_and_convert_output_ml_dataset_filename_3(params):
 
     output_ml_dataset_filename_1 = \
         _check_and_convert_output_ml_dataset_filename_1(params)
+    output_ml_dataset_filename_2 = \
+        _check_and_convert_output_ml_dataset_filename_2(params)
 
     current_func_name = "_check_and_convert_output_ml_dataset_filename_3"
 
     path_1 = pathlib.Path(output_ml_dataset_filename_1).resolve()
+    path_2 = pathlib.Path(output_ml_dataset_filename_2).resolve()
     path_3 = pathlib.Path(output_ml_dataset_filename_3).resolve()
-    if path_1 == path_3:
+    if (path_1 == path_3) or (path_2 == path_3):
         err_msg = globals()[current_func_name+"_err_msg_1"]
         raise ValueError(err_msg)
     
@@ -2963,8 +3063,7 @@ def _split_ml_dataset_file(ml_data_splitter,
     current_func_name = "_split_ml_dataset_file"
 
     try:
-        method_name = ("_check_dtypes_of_hdf5_datasets"
-                             "_of_ml_dataset_file")
+        method_name = "_check_dtypes_of_hdf5_datasets_of_ml_dataset_file"
         method_alias = getattr(ml_data_type_validator, method_name)
         method_alias(path_to_ml_dataset=input_ml_dataset_filename)
         
@@ -2983,7 +3082,7 @@ def _split_ml_dataset_file(ml_data_splitter,
         func_alias(**kwargs)
 
         method_name = ("_copy_and_split_input_data"
-                             "_and_save_to_output_files")
+                       "_and_save_to_output_files")
         method_alias = getattr(ml_data_splitter, method_name)
         method_alias(output_ml_dataset_filenames, rm_input_ml_dataset_file)
     except:
@@ -3140,6 +3239,8 @@ def _check_ml_data_dict_keys(ml_data_normalizer,
                              expected_ml_data_dict_keys,
                              ml_data_dict,
                              name_of_obj_alias_of_ml_data_dict):
+    current_func_name = "_check_ml_data_dict_keys"
+    
     for key in expected_ml_data_dict_keys:
         if key not in ml_data_dict:
             unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
@@ -3206,12 +3307,10 @@ def _convert_numerical_data_container(
 
         if ((container_cls != target_container_cls)
             and (target_container_cls is not None)):
-            if target_container_cls == torch.Tensor:
-                numerical_data_container = \
-                    torch.from_numpy(numerical_data_container).to(target_device)
-            else:
-                numerical_data_container = \
-                    numerical_data_container.cpu().detach().numpy()
+            numerical_data_container = \
+                (torch.from_numpy(numerical_data_container).to(target_device)
+                 if (target_container_cls == torch.Tensor)
+                 else numerical_data_container.cpu().detach().numpy())
     except:
         unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
         format_args = (name_of_obj_alias_of_numerical_data_container,)
@@ -3230,11 +3329,12 @@ def _check_dtypes_values_and_shapes_of_ml_data_dict(
         ml_data_type_validator,
         normalizable_elems_are_normalized,
         ml_data_value_validator):
-    if variable_axis_size_dict is None:
-        variable_axis_size_dict_keys = \
-            ml_data_shape_analyzer._variable_axis_size_dict_keys
-        variable_axis_size_dict = \
-            {key: None for key in variable_axis_size_dict_keys}
+    variable_axis_size_dict_keys = \
+        ml_data_shape_analyzer._variable_axis_size_dict_keys
+    variable_axis_size_dict = \
+        ({key: None for key in variable_axis_size_dict_keys}
+         if (variable_axis_size_dict is None)
+         else variable_axis_size_dict)
 
     for key in ml_data_dict:
         data_chunk = ml_data_dict[key]
@@ -3269,28 +3369,6 @@ def _check_dtypes_values_and_shapes_of_ml_data_dict(
               "name_of_obj_alias_of_ml_data_dict": \
               name_of_obj_alias_of_ml_data_dict}
     ml_data_shape_analyzer._check_variable_axis_size_dict(**kwargs)
-
-    return None
-
-
-
-def _expand_dims(numerical_data_container):
-    if isinstance(numerical_data_container, np.ndarray):
-        numerical_data_container = np.expand_dims(numerical_data_container,
-                                                  axis=0)
-    else:
-        numerical_data_container = torch.unsqueeze(numerical_data_container,
-                                                   dim=0)
-
-    return numerical_data_container
-
-
-
-def _expand_dims_of_numerical_data_containers_in_ml_data_dict(ml_data_dict):
-    for key in ml_data_dict:
-        numerical_data_container = ml_data_dict[key]
-        numerical_data_container = _expand_dims(numerical_data_container)
-        ml_data_dict[key] = numerical_data_container
 
     return None
 
@@ -3496,47 +3574,59 @@ class _MLDataDecoder():
 
 
     def _decode(self, ml_data_dict):
-        if self._decoding_is_required(ml_data_dict):
-            ml_data_dict_before_decoding = ml_data_dict.copy()
+        decoding_is_required = self._decoding_is_required(ml_data_dict)
 
-            kwargs = {"ml_data_dict": ml_data_dict,
-                      "normalization_weights": self._normalization_weights,
-                      "normalization_biases": self._normalization_biases}
-            _unnormalize_normalizable_elems_in_ml_data_dict(**kwargs)
+        ml_data_dict_before_decoding = (ml_data_dict.copy()
+                                        if decoding_is_required
+                                        else ml_data_dict)
 
-            for key in self._ml_data_dict_elem_decoding_order:
-                if key not in ml_data_dict:
-                    ml_data_dict_elem_decoder = \
-                        self._ml_data_dict_elem_decoders[key]
-                    ml_data_dict[key] = \
-                        ml_data_dict_elem_decoder(ml_data_dict)
+        kwargs = {"ml_data_dict": ml_data_dict,
+                  "normalization_weights": self._normalization_weights,
+                  "normalization_biases": self._normalization_biases}
+        _ = (_unnormalize_normalizable_elems_in_ml_data_dict(**kwargs)
+             if decoding_is_required
+             else None)
 
-            kwargs = {"ml_data_dict": ml_data_dict,
-                      "normalization_weights": self._normalization_weights,
-                      "normalization_biases": self._normalization_biases}
-            _normalize_normalizable_elems_in_ml_data_dict(**kwargs)
+        names_of_decodable_elems = \
+            set(self._ml_data_dict_elem_decoding_order)
+        keys_in_ml_data_dict_after_decoding = \
+            set(ml_data_dict.keys()).union(names_of_decodable_elems)
 
-            for key in ml_data_dict_before_decoding:
-                ml_data_dict[key] = ml_data_dict_before_decoding[key]
+        for key in keys_in_ml_data_dict_after_decoding:
+            ml_data_dict_elem_decoder = \
+                self._ml_data_dict_elem_decoders.get(key, None)
+            ml_data_dict[key] = \
+                (ml_data_dict_elem_decoder(ml_data_dict)
+                 if (key not in ml_data_dict)
+                 else ml_data_dict[key])
+
+        kwargs = {"ml_data_dict": ml_data_dict,
+                  "normalization_weights": self._normalization_weights,
+                  "normalization_biases": self._normalization_biases}
+        _ = (_normalize_normalizable_elems_in_ml_data_dict(**kwargs)
+             if decoding_is_required
+             else None)
+
+        for key in ml_data_dict_before_decoding:
+            ml_data_dict[key] = ml_data_dict_before_decoding[key]
 
         return None
 
 
 
     def _decoding_is_required(self, ml_data_dict):
-        result = False
-        for key in self._ml_data_dict_elem_decoding_order:
-            if key not in ml_data_dict:
-                result = True
-                break
+        result = (not (set(self._ml_data_dict_elem_decoding_order)
+                       <=
+                       set(ml_data_dict.keys())))
 
         return result
 
 
 
 def _get_device(device_name):
-    if device_name is None:
-        device_name = "cuda" if torch.cuda.is_available() else "cpu"
+    device_name = (("cuda" if torch.cuda.is_available() else "cpu")
+                   if (device_name is None)
+                   else device_name)
 
     device = torch.device(device_name)
 
@@ -3690,13 +3780,16 @@ class _TorchMLDataset(torch.utils.data.Dataset):
             kwargs = {"dataset_id": hdf5_dataset_id, "read_only": True}
             hdf5_dataset = h5pywrappers.dataset.load(**kwargs)
 
-            if hdf5_dataset.shape is not None:
-                hdf5_datasubset = hdf5_dataset[:]                
-                if ml_data_values_are_to_be_checked:
-                    method_name = ("_check_values_of_hdf5_datasubset"
-                                         "_of_ml_dataset_file")
-                    method_alias = getattr(ml_data_value_validator, method_name)
-                    method_alias(hdf5_dataset, hdf5_datasubset)
+            hdf5_datasubset = (hdf5_dataset[:]
+                               if (hdf5_dataset.shape is not None)
+                               else None)
+
+            if (ml_data_values_are_to_be_checked
+                and (hdf5_datasubset is not None)):
+                method_name = ("_check_values_of_hdf5_datasubset_of_ml_dataset"
+                               "_file")
+                method_alias = getattr(ml_data_value_validator, method_name)
+                method_alias(hdf5_dataset, hdf5_datasubset)
 
             hdf5_dataset.file.close()
 
@@ -3743,56 +3836,33 @@ class _TorchMLDataset(torch.utils.data.Dataset):
         if entire_ml_dataset_is_not_loaded_and_cached:
             hdf5_file = h5py.File(self._path_to_ml_dataset, "r")
 
+        names_of_decodable_elems = \
+            (key
+             for key in self._ml_data_dict_keys
+             if key not in ml_data_dict_elem_decoding_order)
+
         ml_data_instance_idx = item_idx
 
-        for key in self._ml_data_dict_keys:
-            if key not in ml_data_dict_elem_decoding_order:
-                if self._entire_ml_dataset_is_loaded_and_cached:
-                    ml_data_instances = \
-                        self._ml_data_instances
-                    numerical_data_container = \
-                        ml_data_instances[key]
-                    item[key] = \
-                        numerical_data_container[ml_data_instance_idx]
-                else:
-                    hdf5_dataset_path = \
-                        key
-                    hdf5_datasubset = \
-                        hdf5_file[hdf5_dataset_path][ml_data_instance_idx]
-                    item[key] = \
-                        torch.from_numpy(np.asarray(hdf5_datasubset))
+        for key in names_of_decodable_elems:
+            if self._entire_ml_dataset_is_loaded_and_cached:
+                ml_data_instances = \
+                    self._ml_data_instances
+                numerical_data_container = \
+                    ml_data_instances[key]
+                item[key] = \
+                    numerical_data_container[ml_data_instance_idx]
+            else:
+                hdf5_dataset_path = \
+                    key
+                hdf5_datasubset = \
+                    hdf5_file[hdf5_dataset_path][ml_data_instance_idx]
+                item[key] = \
+                    torch.from_numpy(np.asarray(hdf5_datasubset))
 
         if entire_ml_dataset_is_not_loaded_and_cached:
             hdf5_file.close()
 
         return item
-
-
-
-    def _get_ml_data_dict_containing_specified_ml_data_instance(
-            self,
-            ml_data_instance_idx,
-            device,
-            decode,
-            unnormalize_normalizable_elems):
-        item = self.__getitem__(item_idx=ml_data_instance_idx)
-
-        ml_data_dict = dict()
-        for key in item:
-            ml_data_dict[key] = torch.unsqueeze(item[key], dim=0)
-            ml_data_dict[key] = ml_data_dict[key].to(device)
-
-        ml_data_dict_is_to_be_decoded = \
-            decode
-        normalizable_elems_are_to_be_unnormalize = \
-            unnormalize_normalizable_elems
-
-        if ml_data_dict_is_to_be_decoded:
-            self._ml_data_decoder._decode(ml_data_dict)
-        if normalizable_elems_are_to_be_unnormalize:
-            self._unnormalize_ml_data_dict(ml_data_dict)
-
-        return ml_data_dict
 
 
 
@@ -3818,15 +3888,11 @@ class _TorchMLDataset(torch.utils.data.Dataset):
         device = _get_device(device_name)
         
         for ml_data_instance_idx in single_dim_slice:
-            method_alias = \
-                self._get_ml_data_dict_containing_specified_ml_data_instance
-            kwargs = \
-                {"ml_data_instance_idx": ml_data_instance_idx,
-                 "device": device,
-                 "decode": False,
-                 "unnormalize_normalizable_elems": False}
-            ml_data_dict_containing_a_single_ml_data_instance = \
-                method_alias(**kwargs)
+            item = self.__getitem__(item_idx=ml_data_instance_idx)
+            ml_data_dict = {key: torch.unsqueeze(item[key], dim=0).to(device)
+                            for key
+                            in item}
+            ml_data_dict_containing_a_single_ml_data_instance = ml_data_dict
 
             if ml_data_instance_count == 0:
                 kwargs = {"ml_data_dict_containing_a_single_ml_data_instance": \
@@ -3985,6 +4051,8 @@ def _check_and_convert_device_name(params):
     obj_name = params.get(key, "device_name")
     obj = params[obj_name]
 
+    current_func_name = "_check_and_convert_device_name"
+
     if obj is None:
         device_name = obj
     else:
@@ -3998,8 +4066,7 @@ def _check_and_convert_device_name(params):
             err_msg = unformatted_err_msg.format(obj_name)
             raise ValueError(err_msg)
 
-    if key in params:
-        del params[key]
+    _ = params.pop(key) if (key in params) else None
 
     return device_name
 
@@ -4029,41 +4096,10 @@ def _check_and_convert_decode(params):
 
 
 
-def _pre_serialize_decode(decode):
-    obj_to_pre_serialize = decode
-    serializable_rep = obj_to_pre_serialize
-    
-    return serializable_rep
-
-
-
-def _de_pre_serialize_decode(serializable_rep):
-    decode = serializable_rep
-    
-    return decode
-
-
-
 def _check_and_convert_unnormalize_normalizable_elems(params):
     obj_name = "unnormalize_normalizable_elems"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     unnormalize_normalizable_elems = czekitout.convert.to_bool(**kwargs)
-    
-    return unnormalize_normalizable_elems
-
-
-
-def _pre_serialize_unnormalize_normalizable_elems(
-        unnormalize_normalizable_elems):
-    obj_to_pre_serialize = unnormalize_normalizable_elems
-    serializable_rep = obj_to_pre_serialize
-    
-    return serializable_rep
-
-
-
-def _de_pre_serialize_unnormalize_normalizable_elems(serializable_rep):
-    unnormalize_normalizable_elems = serializable_rep
     
     return unnormalize_normalizable_elems
 
@@ -4083,14 +4119,14 @@ def _check_and_convert_single_dim_slice(params):
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     single_dim_slice = czekitout.convert.to_single_dim_slice(**kwargs)
 
-    if isinstance(single_dim_slice, int):
-        single_dim_slice = \
-            [single_dim_slice]
-    elif isinstance(single_dim_slice, slice):
-        ml_data_instance_indices = \
-            np.arange(num_ml_data_instances_in_ml_dataset)
-        single_dim_slice = \
-            list(ml_data_instance_indices[single_dim_slice])
+    ml_data_instance_indices = np.arange(num_ml_data_instances_in_ml_dataset)
+
+    single_dim_slice = \
+        ([single_dim_slice]
+         if isinstance(single_dim_slice, int)
+         else ml_data_instance_indices[single_dim_slice].tolist())
+
+    current_func_name = "_check_and_convert_single_dim_slice"
 
     for ml_data_instance_idx in single_dim_slice:
         try:
@@ -4101,30 +4137,6 @@ def _check_and_convert_single_dim_slice(params):
             args = (path_to_ml_dataset, num_ml_data_instances_in_ml_dataset)
             err_msg = unformatted_err_msg.format(*args)                                                 
             raise ValueError(err_msg)
-
-    return single_dim_slice
-
-
-
-def _pre_serialize_single_dim_slice(single_dim_slice):
-    if isinstance(single_dim_slice, slice):
-        serializable_rep = {"start": single_dim_slice.start,
-                            "stop": single_dim_slice.stop,
-                            "step": single_dim_slice.step}
-    else:
-        serializable_rep = single_dim_slice
-    
-    return serializable_rep
-
-
-
-def _de_pre_serialize_single_dim_slice(serializable_rep):
-    if isinstance(serializable_rep, dict):
-        single_dim_slice = slice(serializable_rep["start"],
-                                 serializable_rep["stop"],
-                                 serializable_rep["step"])
-    else:
-        single_dim_slice = serializable_rep
 
     return single_dim_slice
 
@@ -4337,7 +4349,7 @@ class _MLDataset(fancytypes.PreSerializableAndUpdatable):
 
         Parameters
         ----------
-        single_dim_slice : `slice`, optional
+        single_dim_slice : `int` | `array_like` (`int`, ndim=1)  | `slice`, optional
             ``single_dim_slice`` specifies the subset of ML data instances to
             return as a dictionary. The ML data instances are indexed from ``0``
             to ``total_num_ml_data_instances-1``, where
@@ -4530,8 +4542,7 @@ def _check_and_convert_ml_dataset(params):
         ml_dataset._torch_ml_dataset = obj._torch_ml_dataset
 
     for key in (key_1, key_2):
-        if key in params:
-            del params[key]
+        _ = params.pop(key) if (key in params) else None
 
     return ml_dataset
 
@@ -4546,10 +4557,9 @@ def _check_and_convert_ml_training_dataset(params):
 
 
 def _pre_serialize_ml_training_dataset(ml_training_dataset):
-    if ml_training_dataset is None:
-        serializable_rep = ml_training_dataset
-    else:
-        serializable_rep = ml_training_dataset.pre_serialize()
+    serializable_rep = (ml_training_dataset
+                        if (ml_training_dataset is None)
+                        else ml_training_dataset.pre_serialize())
     
     return serializable_rep
 
@@ -4569,6 +4579,8 @@ def _check_and_convert_ml_validation_dataset(params):
         type(ml_training_dataset)
     ml_validation_dataset = \
         _check_and_convert_ml_dataset(params)
+
+    current_func_name = "_check_and_convert_ml_validation_dataset"
 
     if ml_validation_dataset is not None:
         normalization_weights_1 = ml_training_dataset._normalization_weights
@@ -4596,10 +4608,9 @@ def _check_and_convert_ml_validation_dataset(params):
 
 
 def _pre_serialize_ml_validation_dataset(ml_validation_dataset):
-    if ml_validation_dataset is None:
-        serializable_rep = ml_validation_dataset
-    else:
-        serializable_rep = ml_validation_dataset.pre_serialize()
+    serializable_rep = (ml_validation_dataset
+                        if (ml_validation_dataset is None)
+                        else ml_validation_dataset.pre_serialize())
     
     return serializable_rep
 
@@ -4618,10 +4629,9 @@ def _check_and_convert_ml_testing_dataset(params):
 
 
 def _pre_serialize_ml_testing_dataset(ml_testing_dataset):
-    if ml_testing_dataset is None:
-        serializable_rep = ml_testing_dataset
-    else:
-        serializable_rep = ml_testing_dataset.pre_serialize()
+    serializable_rep = (ml_testing_dataset
+                        if (ml_testing_dataset is None)
+                        else ml_testing_dataset.pre_serialize())
     
     return serializable_rep
 
@@ -4725,11 +4735,16 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
         self._clear_torch_ml_validation_dataloader()
         self._clear_torch_ml_testing_dataloader()
 
+        _seed_worker(0)
+
         self_core_attrs = self.get_core_attrs(deep_copy=False)
         rng_seed = self_core_attrs["rng_seed"]
+
+        rng = np.random.default_rng(rng_seed)
+        new_rng_seed = rng.integers(low=0, high=2**32-1).item()
             
         generator = torch.Generator()
-        generator.manual_seed(rng_seed)
+        generator.manual_seed(new_rng_seed)
         self._generator = generator
 
         return None
@@ -4796,15 +4811,6 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _generate_and_store_torch_ml_dataloaders(self):
-        self._generate_and_store_torch_ml_testing_dataloader()
-        self._generate_and_store_torch_ml_training_dataloader()
-        self._generate_and_store_torch_ml_validation_dataloader()
-
-        return None
-
-
-
     def _generate_and_store_torch_ml_testing_dataloader(self):
         self_core_attrs = self.get_core_attrs(deep_copy=False)
         
@@ -4839,9 +4845,8 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
         self_core_attrs = self.get_core_attrs(deep_copy=False)
 
         ml_training_dataset = self_core_attrs["ml_training_dataset"]
-        torch_ml_testing_dataloader = self._torch_ml_testing_dataloader
 
-        if torch_ml_testing_dataloader is None:
+        if ml_training_dataset is not None:
             mini_batch_size = \
                 self_core_attrs["mini_batch_size"]
             num_data_loader_workers = \
@@ -4871,10 +4876,8 @@ class _MLDatasetManager(fancytypes.PreSerializableAndUpdatable):
         self_core_attrs = self.get_core_attrs(deep_copy=False)
 
         ml_validation_dataset = self_core_attrs["ml_validation_dataset"]
-        torch_ml_testing_dataloader = self._torch_ml_testing_dataloader
 
-        if ((ml_validation_dataset is not None)
-            and (torch_ml_testing_dataloader is None)):
+        if ml_validation_dataset is not None:
             mini_batch_size = \
                 self_core_attrs["mini_batch_size"]
             num_data_loader_workers = \
@@ -4943,6 +4946,8 @@ def _check_and_convert_ml_dataset_manager(params):
               "obj_name": obj_name,
               "accepted_types": (accepted_nontrivial_cls,)}
     czekitout.check.if_instance_of_any_accepted_types(**kwargs)
+
+    current_func_name = "_check_and_convert_ml_dataset_manager"
 
     partial_keys = ("training", "testing")
     unformatted_key_1 = "misc_model_{}_metadata"
@@ -5017,14 +5022,11 @@ def _check_and_convert_ml_inputs(params):
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     params[obj_name] = czekitout.convert.to_dict(**kwargs)
 
-    if len(params["ml_inputs"]) > 0:
-        input_tensor = next(iter(params["ml_inputs"].values()))
-        target_device = (input_tensor.device
-                         if isinstance(input_tensor, torch.Tensor)
-                         else None)
-        target_device = params.get("target_device", target_device)
-    else:
-        target_device = None
+    input_tensor = next(iter(params["ml_inputs"].values()))
+    target_device = (input_tensor.device
+                     if isinstance(input_tensor, torch.Tensor)
+                     else None)
+    target_device = params.get("target_device", target_device)
 
     name_of_obj_alias_of_ml_data_dict = "ml_inputs"
 
@@ -5176,22 +5178,24 @@ class _MLModel(torch.nn.Module):
         normalizable_elems_of_ml_inputs_are_not_normalized = \
             (not normalizable_elems_of_ml_inputs_are_normalized)
 
-        if normalizable_elems_of_ml_inputs_are_not_normalized:
-            kwargs = {"ml_data_dict": ml_inputs,
-                      "normalization_weights": self._normalization_weights,
-                      "normalization_biases": self._normalization_biases}
-            _normalize_normalizable_elems_in_ml_data_dict(**kwargs)
+        kwargs = {"ml_data_dict": ml_inputs,
+                  "normalization_weights": self._normalization_weights,
+                  "normalization_biases": self._normalization_biases}
+        _ = (_normalize_normalizable_elems_in_ml_data_dict(**kwargs)
+             if normalizable_elems_of_ml_inputs_are_not_normalized
+             else None)
 
         ml_predictions = self.__call__(ml_inputs)
 
         normalizable_elems_of_ml_predictions_are_to_be_unnormalized = \
             unnormalize_normalizable_elems_of_ml_predictions
 
-        if normalizable_elems_of_ml_predictions_are_to_be_unnormalized:
-            kwargs = {"ml_data_dict": ml_predictions,
+        kwargs = {"ml_data_dict": ml_predictions,
                       "normalization_weights": self._normalization_weights,
                       "normalization_biases": self._normalization_biases}
-            _unnormalize_normalizable_elems_in_ml_data_dict(**kwargs)
+        _ = (_unnormalize_normalizable_elems_in_ml_data_dict(**kwargs)
+             if normalizable_elems_of_ml_predictions_are_to_be_unnormalized
+             else None)
 
         return ml_predictions
 
@@ -5265,7 +5269,7 @@ def _initialize_layer_weights_according_to_activation_func(activation_func,
         kwargs["a"] = getattr(activation_func, "negative_slope", 0)
         kwargs["mode"] = "fan_out"
         weight_initialization_func(**kwargs)
-    elif weight_initialization_func == torch.nn.init.xavier_normal_:
+    else:  # if weight_initialization_func == torch.nn.init.xavier_normal_:
         kwargs["gain"] = (5/3
                           if activation_func_type == torch.nn.Tanh
                           else 1)
@@ -5606,14 +5610,11 @@ class _DistopticaNetMiddleFlow(torch.nn.Module):
     def __init__(self,
                  distoptica_net_entry_flow,
                  building_block_counts_in_stages,
-                 return_intermediate_tensor_subset_upon_call_to_forward,
                  mini_batch_norm_eps):
         super().__init__()
 
         self._building_block_counts_in_stages = \
             building_block_counts_in_stages
-        self._return_intermediate_tensor_subset_upon_call_to_forward = \
-            return_intermediate_tensor_subset_upon_call_to_forward
         self._mini_batch_norm_eps = \
             mini_batch_norm_eps
 
@@ -5699,8 +5700,6 @@ class _DistopticaNetMiddleFlow(torch.nn.Module):
         for downsampling_block, resnet_stage in zip_obj:
             intermediate_tensor = downsampling_block(intermediate_tensor)
             intermediate_tensor = resnet_stage(intermediate_tensor)
-            if self._return_intermediate_tensor_subset_upon_call_to_forward:
-                intermediate_tensor_subset += (intermediate_tensor,)
 
         intermediate_tensor_subset = intermediate_tensor_subset[:-1]
         output_tensor = intermediate_tensor
@@ -5818,7 +5817,6 @@ class _DistopticaNet(torch.nn.Module):
                  kernel_size_of_first_conv_layer,
                  max_kernel_size_of_resnet_building_blocks,
                  building_block_counts_in_stages,
-                 return_intermediate_tensor_subset_upon_call_to_forward,
                  height_of_input_tensor_in_pixels,
                  width_of_input_tensor_in_pixels,
                  num_nodes_in_second_last_layer,
@@ -5844,8 +5842,6 @@ class _DistopticaNet(torch.nn.Module):
             num_nodes_in_second_last_layer
         self._num_nodes_in_last_layer = \
             num_nodes_in_last_layer
-        self._return_intermediate_tensor_subset_upon_call_to_forward = \
-            return_intermediate_tensor_subset_upon_call_to_forward
         self._mini_batch_norm_eps = \
             mini_batch_norm_eps
 
@@ -5882,8 +5878,6 @@ class _DistopticaNet(torch.nn.Module):
                   self._entry_flow,
                   "building_block_counts_in_stages": \
                   self._building_block_counts_in_stages,
-                  "return_intermediate_tensor_subset_upon_call_to_forward": \
-                  self._return_intermediate_tensor_subset_upon_call_to_forward,
                   "mini_batch_norm_eps": \
                   self._mini_batch_norm_eps}
         middle_flow = _DistopticaNetMiddleFlow(**kwargs)
@@ -5915,8 +5909,6 @@ class _DistopticaNet(torch.nn.Module):
         intermediate_tensor = self._entry_flow(input_tensor)
 
         intermediate_tensor_subset = tuple()
-        if self._return_intermediate_tensor_subset_upon_call_to_forward:
-            intermediate_tensor_subset += (intermediate_tensor,)
 
         middle_flow_output_and_intermediate_tensors = \
             self._middle_flow(intermediate_tensor)
@@ -5951,7 +5943,9 @@ class _MLMetricCalculator():
             ml_model,
             ml_dataset_manager,
             mini_batch_indices_for_entire_training_session):
-        pass
+        metrics_of_current_mini_batch = dict()
+
+        return metrics_of_current_mini_batch
 
 
 
@@ -6166,7 +6160,9 @@ class _MLLossCalculator():
             phase,
             ml_metric_manager,
             mini_batch_indices_for_entire_training_session):
-        pass
+        losses_of_current_mini_batch = dict()
+
+        return losses_of_current_mini_batch
 
 
 
@@ -6374,6 +6370,8 @@ def _check_and_convert_checkpoints(params):
     obj_name = "checkpoints"
     obj = params[obj_name]
 
+    current_func_name = "_check_and_convert_checkpoints"
+
     if obj is None:
         checkpoints = None
     else:
@@ -6465,6 +6463,8 @@ def _check_and_convert_metadata(params):
     obj_name = params.pop("name_of_obj_alias_of_metadata")
     obj = params[obj_name]
 
+    current_func_name = "_check_and_convert_metadata"
+
     try:
         json.dumps(obj)
     except:
@@ -6513,6 +6513,8 @@ def _check_and_convert_ml_model(params):
 def _check_and_convert_ml_model_param_groups(params):
     obj_name = "ml_model_param_groups"
     obj = params[obj_name]
+
+    current_func_name = "_check_and_convert_ml_model_param_groups"
 
     try:
         ml_model_param_groups = tuple()
@@ -6675,35 +6677,39 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
         self._start_time = time.time()
         self._training_has_not_finished = True
 
-        params = self._check_and_convert_train_ml_model_params(params)
-        self._ml_model = params["ml_model"].to(self._device)
-        ml_model_param_groups = params["ml_model_param_groups"]
+        try:
+            params = self._check_and_convert_train_ml_model_params(params)
+            self._ml_model = params["ml_model"].to(self._device)
+            ml_model_param_groups = params["ml_model_param_groups"]
 
-        self._print_train_ml_model_starting_msg()
+            self._print_train_ml_model_starting_msg()
 
-        self._generate_and_store_ml_metric_manager()
+            self._generate_and_store_ml_metric_manager()
 
-        self._generate_and_store_ml_loss_manager()
+            self._generate_and_store_ml_loss_manager()
+            
+            self._initialize_lr_schedules(ml_model_param_groups)
 
-        self._initialize_lr_schedules(ml_model_param_groups)
+            self._initialize_ml_model_training_summary_output_data_file()
 
-        self._initialize_ml_model_training_summary_output_data_file()
+            self._execute_training_and_validation_cycles()
 
-        self._execute_training_and_validation_cycles()
+            self._ml_metric_manager._save_ml_data_instance_metrics()
 
-        self._ml_metric_manager._save_ml_data_instance_metrics()
+            self._ml_loss_manager._save_mini_batch_losses()
 
-        self._ml_loss_manager._save_mini_batch_losses()
+            self._save_lr_schedules()
 
-        self._save_lr_schedules()
+            self._print_train_ml_model_end_msg()
 
-        self._print_train_ml_model_end_msg()
-
-        self._ml_model = None
-        self._ml_metric_calculator = None
-        self._ml_metric_manager = None
-        self._ml_loss_calculator = None
-        self._ml_loss_manager = None
+            self._ml_model = None
+            self._ml_metric_calculator = None
+            self._ml_metric_manager = None
+            self._ml_loss_calculator = None
+            self._ml_loss_manager = None
+        except:
+            err_msg = _ml_model_trainer_err_msg_2
+            raise ValueError(err_msg)
 
         return None
 
@@ -6965,13 +6971,7 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
 
         for lr_scheduler_idx, lr_scheduler in enumerate(lr_schedulers):
             torch_ml_optimizer = lr_scheduler._torch_ml_optimizer
-            try:
-                torch_ml_optimizer.zero_grad(set_to_none=True)
-            except:
-                unformatted_err_msg = _ml_model_trainer_err_msg_2
-                err_msg = unformatted_err_msg.format("zero_grad",
-                                                     lr_scheduler_idx)
-                raise ValueError(err_msg)
+            torch_ml_optimizer.zero_grad(set_to_none=True)
 
         kwargs = {"ml_inputs": ml_inputs,
                   "ml_predictions": self._ml_model(ml_inputs),
@@ -6986,13 +6986,8 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
 
         for lr_scheduler_idx, lr_scheduler in enumerate(lr_schedulers):
             torch_ml_optimizer = lr_scheduler._torch_ml_optimizer
-            try:
-                torch_ml_optimizer.step()
-            except:
-                unformatted_err_msg = _ml_model_trainer_err_msg_2
-                err_msg = unformatted_err_msg.format("step", lr_scheduler_idx)
-                raise ValueError(err_msg)
-
+            torch_ml_optimizer.step()
+            
         elapsed_time = time.time() - start_time            
         unformatted_msg = ("Training mini_batch #{} has been processed for "
                            "epoch #{}; Processing time for mini_batch = {} s.")
@@ -7090,13 +7085,7 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
 
         for lr_scheduler_idx, lr_scheduler in enumerate(lr_schedulers):
             torch_ml_optimizer = lr_scheduler._torch_ml_optimizer
-            try:
-                torch_ml_optimizer.zero_grad(set_to_none=True)
-            except:
-                unformatted_err_msg = _ml_model_trainer_err_msg_2
-                err_msg = unformatted_err_msg.format("zero_grad",
-                                                     lr_scheduler_idx)
-                raise ValueError(err_msg)
+            torch_ml_optimizer.zero_grad(set_to_none=True)
             
         with torch.no_grad():
             kwargs = {"ml_inputs": ml_inputs,
@@ -7185,34 +7174,6 @@ class _MLModelTrainer(fancytypes.PreSerializableAndUpdatable):
         print(msg_2)
 
         return None
-
-
-
-def _check_and_convert_ml_model_trainer(params):
-    obj_name = "ml_model_trainer"
-    obj = params[obj_name]
-
-    key = "ml_model_trainer_cls"
-    accepted_nontrivial_cls = params[key]
-    del params[key]
-    
-    kwargs = {"obj": obj,
-              "obj_name": obj_name,
-              "accepted_types": (accepted_nontrivial_cls,)}
-    czekitout.check.if_instance_of_any_accepted_types(**kwargs)
-
-    kwargs = obj.get_core_attrs(deep_copy=False)
-    ml_model_trainer = accepted_nontrivial_cls(**kwargs)
-
-    return ml_model_trainer
-
-
-
-def _pre_serialize_ml_model_trainer(ml_model_trainer):
-    obj_to_pre_serialize = ml_model_trainer
-    serializable_rep = obj_to_pre_serialize.pre_serialize()
-    
-    return serializable_rep
 
 
 
@@ -7569,34 +7530,6 @@ class _MLModelTester(fancytypes.PreSerializableAndUpdatable):
 
 
 
-def _check_and_convert_ml_model_tester(params):
-    obj_name = "ml_model_tester"
-    obj = params[obj_name]
-
-    key = "ml_model_tester_cls"
-    accepted_nontrivial_cls = params[key]
-    del params[key]
-    
-    kwargs = {"obj": obj,
-              "obj_name": obj_name,
-              "accepted_types": (accepted_nontrivial_cls,)}
-    czekitout.check.if_instance_of_any_accepted_types(**kwargs)
-
-    kwargs = obj.get_core_attrs(deep_copy=False)
-    ml_model_tester = accepted_nontrivial_cls(**kwargs)
-
-    return ml_model_tester
-
-
-
-def _pre_serialize_ml_model_tester(ml_model_tester):
-    obj_to_pre_serialize = ml_model_tester
-    serializable_rep = obj_to_pre_serialize.pre_serialize()
-    
-    return serializable_rep
-
-
-
 def _check_and_convert_load_ml_model_from_file_params(params):
     params = params.copy()
 
@@ -7642,8 +7575,7 @@ def _load_ml_model_from_file(ml_model_state_dict_filename,
         ml_model_cls_name = func_alias(ml_model_cls)
         unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
         err_msg = unformatted_err_msg.format(ml_model_state_dict_filename,
-                                             ml_model_cls_name)
-        
+                                             ml_model_cls_name)        
         raise ValueError(err_msg)
 
     return ml_model
@@ -7710,6 +7642,8 @@ def _load_ml_model_ctor_params_from_state_dict(ml_model_state_dict):
     partial_key_1 = "_ctor_params"
     partial_key_2 = "obj_stored_as_dressed_up_buffer"
     partial_key_3 = "_represents_a_str"
+
+    current_func_name = "_load_ml_model_ctor_params_from_state_dict"
 
     try:
         key_set_1 = ml_model_state_dict.keys()
@@ -7843,6 +7777,8 @@ _check_and_convert_output_ml_dataset_filename_2_err_msg_1 = \
      "``output_ml_dataset_filename_2``, and "
      "``output_ml_dataset_filename_3`` must specify different file paths from "
      "one another.")
+_check_and_convert_output_ml_dataset_filename_3_err_msg_1 = \
+    _check_and_convert_output_ml_dataset_filename_2_err_msg_1
 
 _check_and_convert_split_ratio_err_msg_1 = \
     ("The object ``split_ratio`` must be a triplet of nonnegative real "
@@ -7913,10 +7849,8 @@ _ml_model_trainer_err_msg_1 = \
      "train the ML model with all other hyperparameters fixed, a valid ML "
      "validation dataset must be specified in ``ml_dataset_manager.")
 _ml_model_trainer_err_msg_2 = \
-    ("An error occurred in calling method ``{}`` of the machine learning "
-     "optimizer "
-     "``lr_scheduler_manager._lr_schedulers[{}]._torch_ml_optimizer``: see "
-     "traceback for details.")
+    ("An error occurred during machine learning model training: see traceback "
+     "for details.")
 
 _load_ml_model_from_file_err_msg_1 = \
     ("The object ``ml_model_state_dict_filename`` storing the path ``'{}'`` "

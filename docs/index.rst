@@ -19,14 +19,14 @@ one can use the ``emicroml`` library. While going through the examples, readers
 can consult the :ref:`reference_guide_sec` to understand what each line of code
 is doing.
 
-Reproducing data of published papers
-------------------------------------
+Reproducing data of preprints and published papers
+--------------------------------------------------
 
-Ultramicroscopy **X**, ?? (2025)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+arXiv:2509.01075 (2025)
+~~~~~~~~~~~~~~~~~~~~~~~
 
-The majority of the data presented in Ref. (INSERT REFERENCE) can be reproduced
-by running all of the examples listed on the page
+The majority of the data presented in Ref. [Fitzpatrick1]_ can be reproduced by
+running all of the examples listed on the page
 :ref:`examples_modelling_cbed_distortion_estimation_sec`.
 
 Contents
