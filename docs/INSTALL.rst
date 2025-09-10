@@ -49,11 +49,23 @@ from the root of the repository::
 where ``<selector>`` can be one of the following:
 
 * ``tests``: to install the dependencies necessary for running unit tests;
-* ``examples``: to install the dependencies necessary for running the jupyter
-  notebooks stored in ``<root>/examples``, where ``<root>`` is the root of the
-  repository;
+* ``examples``: to install the dependencies necessary for running the scripts
+  and Jupyter notebooks stored in ``<root>/examples``, where ``<root>`` is the
+  root of the repository;
 * ``docs``: to install the dependencies necessary for documentation generation;
 * ``all``: to install all of the above optional dependencies.
+
+Alternatively, one can run::
+
+  pip install emicroml[<selector>]
+
+elsewhere in order to install the latest stable version of ``emicroml``, along
+with the subset of additional dependencies specified by ``<selector>``. Note
+that the Python library ``pyprismatic>=2.0`` must be installed prior to
+executing either of the last two commands with ``<selector>`` set to
+``examples``. For further discussions on running examples, see the pages
+:ref:`<examples_prerequisites_for_execution_without_slurm_sec>` and
+:ref:`<examples_prerequisites_for_execution_with_slurm_sec>`.
 
 Installing emicroml using conda
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
