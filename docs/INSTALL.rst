@@ -64,8 +64,8 @@ with the subset of additional dependencies specified by ``<selector>``. Note
 that the Python library ``pyprismatic>=2.0`` must be installed prior to
 executing either of the last two commands with ``<selector>`` set to
 ``examples``. For further discussions on running examples, see the pages
-:ref:`<examples_prerequisites_for_execution_without_slurm_sec>` and
-:ref:`<examples_prerequisites_for_execution_with_slurm_sec>`.
+:ref:`examples_prerequisites_for_execution_without_slurm_sec` and
+:ref:`examples_prerequisites_for_execution_with_slurm_sec`.
 
 Installing emicroml using conda
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
