@@ -211,12 +211,15 @@ else
 
     # Create the ``conda`` virtual environment and install a subset of
     # libraries, then activate the virtual environment.
-    pkgs="python=3.11"
+    pkgs="python=3.13"
     conda create -n ${virtual_env_name} ${pkgs} -y
     conda activate ${virtual_env_name}
 
-    pkgs="numpy numba hyperspy h5py pytest ipympl jupyter h5pywrappers"
+    pkgs="ipympl jupyterlab"
     conda install -y ${pkgs} -c conda-forge
+
+    pkgs="numpy numba hyperspy h5py pytest h5pywrappers"
+    pip install ${pkgs}
 
 
 
