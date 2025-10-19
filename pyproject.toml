@@ -38,7 +38,7 @@ keywords = [
     "deep learning"
 ]
 dependencies = [
-    "fakecbed>=0.3.6",
+    "fakecbed>=0.5.0",
     "kornia",
     "h5pywrappers"
 ]
