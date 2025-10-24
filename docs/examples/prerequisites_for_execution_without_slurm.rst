@@ -11,29 +11,9 @@ notebooks are to be executed.
 
 The Python libraries that need to be installed in said Python environment are::
 
-  numpy
-  numba
-  hyperspy
-  h5py
-  pytest
-  ipypml
-  jupyter
   torch
-  kornia
-  blosc2
-  msgpack
-  pyopencl
-  pyFAI
   pyprismatic>=2.0
-  czekitout
-  fancytypes
-  h5pywrappers
-  distoptica
-  fakecbed>=0.3.6
-  empix
-  embeam
-  prismatique
-  emicroml
+  emicroml[examples]
 
 With appropriately chosen command line arguments, the script
 :download:`<root>/default_env_setup_for_slurm_jobs.sh
@@ -66,4 +46,18 @@ If for whatever reason the script
 <../../default_env_setup_for_slurm_jobs.sh>` fails to create and the activate
 successfully a virtual environment equipped with the Python libraries listed
 above, then one will need to do so manually according to the constraints imposed
-by the machine or server on which you intend to run examples.
+by the machine or server on which you intend to run examples. Before installing
+``emicroml[examples]``, it is recommended that users install ``torch`` in the
+same environment that they intend to install ``emicroml[examples]`` according to
+the instructions given `here <https://pytorch.org/get-started/locally/>`_ for
+their preferred PyTorch installation option. The Python library
+``pyprismatic>=2.0`` must also be installed prior to ``emicroml[examples]``. The
+easiest way to install this additional dependency is within a ``conda`` virtual
+environment, using the following command::
+
+  conda install -y pyprismatic=*=gpu* -c conda-forge
+
+if CUDA version >= 11 is available on our machine, otherwise users should
+run instead the following command::
+
+  conda install -y pyprismatic=*=cpu* -c conda-forge

@@ -39,6 +39,7 @@ keywords = [
 ]
 dependencies = [
     "fakecbed>=0.3.6",
+    "empix>=0.0.6",
     "kornia",
     "h5pywrappers"
 ]
@@ -50,7 +51,9 @@ tests = [
 ]
 examples = [
     "jupyter",
-    "ipympl"
+    "ipympl",
+    "pyopencl[pocl]",
+    "prismatique"
 ]
 docs = [
     "sphinx<7",

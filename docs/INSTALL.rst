@@ -1,10 +1,12 @@
 .. _installation_instructions_sec:
 
-Installation instructions
-=========================
+Instructions for installing and uninstalling ``emicroml``
+=========================================================
 
-Installing emicroml
--------------------
+
+
+Installing ``emicroml``
+-----------------------
 
 For all installation scenarios, first open up the appropriate command line
 interface. On Unix-based systems, you would open a terminal. On Windows systems
@@ -15,11 +17,14 @@ in the same environment that they intend to install ``emicroml`` according to
 the instructions given `here <https://pytorch.org/get-started/locally/>`_ for
 their preferred PyTorch installation option.
 
-Installing emicroml using pip
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The easiest way to install ``emicroml`` using ``pip`` is to run the following
-command::
+
+Installing ``emicroml`` using ``pip``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before installing ``emicroml``, make sure that you have activated the (virtual)
+environment in which you intend to install said package. After which, simply run
+the following command::
 
   pip install emicroml
 
@@ -49,9 +54,8 @@ from the root of the repository::
 where ``<selector>`` can be one of the following:
 
 * ``tests``: to install the dependencies necessary for running unit tests;
-* ``examples``: to install the dependencies necessary for running the scripts
-  and Jupyter notebooks stored in ``<root>/examples``, where ``<root>`` is the
-  root of the repository;
+* ``examples``: to install the dependencies necessary for executing files stored
+  in ``<root>/examples``, where ``<root>`` is the root of the repository;
 * ``docs``: to install the dependencies necessary for documentation generation;
 * ``all``: to install all of the above optional dependencies.
 
@@ -63,15 +67,29 @@ elsewhere in order to install the latest stable version of ``emicroml``, along
 with the subset of additional dependencies specified by ``<selector>``. Note
 that the Python library ``pyprismatic>=2.0`` must be installed prior to
 executing either of the last two commands with ``<selector>`` set to
-``examples``. For further discussions on running examples, see the pages
+``examples``. The easiest way to install this additional dependency is within a
+``conda`` virtual environment, using the following command::
+
+  conda install -y pyprismatic=*=gpu* -c conda-forge
+
+if CUDA version >= 11 is available on our machine, otherwise users should
+run instead the following command::
+
+  conda install -y pyprismatic=*=cpu* -c conda-forge
+
+For further discussions on running examples, see the pages
 :ref:`examples_prerequisites_for_execution_without_slurm_sec` and
 :ref:`examples_prerequisites_for_execution_with_slurm_sec`.
 
-Installing emicroml using conda
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For Windows systems, users must install ``PyTorch`` separately prior to
-following the remaining instructions below.
+
+Installing ``emicroml`` using ``conda``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before proceeding, make sure that you have activated the (virtual) ``conda``
+environment in which you intend to install said package. For Windows systems,
+users must install ``PyTorch`` separately prior to following the remaining
+instructions below.
 
 To install ``emicroml`` using the ``conda`` package manager, run the following
 command::
@@ -80,8 +98,10 @@ command::
 
 The above command will install the latest stable version of ``emicroml``.
 
-Uninstalling emicroml
----------------------
+
+
+Uninstalling ``emicroml``
+-------------------------
 
 If ``emicroml`` was installed using ``pip``, then to uninstall, run the
 following command from the root of the repository::
