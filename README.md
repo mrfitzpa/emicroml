@@ -136,12 +136,12 @@ The above command will install the latest stable version of `emicroml`.
 ### Uninstalling `emicroml`
 
 If `emicroml` was installed using `pip`, then to uninstall, run the following
-command from the root of the repository:
+command:
 
     pip uninstall emicroml
 
 If `emicroml` was installed using `conda`, then to uninstall, run the following
-command from the root of the repository:
+command:
 
     conda remove emicroml
 
