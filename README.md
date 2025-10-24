@@ -101,12 +101,12 @@ either of the last two commands with `<selector>` set to `examples`. The easiest
 way to install this additional dependency is within a `conda` virtual
 environment, using the following command::
 
-  conda install -y pyprismatic=*=gpu* -c conda-forge
+  conda install -y pyprismatic=\*=gpu\* -c conda-forge
 
-if CUDA version >= 11 is available on our machine, otherwise users should run
+if CUDA version >= 11 is available on your machine, otherwise users should run
 instead the following command::
 
-  conda install -y pyprismatic=*=cpu* -c conda-forge
+  conda install -y pyprismatic=\*=cpu\* -c conda-forge
 
 For further discussions on running examples, see the pages [Prerequisites for
 running example scripts or Jupyter notebooks without using a SLURM workload

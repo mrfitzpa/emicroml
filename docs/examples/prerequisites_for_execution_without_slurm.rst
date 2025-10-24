@@ -57,7 +57,7 @@ environment, using the following command::
 
   conda install -y pyprismatic=*=gpu* -c conda-forge
 
-if CUDA version >= 11 is available on our machine, otherwise users should
-run instead the following command::
+if CUDA version >= 11 is available on your machine, otherwise users should run
+instead the following command::
 
   conda install -y pyprismatic=*=cpu* -c conda-forge
