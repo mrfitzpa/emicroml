@@ -15,13 +15,13 @@
 
 
 
-# The current script will run all of the unit tests of `pylibtemplate` and
-# measure the code coverage resulting from running said unit tests.
+# The current script will run all of the unit tests of `emicroml` and measure
+# the code coverage resulting from running said unit tests.
 #
 # To run this script correctly, first you must create or activate an environment
-# that has `pylibtemplate` installed, along with all of the dependencies
-# requried to run the unit tests and measure code coverage. See the root-level
-# README for installation instructions.
+# that has `emicroml` installed, along with all of the dependencies requried to
+# run the unit tests and measure code coverage. See the root-level README for
+# installation instructions.
 
 
 
