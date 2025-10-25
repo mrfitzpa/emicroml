@@ -1,4 +1,4 @@
-Electron Microscopy Machine Learning (emicroml)
+Electron Microscopy Machine Learning (EMicroML)
 ===============================================
 
 ``emicroml`` is a Python library for training machine learning models for
