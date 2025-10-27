@@ -13,17 +13,33 @@ The Python libraries that need to be installed in said Python environment are::
 
   torch
   pyprismatic>=2.0
-  emicroml[examples]
+  jupyter
+  ipypml
+  pyopencl
+  pocl-binary-distribution>=1.2
+  prismatique
+  emicroml
+
+Installing the above set of Python libraries will enable you to run any script
+or Jupyter notebook in the directory ``<root>/example``, though a given script
+or Jupyter notebook will not necessarily require all of the Python libraries
+listed above. Note that the last 6 Python libraries listed above can be
+installed via ``pip`` by running the following command::
+
+  pip install emicroml[examples]
+
+however one should installed ``torch``, then ``pyprismatic``,
+beforehand. Continue reading the remainder of this page for details.
 
 With appropriately chosen command line arguments, the script
 :download:`<root>/default_env_setup_for_slurm_jobs.sh
 <../../default_env_setup_for_slurm_jobs.sh>` will attempt to create a virtual
-environment, then activate it, and then install the above Python libraries. If
-the script is executed on a Digital Alliance of Canada (DRAC) high-performance
-computing (HPC) server, then the virtual environment is created via
-``virtualenv``. Otherwise, the virtual environment is created via ``conda``. For
-the latter scenario, an ``anaconda`` or ``miniconda`` distribution must be
-installed prior to running the script.
+environment, then activate it, and then install the first list of Python
+libraries above. If the script is executed on a Digital Alliance of Canada
+(DRAC) high-performance computing (HPC) server, then the virtual environment is
+created via ``virtualenv``. Otherwise, the virtual environment is created via
+``conda``. For the latter scenario, an ``anaconda`` or ``miniconda``
+distribution must be installed prior to running the script.
 
 The correct form of the command to run the script is::
 
@@ -61,3 +77,7 @@ if CUDA version >= 11 is available on your machine, otherwise users should run
 instead the following command::
 
   conda install -y pyprismatic=*=cpu* -c conda-forge
+
+The most straightforward way to install the remaining libraries is via ``pip``::
+
+  pip install emicroml[examples]

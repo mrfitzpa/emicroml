@@ -41,7 +41,12 @@ be installed in said Python virtual environment are::
 
   torch
   pyprismatic>=2.0
-  emicroml[examples]
+  jupyter
+  ipypml
+  pyopencl
+  pocl-binary-distribution>=1.2
+  prismatique
+  emicroml
 
 The environment setup procedure starts by looking for a file located at the file
 path ``<root>/custom_env_setup_for_slurm_jobs.sh``. If a file exists at that
