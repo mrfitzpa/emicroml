@@ -42,7 +42,6 @@ scratch_param.txt
 .coverage
 profiling_script.py
 notes.rst
-run_tests.sh
 
 # Ignore generated output coverage files.
 tests/coverage*

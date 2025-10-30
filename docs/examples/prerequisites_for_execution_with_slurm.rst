@@ -39,27 +39,12 @@ successfully are installed. Let us refer to this customizable sequence of
 commands as the environment setup procedure. The Python libraries that need to
 be installed in said Python virtual environment are::
 
-  numpy
-  numba
-  hyperspy
-  h5py
-  pytest
-  ipypml
-  jupyter
   torch
-  kornia
-  blosc2
-  msgpack
-  pyopencl
-  pyFAI
   pyprismatic>=2.0
-  czekitout
-  fancytypes
-  h5pywrappers
-  distoptica
-  fakecbed>=0.3.6
-  empix
-  embeam
+  jupyter
+  ipypml
+  pyopencl
+  pocl-binary-distribution>=1.2
   prismatique
   emicroml
 
@@ -117,4 +102,4 @@ If for whatever reason the script
 <../../default_env_setup_for_slurm_jobs.sh>` fails, then you will need to write
 your own shell script according to the constraints imposed by the machine or
 server on which you intend to run examples, and then save this script to the
-file path ``<root>/custom_env_setup_for_slurm_jobs.sh``.
+file path ``<root>/custom_env_setup_for_slurm_jobs.sh``. 

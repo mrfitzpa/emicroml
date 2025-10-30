@@ -50,7 +50,9 @@ tests = [
 ]
 examples = [
     "jupyter",
-    "ipympl"
+    "ipympl",
+    "pyopencl[pocl]",
+    "prismatique"
 ]
 docs = [
     "sphinx<7",
