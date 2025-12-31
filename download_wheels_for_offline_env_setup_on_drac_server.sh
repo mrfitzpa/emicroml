@@ -53,6 +53,8 @@ pip download --no-deps distoptica
 pip download --no-deps fakecbed
 pip download --no-deps empix
 pip download --no-deps embeam
+pip download --no-deps hyperspy_gui_ipywidgets
+pip download --no-deps link_traits
 pip download --no-deps prismatique
 pip download --no-deps emicroml
 

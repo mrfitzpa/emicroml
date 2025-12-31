@@ -125,7 +125,7 @@ then
     pkgs=${pkgs}" blosc2 msgpack"
     if [ "${install_libs_required_to_run_all_examples}" = true ]
     then
-	pkgs=${pkgs}" pyopencl pyFAI pyprismatic-gpu"
+	pkgs=${pkgs}" pyopencl pyFAI pytools<=2025.1.6 pyprismatic-gpu"
     fi
     pip install --no-index ${pkgs}
 
@@ -135,7 +135,8 @@ then
     pkgs=${pkgs}" distoptica*.whl fakecbed*.whl"
     if [ "${install_libs_required_to_run_all_examples}" = true ]
     then
-	pkgs=${pkgs}" empix*.whl embeam*.whl prismatique*.whl"
+	pkgs=${pkgs}" empix*.whl embeam*.whl hyperspy_gui_ipywidgets*.whl"
+	pkgs=${pkgs}" link_traits*.whl prismatique*.whl"
     fi
     pkgs=${pkgs}" emicroml*.whl"
     pip install ${pkgs}
