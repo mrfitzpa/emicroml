@@ -28,5 +28,9 @@ keywords:
   - deep learning
   - gpu
 license: GPL-3.0
-version: 0.0.5
+version: 0.0.6
 date-released: '2026-01-19'
+identifiers:
+  - description: "This is the collection of archived snapshots of all versions."
+    type: doi
+    value: 10.5281/zenodo.18306949

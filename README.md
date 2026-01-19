@@ -6,6 +6,7 @@
 [![PyPi Version](https://img.shields.io/pypi/v/emicroml.svg)](https://pypi.org/project/emicroml)
 [![Conda-Forge Version](https://img.shields.io/conda/vn/conda-forge/emicroml.svg)](https://anaconda.org/conda-forge/emicroml)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![DOI](https://img.shields.io/badge/DOI-10.5281/zenodo.18306949-blue.svg)](https://doi.org/10.5281/zenodo.18306949)
 
 `emicroml` is a Python library for training machine learning models for
 applications in electron microscopy.
