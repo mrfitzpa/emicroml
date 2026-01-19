@@ -673,14 +673,11 @@ class CBEDPatternGenerator():
 
     def _generate_overriding_image(self):
         distortion_model = self._cbed_pattern_params["distortion_model"]
-        
         device = distortion_model.device
         signal = self._stem_multislice_sim_intensity_pattern_signal
 
         input_tensor_to_sample = torch.from_numpy(signal.data)
-        input_tensor_to_sample = input_tensor_to_sample.to(device)
-        input_tensor_to_sample = torch.unsqueeze(input_tensor_to_sample, dim=0)
-        input_tensor_to_sample = torch.unsqueeze(input_tensor_to_sample, dim=0)
+        input_tensor_to_sample = input_tensor_to_sample.to(device)[None, None]
 
         method_name = "get_sampling_grid"
         method_alias = getattr(distortion_model, method_name)
@@ -690,25 +687,63 @@ class CBEDPatternGenerator():
         method_alias = getattr(distortion_model, method_name)
         flow_field = method_alias(deep_copy=False)
 
+        u_x = flow_field[0]+sampling_grid[0]
+        u_y = flow_field[1]+sampling_grid[1]
+
+        kwargs = \
+            {"sampling_grid": sampling_grid, "u_x": u_x, "u_y": u_y}
+        jacobian_weights = \
+            self._calc_jacobian_weights_for_distorting_then_resampling(**kwargs)
+
+        resampling_normalization_weight = (input_tensor_to_sample.shape[-2]
+                                           * input_tensor_to_sample.shape[-1]
+                                           / jacobian_weights.shape[0]
+                                           / jacobian_weights.shape[1])
+
         grid_shape = (1,) + self._sampling_grid_dims_in_pixels + (2,)
         grid = torch.zeros(grid_shape,
                            dtype=input_tensor_to_sample.dtype,
                            device=device)
-        grid[0, :, :, 0] = flow_field[0]+sampling_grid[0]-0.5
-        grid[0, :, :, 1] = -(flow_field[1]+sampling_grid[1]-0.5)
+        grid[0, :, :, 0] = u_x-0.5
+        grid[0, :, :, 1] = -(u_y-0.5)
 
         kwargs = {"input": input_tensor_to_sample,
                   "grid": grid,
                   "mode": "bilinear",
                   "padding_mode": "zeros",
                   "align_corners": False}
-        overriding_image = torch.nn.functional.grid_sample(**kwargs)[0, 0]
+        overriding_image = (torch.nn.functional.grid_sample(**kwargs)[0, 0]
+                            * jacobian_weights[:, :]
+                            * resampling_normalization_weight)
 
         kwargs = {"input_image": overriding_image}
         overriding_image = self._apply_shot_noise_to_image(**kwargs)
         overriding_image = self._apply_detector_partition_inpainting(**kwargs)
 
         return overriding_image
+
+
+
+    def _calc_jacobian_weights_for_distorting_then_resampling(self,
+                                                              sampling_grid,
+                                                              u_x,
+                                                              u_y):
+        spacing = (sampling_grid[1][:, 0], sampling_grid[0][0, :])
+
+        kwargs = {"input": u_x,
+                  "spacing": spacing,
+                  "dim": None,
+                  "edge_order": 2}
+        d_u_x_over_d_q_y, d_u_x_over_d_q_x = torch.gradient(**kwargs)
+
+        kwargs["input"] = u_y
+        d_u_y_over_d_q_y, d_u_y_over_d_q_x = torch.gradient(**kwargs)
+
+        jacobian_weights_for_distorting_then_resampling = \
+            torch.abs(d_u_x_over_d_q_x*d_u_y_over_d_q_y
+                      - d_u_x_over_d_q_y*d_u_y_over_d_q_x)
+
+        return jacobian_weights_for_distorting_then_resampling
 
 
 

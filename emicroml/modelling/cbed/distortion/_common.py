@@ -4110,7 +4110,7 @@ def _check_and_convert_cbed_pattern_images(params):
               "target_numerical_data_container_cls": \
               torch.Tensor,
               "target_device": \
-              None}
+              target_device}
     obj = _convert_numerical_data_container(**kwargs)
 
     current_func_name = "_check_and_convert_cbed_pattern_images"

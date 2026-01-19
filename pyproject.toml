@@ -32,10 +32,12 @@ keywords = [
     "microscopy",
     "diffraction",
     "cbed",
+    "saed",
     "distortion measurement",
     "distortion correction",
     "machine learning",
-    "deep learning"
+    "deep learning",
+    "gpu"
 ]
 dependencies = [
     "fakecbed>=0.3.6",

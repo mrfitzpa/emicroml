@@ -12,7 +12,7 @@ required. Descriptions of these actions can be found through :ref:`this page
 of output by executing said actions, however this requires significant
 computational resources, including significant walltime. Alternatively, one can
 copy this subset of output from the Federated Research Data Repository (FRDR)
-dataset found `here <https://doi.org/10.20383/103.01400>`_. Below we describe
+dataset found `here <https://doi.org/10.20383/103.01569>`_. Below we describe
 how one should copy the data from this FRDR dataset.
 
 First, download a copy of the FRDR dataset to the machine on which you intend to

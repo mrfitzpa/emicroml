@@ -46,8 +46,10 @@ _title_font_size = 15
 
 
 def _visualize_flow_field(sampling_grid, flow_field):
-    sampling_grid = (sampling_grid[0].numpy(), sampling_grid[1].numpy())
-    flow_field = (flow_field[0].numpy(), flow_field[1].numpy())
+    sampling_grid = (sampling_grid[0].numpy(force=True),
+                     sampling_grid[1].numpy(force=True))
+    flow_field = (flow_field[0].numpy(force=True),
+                  flow_field[1].numpy(force=True))
 
     slice_step = 16
     quiver_kwargs = {"angles": "uv", "pivot": "middle", "scale_units": "width"}

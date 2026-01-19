@@ -38,7 +38,7 @@ __all__ = ["plot_multiple_cdf_curves"]
 
 
 def plot_multiple_cdf_curves(x_set, legend_label_set, title):
-    legend_label_to_color_map = {"ML approach": "red", "RGM approach": "blue"}
+    legend_label_to_color_map = {"DL approach": "red", "RGM approach": "blue"}
 
     color_set = tuple(legend_label_to_color_map[legend_label]
                       for legend_label

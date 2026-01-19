@@ -135,8 +135,7 @@ then
     pkgs=${pkgs}" distoptica*.whl fakecbed*.whl"
     if [ "${install_libs_required_to_run_all_examples}" = true ]
     then
-	pkgs=${pkgs}" empix*.whl embeam*.whl hyperspy_gui_ipywidgets*.whl"
-	pkgs=${pkgs}" link_traits*.whl prismatique*.whl"
+	pkgs=${pkgs}" empix*.whl embeam*.whl prismatique*.whl"
     fi
     pkgs=${pkgs}" emicroml*.whl"
     pip install ${pkgs}
@@ -210,21 +209,31 @@ else
 
 
 
-    # Create the ``conda`` virtual environment, activate it, and then install
-    # the remaining libraries in said environment.
-    pkgs="python=3.12"
+    # Create the ``conda`` virtual environment and install a subset of
+    # libraries, then activate the virtual environment.
+    pkgs="python=3.11"
     conda create -n ${virtual_env_name} ${pkgs} -y
     conda activate ${virtual_env_name}
 
+    pkgs="numpy numba hyperspy h5py pytest ipympl jupyter h5pywrappers"
+    conda install -y ${pkgs} -c conda-forge
+
+
+
+    # Install the remaining libraries in the virtual environment.
     pip install torch ${extra_torch_install_args}
+    pip install kornia
 
     if [ "${install_libs_required_to_run_all_examples}" = true ]
     then
-	conda install -y ${pyprismatic_pkg} -c conda-forge
-	pkgs="emicroml[examples]"
-    else
-	pkgs="emicroml"
+    	pkgs="pyopencl[pocl] pyFAI"
+    	pip install ${pkgs}
+	
+    	conda install -y ${pyprismatic_pkg} -c conda-forge
+
+    	pkgs="prismatique"
     fi
+    pkgs=${pkgs}" emicroml"
     pip install ${pkgs}
 fi
 

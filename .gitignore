@@ -65,8 +65,9 @@ slurm-*.out
 # Ignore .hspy files.
 *.hspy
 
-# Ignore JSON files.
+# Ignore most JSON files.
 *.json
+!.zenodo.json
 
 # Ignore .pth files.
 *.pth
