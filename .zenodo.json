@@ -14,7 +14,7 @@
 	    "orcid": "0000-0001-6874-9729"
         }
     ],
-    "description": "<p>EMicroML is Python library for for training machine learning models for applications in electron microscopy.</p><p>This work was part-funded by the Natural Sciences and Engineering Research Council of Canada (NSERC), from Collaborative Research and Development grant (CRDPJ 543431), partnering with Hitachi High-Tech Canada.</p>",
+    "description": "<p>EMicroML is Python library for training machine learning models for applications in electron microscopy.</p><p>This work was part-funded by the Natural Sciences and Engineering Research Council of Canada (NSERC), from Collaborative Research and Development grant (CRDPJ 543431), partnering with Hitachi High-Tech Canada.</p>",
     "keywords": [
 	"pytorch",
 	"electron microscopy",
