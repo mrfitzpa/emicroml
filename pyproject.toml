@@ -40,8 +40,8 @@ keywords = [
     "gpu"
 ]
 dependencies = [
-    "fakecbed>=0.3.6",
-    "empix>=0.0.6",
+    "fakecbed>=0.5.4",
+    "empix>=0.0.10",
     "kornia",
     "h5pywrappers"
 ]
