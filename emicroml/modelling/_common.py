@@ -165,6 +165,48 @@ class _UnnormalizedMLDataInstanceGenerator():
 
 
 
+def _calc_normalization_weight_and_bias_candidates_from_minimum_and_maximum(
+        minimum, maximum):
+    abs_extrema_diff = (0.0
+                        if np.isnan(abs(maximum-minimum))
+                        else abs(maximum-minimum))
+
+    tol = _tol_for_comparing_floats
+
+    normalization_weight_candidate = \
+        1 / (abs_extrema_diff, -1)[bool(abs_extrema_diff <= tol)]
+    
+    normalization_bias_candidate = \
+        (-normalization_weight_candidate
+         * (minimum, 1)[bool(minimum == float("inf"))])
+
+    return normalization_weight_candidate, normalization_bias_candidate
+
+
+
+_tol_for_comparing_floats = 10*np.finfo(np.float32).eps
+
+
+
+def _get_hdf5_dataset(path_to_ml_dataset,
+                      hdf5_dataset_path,
+                      read_only,
+                      ml_data_dict_elem_decoders):
+    kwargs = {"filename": path_to_ml_dataset,
+              "path_in_file": hdf5_dataset_path}
+    hdf5_dataset_id = h5pywrappers.obj.ID(**kwargs)
+
+    key = hdf5_dataset_path
+
+    kwargs = {"dataset_id": hdf5_dataset_id, "read_only": read_only}
+    hdf5_dataset = (h5pywrappers.dataset.load(**kwargs)
+                    if (key not in ml_data_dict_elem_decoders)
+                    else np.zeros((0,)))
+
+    return hdf5_dataset
+
+
+
 def _load_contiguous_data_chunk(chunk_idx,
                                 max_num_ml_data_instances_per_chunk,
                                 input_hdf5_dataset):
@@ -211,10 +253,6 @@ def _save_normalization_weight_and_bias(hdf5_dataset_path,
         h5pywrappers.attr.save(attr, attr_id, write_mode="a")
 
     return None
-
-
-
-_tol_for_comparing_floats = 10*np.finfo(np.float32).eps
 
 
 
@@ -285,33 +323,22 @@ class _MLDataNormalizer():
         self._normalization_weights = dict()
         self._normalization_biases = dict()
 
+        global_symbol_table = globals()
+
         for key in self._extrema_cache:
             overriding_normalization_weight_and_bias = \
                 self._overriding_normalization_weights_and_biases.get(key, None)
 
-            maximum_cache = self._extrema_cache[key]["max"]
-            minimum_cache = self._extrema_cache[key]["min"]
-            cache_range = (0.0
-                           if np.isnan(abs(maximum_cache-minimum_cache))
-                           else abs(maximum_cache-minimum_cache))
-
-            tol = _tol_for_comparing_floats
-
-            normalization_weight_candidate = \
-                (((cache_range > tol)
-                  / (cache_range
-                     + (cache_range <= tol)))
-                 + (((cache_range <= tol)
-                     * (abs(minimum_cache) > tol))
-                    / (minimum_cache
-                       + (abs(minimum_cache) <= tol))))
-
-            normalization_bias_candidate = \
-                -((((cache_range > tol)
-                    * normalization_weight_candidate)
-                   + ((cache_range <= tol)
-                      * (abs(minimum_cache) <= tol)))
-                  * (minimum_cache, 1)[minimum_cache == float("inf")])
+            func_name = \
+                ("_calc_normalization_weight_and_bias_candidates"
+                 "_from_minimum_and_maximum")
+            func_alias = \
+                global_symbol_table[func_name]
+            kwargs = \
+                {"minimum": self._extrema_cache[key]["min"],
+                 "maximum": self._extrema_cache[key]["max"]}
+            normalization_weight_candidate, normalization_bias_candidate = \
+                func_alias(**kwargs)
 
             self._normalization_weights[key] = \
                 (normalization_weight_candidate
@@ -326,35 +353,23 @@ class _MLDataNormalizer():
 
 
 
-    def _normalize_ml_dataset_file(self, path_to_ml_dataset):
+    def _normalize_ml_dataset_file(self, path_to_ml_dataset, print_msgs):
         msg = ("\n\nNormalizing, where applicable, data in the file storing "
                "the machine learning dataset...\n")
-        print(msg)
+        _ = print(msg) if print_msgs else None
 
         for key in self._normalization_weights:
             normalization_weight = self._normalization_weights[key]
             normalization_bias = self._normalization_biases[key]
             hdf5_dataset_path = key
 
-            kwargs = {"filename": path_to_ml_dataset,
-                      "path_in_file": hdf5_dataset_path}
-            hdf5_dataset_id = h5pywrappers.obj.ID(**kwargs)
-
-            kwargs = {"dataset_id": hdf5_dataset_id, "read_only": False}
-            hdf5_dataset = (h5pywrappers.dataset.load(**kwargs)
-                            if (key not in self._ml_data_dict_elem_decoders)
-                            else np.zeros((0,)))
-
-            total_num_ml_data_instances = hdf5_dataset.shape[0]
+            hdf5_dataset = self._get_hdf5_dataset(path_to_ml_dataset,
+                                                  hdf5_dataset_path)
 
             max_num_ml_data_instances_per_chunk = \
-                (self._max_num_ml_data_instances_per_file_update
-                 if (self._max_num_ml_data_instances_per_file_update < np.inf)
-                 else total_num_ml_data_instances)
-            
-            fraction = (total_num_ml_data_instances
-                        / max_num_ml_data_instances_per_chunk)
-            num_chunks = np.ceil(fraction).astype(int)
+                self._calc_max_num_ml_data_instances_per_chunk(hdf5_dataset)
+            num_chunks = \
+                self._calc_num_chunks(hdf5_dataset)
 
             for chunk_idx in range(num_chunks):
                 self._normalize_data_chunk(chunk_idx,
@@ -372,9 +387,54 @@ class _MLDataNormalizer():
 
         msg = ("Finished normalizing data in the file storing the machine "
                "learning dataset.\n")
-        print(msg)
+        _ = print(msg) if print_msgs else None
 
         return None
+
+
+
+    def _get_hdf5_dataset(self, path_to_ml_dataset, hdf5_dataset_path):
+        kwargs = {key: val
+                  for key, val in locals().items()
+                  if (key not in ("self", "__class__"))}
+        kwargs["ml_data_dict_elem_decoders"] = self._ml_data_dict_elem_decoders
+        kwargs["read_only"] = False
+        hdf5_dataset = _get_hdf5_dataset(**kwargs)
+
+        return hdf5_dataset
+
+
+
+    def _calc_max_num_ml_data_instances_per_chunk(self, hdf5_dataset):
+        total_num_ml_data_instances = \
+            self._get_total_num_ml_data_instances(hdf5_dataset)
+        max_num_ml_data_instances_per_chunk = \
+            (self._max_num_ml_data_instances_per_file_update
+             if (self._max_num_ml_data_instances_per_file_update < np.inf)
+             else max(total_num_ml_data_instances, 1))
+
+        return max_num_ml_data_instances_per_chunk
+
+
+
+    def _get_total_num_ml_data_instances(self, hdf5_dataset):
+        total_num_ml_data_instances = hdf5_dataset.shape[0]
+
+        return total_num_ml_data_instances
+
+
+
+    def _calc_num_chunks(self, hdf5_dataset):
+        total_num_ml_data_instances = \
+            self._get_total_num_ml_data_instances(hdf5_dataset)
+        max_num_ml_data_instances_per_chunk = \
+            self._calc_max_num_ml_data_instances_per_chunk(hdf5_dataset)
+            
+        fraction = (total_num_ml_data_instances
+                    / max_num_ml_data_instances_per_chunk)
+        num_chunks = np.ceil(fraction).astype(int).item()
+
+        return num_chunks
 
 
 
@@ -388,8 +448,9 @@ class _MLDataNormalizer():
                   chunk_idx,
                   "max_num_ml_data_instances_per_chunk": \
                   max_num_ml_data_instances_per_chunk,
-                  "input_hdf5_dataset": hdf5_dataset}
-        data_chunk = _load_contiguous_data_chunk(**kwargs)
+                  "input_hdf5_dataset": \
+                  hdf5_dataset}
+        data_chunk = self._load_data_chunk(**kwargs)
 
         normalized_data_chunk = (data_chunk*normalization_weight
                                  + normalization_bias).clip(min=0, max=1)
@@ -407,6 +468,19 @@ class _MLDataNormalizer():
         _save_data_chunk(**kwargs)
 
         return None
+
+
+
+    def _load_data_chunk(self,
+                         chunk_idx,
+                         max_num_ml_data_instances_per_chunk,
+                         input_hdf5_dataset):
+        kwargs = {key: val
+                  for key, val in locals().items()
+                  if (key not in ("self", "__class__"))}
+        data_chunk = _load_contiguous_data_chunk(**kwargs)
+
+        return data_chunk
 
 
 
@@ -1106,6 +1180,18 @@ def _check_and_convert_normalization_biases(params):
 
 
 
+def _calc_minimum_and_maximum_from_normalization_weight_and_bias(
+        normalization_weight, normalization_bias):
+    w = normalization_weight
+    b = normalization_bias
+
+    minimum = -b/w
+    maximum = minimum + max(0, 1/w)
+
+    return minimum, maximum
+
+
+
 def _calc_num_ml_data_instances_in_input_ml_dataset(ml_data_normalizer,
                                                     input_ml_dataset_filename):
     num_ml_data_instances_in_input_ml_dataset = 0
@@ -1194,6 +1280,57 @@ class _MLDataRenormalizer():
 
 
 
+    def _calc_normalization_weights_and_biases_of_output_ml_dataset(self):
+        output_normalization_weights = dict()
+        output_normalization_biases = dict()
+
+        global_symbol_table = globals()
+
+        keys_of_normalizable_ml_data_dict_elems = \
+            self._ml_data_normalizer._keys_of_normalizable_ml_data_dict_elems
+
+        for key in keys_of_normalizable_ml_data_dict_elems:
+            output_range_min = float("inf")
+            output_range_max = -float("inf")
+            
+            for input_ml_dataset_filename in self._input_ml_dataset_filenames:
+                method_alias = \
+                    self._ml_data_normalization_weights_and_biases_loader._load
+                input_normalization_weights, input_normalization_biases = \
+                    method_alias(path_to_ml_dataset=input_ml_dataset_filename)
+
+                func_name = \
+                    ("_calc_minimum_and_maximum"
+                     "_from_normalization_weight_and_bias")
+                func_alias = \
+                    global_symbol_table[func_name]
+                kwargs = \
+                    {"normalization_weight": input_normalization_weights[key],
+                     "normalization_bias": input_normalization_biases[key]}
+                input_range_min, input_range_max = \
+                    func_alias(**kwargs)
+
+                output_range_min = min(input_range_min, output_range_min)
+                output_range_max = max(input_range_max, output_range_max)
+
+            func_name = \
+                ("_calc_normalization_weight_and_bias_candidates"
+                 "_from_minimum_and_maximum")
+            func_alias = \
+                global_symbol_table[func_name]
+            kwargs = \
+                {"minimum": output_range_min,
+                 "maximum": output_range_max}
+            output_normalization_weight, output_normalization_bias = \
+                func_alias(**kwargs)
+                
+            output_normalization_weights[key] = output_normalization_weight
+            output_normalization_biases[key] = output_normalization_bias
+
+        return output_normalization_weights, output_normalization_biases
+
+
+
     def _calc_renormalization_weights_and_biases_of_input_ml_datasets(self):
         renormalization_weights_of_input_ml_datasets = dict()
         renormalization_biases_of_input_ml_datasets = dict()
@@ -1263,46 +1400,6 @@ class _MLDataRenormalizer():
 
         return (renormalization_weights_of_input_ml_dataset,
                 renormalization_biases_of_input_ml_dataset)
-
-
-
-    def _calc_normalization_weights_and_biases_of_output_ml_dataset(self):
-        output_normalization_weights = dict()
-        output_normalization_biases = dict()
-
-        keys_of_normalizable_ml_data_dict_elems = \
-            self._ml_data_normalizer._keys_of_normalizable_ml_data_dict_elems
-
-        for key in keys_of_normalizable_ml_data_dict_elems:
-            output_range_min = float("inf")
-            output_range_max = -float("inf")
-            
-            for input_ml_dataset_filename in self._input_ml_dataset_filenames:
-                method_alias = \
-                    self._ml_data_normalization_weights_and_biases_loader._load
-                input_normalization_weights, input_normalization_biases = \
-                    method_alias(path_to_ml_dataset=input_ml_dataset_filename)
-                input_normalization_weight = \
-                    input_normalization_weights[key]
-                input_normalization_bias = \
-                    input_normalization_biases[key]
-                input_range_min = \
-                    -input_normalization_bias/input_normalization_weight
-                input_range_max = \
-                    input_range_min + (1/input_normalization_weight)
-
-                output_range_min = min(input_range_min, output_range_min)
-                output_range_max = max(input_range_max, output_range_max)
-
-            output_normalization_weight = \
-                1 / (output_range_max-output_range_min)
-            output_normalization_bias = \
-                -output_normalization_weight*output_range_min
-
-            output_normalization_weights[key] = output_normalization_weight
-            output_normalization_biases[key] = output_normalization_bias
-
-        return (output_normalization_weights, output_normalization_biases)
 
 
 
@@ -1380,19 +1477,14 @@ class _MLDataRenormalizer():
             input_ml_dataset_filename,
             hdf5_dataset_path,
             output_ml_dataset_filename):
-        kwargs = {"filename": input_ml_dataset_filename,
-                  "path_in_file": hdf5_dataset_path}
-        input_hdf5_dataset_id = h5pywrappers.obj.ID(**kwargs)
+        kwargs = {"path_to_ml_dataset": input_ml_dataset_filename,
+                  "hdf5_dataset_path": hdf5_dataset_path,
+                  "read_only": True}
+        input_hdf5_dataset = self._get_hdf5_dataset(**kwargs)
 
-        kwargs = {"dataset_id": input_hdf5_dataset_id, "read_only": True}
-        input_hdf5_dataset = h5pywrappers.dataset.load(**kwargs)
-
-        kwargs = {"filename": output_ml_dataset_filename,
-                  "path_in_file": hdf5_dataset_path}
-        output_hdf5_dataset_id = h5pywrappers.obj.ID(**kwargs)
-
-        kwargs = {"dataset_id": output_hdf5_dataset_id, "read_only": False}
-        output_hdf5_dataset = h5pywrappers.dataset.load(**kwargs)
+        kwargs["path_to_ml_dataset"] = output_ml_dataset_filename
+        kwargs["read_only"] = False
+        output_hdf5_dataset = self._get_hdf5_dataset(**kwargs)
 
         kwargs = \
             {"input_ml_dataset_filename": input_ml_dataset_filename,
@@ -1422,6 +1514,20 @@ class _MLDataRenormalizer():
         output_hdf5_dataset.file.close()
 
         return None
+
+
+
+    def _get_hdf5_dataset(self,
+                          path_to_ml_dataset,
+                          hdf5_dataset_path,
+                          read_only):
+        kwargs = {key: val
+                  for key, val in locals().items()
+                  if (key not in ("self", "__class__"))}
+        kwargs["ml_data_dict_elem_decoders"] = dict()
+        hdf5_dataset = _get_hdf5_dataset(**kwargs)
+
+        return hdf5_dataset
 
 
 
@@ -1460,15 +1566,9 @@ class _MLDataRenormalizer():
             output_hdf5_dataset):
         data_chunk = self._load_data_chunk(chunk_idx, input_hdf5_dataset)
 
-        obj_alias = \
-            self._ml_data_value_validator
-        method_alias = \
-            obj_alias._check_values_of_hdf5_datasubset_of_ml_dataset_file
-        kwargs = \
-            {"hdf5_dataset": input_hdf5_dataset,
-             "hdf5_datasubset": data_chunk}
-        _ = \
-            method_alias(**kwargs)
+        kwargs = {"input_hdf5_dataset": input_hdf5_dataset,
+                  "input_data_chunk": data_chunk}
+        self._check_values_of_data_chunk(**kwargs)
 
         keys_of_normalizable_ml_data_dict_elems = \
             self._ml_data_normalizer._keys_of_normalizable_ml_data_dict_elems
@@ -1494,10 +1594,22 @@ class _MLDataRenormalizer():
                   chunk_idx,
                   "max_num_ml_data_instances_per_chunk": \
                   self._max_num_ml_data_instances_per_chunk,
-                  "input_hdf5_dataset": input_hdf5_dataset}
+                  "input_hdf5_dataset": \
+                  input_hdf5_dataset}
         data_chunk = _load_contiguous_data_chunk(**kwargs)
 
         return data_chunk
+
+
+
+    def _check_values_of_data_chunk(self, input_hdf5_dataset, input_data_chunk):
+        method_name = "_check_values_of_hdf5_datasubset_of_ml_dataset_file"
+        method_alias = getattr(self._ml_data_value_validator, method_name)
+        kwargs = {"hdf5_dataset": input_hdf5_dataset,
+                  "hdf5_datasubset": input_data_chunk}
+        method_alias(**kwargs)
+
+        return None
 
 
 
@@ -1552,6 +1664,20 @@ def _calc_adjusted_split_ratio(original_split_ratio, num_ml_data_instances):
                                      else adjusted_split_ratio[idx])
 
     return adjusted_split_ratio
+
+
+
+def _is_power_of_2(integer):
+    result = ((integer & (integer-1) == 0) and integer != 0)
+
+    return result
+
+
+
+def _is_not_power_of_2(integer):
+    result = (not _is_power_of_2(integer))
+
+    return result
 
 
 
@@ -1630,12 +1756,11 @@ class _MLDataShapeAnalyzer():
             shape_template = self._ml_data_dict_key_to_shape_template_map[key]
             hdf5_dataset_path = key
 
-            kwargs = {"filename": path_to_ml_dataset,
-                      "path_in_file": hdf5_dataset_path}
-            hdf5_dataset_id = h5pywrappers.obj.ID(**kwargs)
+            kwargs = {"path_to_ml_dataset": path_to_ml_dataset,
+                      "hdf5_dataset_path": hdf5_dataset_path,
+                      "read_only": True}
+            hdf5_dataset = self._get_hdf5_dataset(**kwargs)
 
-            kwargs = {"dataset_id": hdf5_dataset_id, "read_only": True}
-            hdf5_dataset = h5pywrappers.dataset.load(**kwargs)
             hdf5_dataset_shape = hdf5_dataset.shape
             hdf5_dataset.file.close()
 
@@ -1651,6 +1776,20 @@ class _MLDataShapeAnalyzer():
                 hdf5_dataset_shape
 
         return hdf5_dataset_path_to_shape_map
+
+
+
+    def _get_hdf5_dataset(self,
+                          path_to_ml_dataset,
+                          hdf5_dataset_path,
+                          read_only):
+        kwargs = {key: val
+                  for key, val in locals().items()
+                  if (key not in ("self", "__class__"))}
+        kwargs["ml_data_dict_elem_decoders"] = self._ml_data_dict_elem_decoders
+        hdf5_dataset = _get_hdf5_dataset(**kwargs)
+
+        return hdf5_dataset
 
 
 
@@ -2495,7 +2634,7 @@ def _generate_and_save_data_of_ml_dataset_to_output_file(
         ml_data_normalizer._update_extrema_cache(ml_data_dict=ml_dataset_buffer)
 
     path_to_ml_dataset = output_filename
-    kwargs = {"path_to_ml_dataset": output_filename}
+    kwargs = {"path_to_ml_dataset": output_filename, "print_msgs": True}
     ml_data_normalizer._normalize_ml_dataset_file(**kwargs)
 
     return None
@@ -2750,8 +2889,7 @@ def _combine_ml_dataset_files(input_ml_dataset_filenames,
     current_func_name = "_combine_ml_dataset_files"
 
     try:
-        method_name = ("_check_dtypes_of_hdf5_datasets"
-                             "_of_ml_dataset_files")
+        method_name = "_check_dtypes_of_hdf5_datasets_of_ml_dataset_files"
         method_alias = getattr(ml_data_type_validator, method_name)
         method_alias(paths_to_ml_datasets=input_ml_dataset_filenames)
 
@@ -2771,7 +2909,7 @@ def _combine_ml_dataset_files(input_ml_dataset_filenames,
         func_alias(**kwargs)
 
         method_name = ("_copy_and_renormalize_all_input_data"
-                             "_and_save_to_output_file")
+                       "_and_save_to_output_file")
         method_alias = getattr(ml_data_renormalizer, method_name)
         method_alias(output_ml_dataset_filename, rm_input_ml_dataset_files)
     except:
@@ -3337,30 +3475,25 @@ def _check_dtypes_values_and_shapes_of_ml_data_dict(
          else variable_axis_size_dict)
 
     for key in ml_data_dict:
-        data_chunk = ml_data_dict[key]
-
         kwargs = {"data_chunk": \
-                  data_chunk,
+                  ml_data_dict[key],
                   "key_used_to_get_data_chunk": \
                   key,
                   "name_of_obj_alias_from_which_data_chunk_was_obtained": \
                   name_of_obj_alias_of_ml_data_dict,
                   "obj_alias_from_which_data_chunk_was_obtained": \
-                  ml_data_dict}
-        ml_data_type_validator._check_dtype_of_data_chunk(**kwargs)
-
-        kwargs["data_chunk_is_expected_to_be_normalized_if_normalizable"] = \
-            normalizable_elems_are_normalized
-        _ = \
-            ml_data_value_validator._check_values_of_data_chunk(**kwargs)
-
-        del kwargs["obj_alias_from_which_data_chunk_was_obtained"]
-        del kwargs["data_chunk_is_expected_to_be_normalized_if_normalizable"]
-        kwargs["variable_axis_size_dict"] = variable_axis_size_dict
-        ml_data_shape_analyzer._check_shape_of_data_chunk(**kwargs)
-
-        del kwargs["name_of_obj_alias_from_which_data_chunk_was_obtained"]
-        ml_data_shape_analyzer._update_variable_axis_size_dict(**kwargs)
+                  ml_data_dict,
+                  "ml_data_type_validator": \
+                  ml_data_type_validator,
+                  "normalizable_elems_are_normalized": \
+                  normalizable_elems_are_normalized,
+                  "ml_data_value_validator": \
+                  ml_data_value_validator,
+                  "variable_axis_size_dict": \
+                  variable_axis_size_dict,
+                  "ml_data_shape_analyzer": \
+                  ml_data_shape_analyzer}
+        _check_dtypes_values_and_shapes_of_data_chunk(**kwargs)
 
     kwargs = {"variable_axis_size_dict": \
               variable_axis_size_dict,
@@ -3369,6 +3502,53 @@ def _check_dtypes_values_and_shapes_of_ml_data_dict(
               "name_of_obj_alias_of_ml_data_dict": \
               name_of_obj_alias_of_ml_data_dict}
     ml_data_shape_analyzer._check_variable_axis_size_dict(**kwargs)
+
+    return None
+
+
+
+def _check_dtypes_values_and_shapes_of_data_chunk(
+        data_chunk,
+        key_used_to_get_data_chunk,
+        name_of_obj_alias_from_which_data_chunk_was_obtained,
+        obj_alias_from_which_data_chunk_was_obtained,
+        ml_data_type_validator,
+        normalizable_elems_are_normalized,
+        ml_data_value_validator,
+        variable_axis_size_dict,
+        ml_data_shape_analyzer):
+    kwargs = {"data_chunk": \
+              data_chunk,
+              "key_used_to_get_data_chunk": \
+              key_used_to_get_data_chunk,
+              "name_of_obj_alias_from_which_data_chunk_was_obtained": \
+              name_of_obj_alias_from_which_data_chunk_was_obtained,
+              "obj_alias_from_which_data_chunk_was_obtained": \
+              obj_alias_from_which_data_chunk_was_obtained}
+    ml_data_type_validator._check_dtype_of_data_chunk(**kwargs)
+
+    kwargs["data_chunk_is_expected_to_be_normalized_if_normalizable"] = \
+        normalizable_elems_are_normalized
+    _ = \
+        ml_data_value_validator._check_values_of_data_chunk(**kwargs)
+
+    del kwargs["obj_alias_from_which_data_chunk_was_obtained"]
+    del kwargs["data_chunk_is_expected_to_be_normalized_if_normalizable"]
+    kwargs["variable_axis_size_dict"] = variable_axis_size_dict
+    ml_data_shape_analyzer._check_shape_of_data_chunk(**kwargs)
+
+    del kwargs["name_of_obj_alias_from_which_data_chunk_was_obtained"]
+    ml_data_shape_analyzer._update_variable_axis_size_dict(**kwargs)
+
+    kwargs = {"name_of_obj_alias_from_which_data_chunk_was_obtained": \
+              name_of_obj_alias_from_which_data_chunk_was_obtained,
+              "key_used_to_get_data_chunk": \
+              key_used_to_get_data_chunk,
+              "data_chunk": \
+              data_chunk,
+              "variable_axis_size_dict": \
+              variable_axis_size_dict}
+    ml_data_shape_analyzer._check_shape_of_data_chunk(**kwargs)
 
     return None
 
@@ -5030,6 +5210,9 @@ def _check_and_convert_ml_inputs(params):
 
     name_of_obj_alias_of_ml_data_dict = "ml_inputs"
 
+    params["variable_axis_size_dict"] = \
+        copy.deepcopy(params["variable_axis_size_dict"])
+
     func_name = ("_check_and_convert_normalizable_elems"
                  "_of_ml_inputs_are_normalized")
     func_alias = globals()[func_name]
@@ -5099,7 +5282,7 @@ class _MLModel(torch.nn.Module):
                  ml_data_shape_analyzer,
                  variable_axis_size_dict,
                  expected_keys_of_ml_inputs,
-                 subcls_ctor_params):
+                 base_cls_ctor_params):
         super().__init__()
 
         self._ml_data_normalizer = ml_data_normalizer
@@ -5110,14 +5293,14 @@ class _MLModel(torch.nn.Module):
         self._expected_keys_of_ml_inputs = expected_keys_of_ml_inputs
 
         self._normalization_weights = \
-            subcls_ctor_params.get("normalization_weights", dict())
+            base_cls_ctor_params.get("normalization_weights", dict())
         self._normalization_biases = \
-            subcls_ctor_params.get("normalization_biases", dict())
+            base_cls_ctor_params.get("normalization_biases", dict())
 
-        self._core_attrs = subcls_ctor_params
+        self._core_attrs = base_cls_ctor_params
 
         kwargs = {"obj_to_convert_and_store_as_dressed_up_buffer": \
-                  subcls_ctor_params}
+                  base_cls_ctor_params}
         self._ctor_params = _DressedUpBuffer(**kwargs)
 
         return None
@@ -5315,6 +5498,10 @@ class _BasicResNetBuildingBlock(torch.nn.Module):
         self._mini_batch_norm_eps = \
             mini_batch_norm_eps
 
+        self._skip_connection_contains_conv_layer = \
+            ((num_input_channels != num_output_channels)
+             or first_conv_layer_performs_downsampling)
+
         self._conv_layers = self._generate_conv_layers()
         self._mini_batch_norms = self._generate_mini_batch_norms()
 
@@ -5323,42 +5510,11 @@ class _BasicResNetBuildingBlock(torch.nn.Module):
 
 
     def _generate_conv_layers(self):
-        num_input_channels = \
-            self._num_input_channels
-        num_output_channels = \
-            self._num_output_channels
-        max_kernel_size = \
-            self._max_kernel_size
-        first_conv_layer_performs_downsampling = \
-            self._first_conv_layer_performs_downsampling
+        num_conv_layers = 2 + self._skip_connection_contains_conv_layer
 
-        conv_layers = tuple()
-
-        kwargs = {"in_channels": num_input_channels,
-                  "out_channels": num_output_channels,
-                  "kernel_size": max_kernel_size,
-                  "stride": 1+first_conv_layer_performs_downsampling,
-                  "padding": (max_kernel_size-1)//2,
-                  "padding_mode": "zeros",
-                  "bias": False}
-        conv_layer = torch.nn.Conv2d(**kwargs)
-        conv_layers += (conv_layer,)
-        
-        kwargs["in_channels"] = num_output_channels
-        kwargs["stride"] = 1
-        conv_layer = torch.nn.Conv2d(**kwargs)
-        conv_layers += (conv_layer,)
-
-        if ((num_input_channels != num_output_channels)
-            or first_conv_layer_performs_downsampling):
-            kwargs["in_channels"] = num_input_channels
-            kwargs["kernel_size"] = 1
-            kwargs["stride"] = 1+first_conv_layer_performs_downsampling
-            kwargs["padding"] = 0
-            conv_layer = torch.nn.Conv2d(**kwargs)
-            conv_layers += (conv_layer,)
-        
-        self._initialize_conv_layer_weights(conv_layers)
+        conv_layers = tuple(self._generate_conv_layer(conv_layer_idx)
+                            for conv_layer_idx
+                            in range(num_conv_layers))
 
         conv_layers = torch.nn.ModuleList(conv_layers)
 
@@ -5366,36 +5522,80 @@ class _BasicResNetBuildingBlock(torch.nn.Module):
 
 
 
-    def _initialize_conv_layer_weights(self, conv_layers):
-        for conv_layer_idx, conv_layer in enumerate(conv_layers):
-            activation_func = (torch.nn.ReLU()
-                               if (conv_layer_idx == 0)
-                               else self._final_activation_func)
-            kwargs = {"activation_func": activation_func, "layer": conv_layer}
-            _initialize_layer_weights_according_to_activation_func(**kwargs)
+    def _generate_conv_layer(self, conv_layer_idx):
+        kernel_size = (1
+                       if (conv_layer_idx == 2)
+                       else self._max_kernel_size)
+        stride = (1
+                  if (conv_layer_idx == 1)
+                  else 1+self._first_conv_layer_performs_downsampling)
+
+        kwargs = {"out_channels": self._num_output_channels,
+                  "kernel_size": kernel_size,
+                  "stride": stride,
+                  "padding": (kernel_size-1)//2,
+                  "padding_mode": "zeros",
+                  "bias": False}
+        kwargs["in_channels"] = (self._num_output_channels
+                                 if (conv_layer_idx == 1)
+                                 else self._num_input_channels)
+        conv_layer = torch.nn.Conv2d(**kwargs)
+        
+        self._initialize_conv_layer_weights(conv_layer_idx, conv_layer)
+
+        return conv_layer
+
+
+
+    def _initialize_conv_layer_weights(self, conv_layer_idx, conv_layer):
+        activation_func = (torch.nn.ReLU()
+                           if (conv_layer_idx == 0)
+                           else self._final_activation_func)
+        kwargs = {"activation_func": activation_func, "layer": conv_layer}
+        _initialize_layer_weights_according_to_activation_func(**kwargs)
 
         return None
 
 
 
     def _generate_mini_batch_norms(self):
-        mini_batch_norms = tuple()
-        for conv_layer_idx, _ in enumerate(self._conv_layers):
-            kwargs = {"num_features": self._num_output_channels,
-                      "eps": self._mini_batch_norm_eps}
-            mini_batch_norm = torch.nn.BatchNorm2d(**kwargs)
+        num_mini_batch_norms = len(self._conv_layers)
 
-            torch.nn.init.constant_(mini_batch_norm.bias, 0)
-            if conv_layer_idx < 2:
-                torch.nn.init.constant_(mini_batch_norm.weight, 1)
-            else:
-                torch.nn.init.constant_(mini_batch_norm.weight, 0)
-            
-            mini_batch_norms += (mini_batch_norm,)
-                
+        mini_batch_norms = \
+            tuple(self._generate_mini_batch_norm(mini_batch_norm_idx)
+                  for mini_batch_norm_idx
+                  in range(num_mini_batch_norms))
+
         mini_batch_norms = torch.nn.ModuleList(mini_batch_norms)
 
         return mini_batch_norms
+
+
+
+    def _generate_mini_batch_norm(self, mini_batch_norm_idx):
+        kwargs = {"num_features": self._num_output_channels,
+                  "eps": self._mini_batch_norm_eps}
+        mini_batch_norm = torch.nn.BatchNorm2d(**kwargs)
+
+        kwargs = {"mini_batch_norm_idx": mini_batch_norm_idx,
+                  "mini_batch_norm": mini_batch_norm}
+        self._initialize_mini_batch_norm_weights_and_biases(**kwargs)
+
+        return mini_batch_norm
+
+
+    
+    def _initialize_mini_batch_norm_weights_and_biases(self,
+                                                       mini_batch_norm_idx,
+                                                       mini_batch_norm):
+        torch.nn.init.constant_(mini_batch_norm.bias, 0)
+        
+        if mini_batch_norm_idx < 2:
+            torch.nn.init.constant_(mini_batch_norm.weight, 1)
+        else:
+            torch.nn.init.constant_(mini_batch_norm.weight, 0)
+            
+        return None
 
 
 
@@ -5522,7 +5722,8 @@ class _DistopticaNetEntryFlow(torch.nn.Module):
                   "bias": False}
         conv_layer = torch.nn.Conv2d(**kwargs)
 
-        self._initialize_first_conv_layer_weights(conv_layer)
+        kwargs = {"conv_layer": conv_layer}
+        self._initialize_first_conv_layer_weights(**kwargs)
 
         return conv_layer
 
@@ -5541,10 +5742,19 @@ class _DistopticaNetEntryFlow(torch.nn.Module):
                   "eps": self._mini_batch_norm_eps}
         mini_batch_norm = torch.nn.BatchNorm2d(**kwargs)
 
+        kwargs = {"mini_batch_norm": mini_batch_norm}
+        self._initialize_first_mini_batch_norm_weights_and_biases(**kwargs)
+
+        return mini_batch_norm
+    
+
+
+    def _initialize_first_mini_batch_norm_weights_and_biases(self,
+                                                             mini_batch_norm):
         torch.nn.init.constant_(mini_batch_norm.weight, 1)
         torch.nn.init.constant_(mini_batch_norm.bias, 0)
 
-        return mini_batch_norm
+        return None
 
 
 
@@ -5741,47 +5951,58 @@ class _DistopticaNetExitFlow(torch.nn.Module):
 
 
     def _generate_fc_layers(self, distoptica_net_middle_flow):
-        total_num_downsamplings = \
-            (_DistopticaNetEntryFlow._num_downsamplings
-             + distoptica_net_middle_flow._num_downsamplings)
+        generate_fc_layer = self._generate_fc_layer
 
-        num_nodes_in_third_last_layer = (self._height_of_input_tensor_in_pixels
-                                         * self._width_of_input_tensor_in_pixels
-                                         * self._num_input_channels
-                                         // 2**(2*total_num_downsamplings))
+        num_fc_layers = 2
 
-        fc_layers = tuple()
-
-        kwargs = {"in_features": num_nodes_in_third_last_layer,
-                  "out_features": self._num_nodes_in_second_last_layer,
-                  "bias": False}
-        fc_layer = torch.nn.Linear(**kwargs)
-        fc_layers += (fc_layer,)
-
-        kwargs = {"in_features": self._num_nodes_in_second_last_layer,
-                  "out_features": self._num_nodes_in_last_layer,
-                  "bias": True}
-        fc_layer = torch.nn.Linear(**kwargs)
-        fc_layers += (fc_layer,)
-
-        self._initialize_fc_layer_weights(fc_layers)
+        fc_layers = \
+            tuple(generate_fc_layer(fc_layer_idx, distoptica_net_middle_flow)
+                  for fc_layer_idx
+                  in range(num_fc_layers))
 
         fc_layers = torch.nn.ModuleList(fc_layers)
 
         return fc_layers
+    
+
+
+    def _generate_fc_layer(self, fc_layer_idx, distoptica_net_middle_flow):
+        if fc_layer_idx == 0:
+            total_num_downsamplings = \
+                (_DistopticaNetEntryFlow._num_downsamplings
+                 + distoptica_net_middle_flow._num_downsamplings)
+            num_nodes_in_third_last_layer = \
+                (self._height_of_input_tensor_in_pixels
+                 * self._width_of_input_tensor_in_pixels
+                 * self._num_input_channels
+                 // 2**(2*total_num_downsamplings))
+
+            kwargs = {"in_features": num_nodes_in_third_last_layer,
+                      "out_features": self._num_nodes_in_second_last_layer,
+                      "bias": False}
+            fc_layer = torch.nn.Linear(**kwargs)
+        else:
+            kwargs = {"in_features": self._num_nodes_in_second_last_layer,
+                      "out_features": self._num_nodes_in_last_layer,
+                      "bias": True}
+            fc_layer = torch.nn.Linear(**kwargs)
+
+        kwargs = {"fc_layer_idx": fc_layer_idx, "fc_layer": fc_layer}
+        self._initialize_fc_layer_weights(**kwargs)
+
+        return fc_layer
 
 
 
-    def _initialize_fc_layer_weights(self, fc_layers):
-        for fc_layer_idx, fc_layer in enumerate(fc_layers):
-            activation_func = (torch.nn.ReLU()
-                               if (fc_layer_idx == 0)
-                               else torch.nn.Identity())
-            kwargs = {"activation_func": activation_func, "layer": fc_layer}
-            _initialize_layer_weights_according_to_activation_func(**kwargs)
+    def _initialize_fc_layer_weights(self, fc_layer_idx, fc_layer):
+        activation_func = (torch.nn.ReLU()
+                           if (fc_layer_idx == 0)
+                           else torch.nn.Identity())
+        kwargs = {"activation_func": activation_func, "layer": fc_layer}
+        _initialize_layer_weights_according_to_activation_func(**kwargs)
 
-            if fc_layer_idx == 1:
-                torch.nn.init.constant_(fc_layer.bias, 0)
+        if fc_layer_idx == 1:
+            torch.nn.init.constant_(fc_layer.bias, 0)
 
         return None
 
@@ -5792,10 +6013,19 @@ class _DistopticaNetExitFlow(torch.nn.Module):
                   "eps": self._mini_batch_norm_eps}
         mini_batch_norm = torch.nn.BatchNorm1d(**kwargs)
 
+        kwargs = {"mini_batch_norm": mini_batch_norm}
+        self._initialize_mini_batch_norm_weights_and_biases(**kwargs)
+
+        return mini_batch_norm
+
+
+
+    def _initialize_mini_batch_norm_weights_and_biases(self,
+                                                       mini_batch_norm):
         torch.nn.init.constant_(mini_batch_norm.weight, 1)
         torch.nn.init.constant_(mini_batch_norm.bias, 0)
 
-        return mini_batch_norm
+        return None
 
 
 
@@ -5926,6 +6156,120 @@ class _DistopticaNet(torch.nn.Module):
             self._exit_flow(intermediate_tensor)
             
         return output_tensor, intermediate_tensor_subset
+
+
+
+class _FCResidualBlock(torch.nn.Module):
+    def __init__(self,
+                 num_input_channels,
+                 final_activation_func,
+                 mini_batch_norm_eps):
+        super().__init__()
+
+        self._num_input_channels = num_input_channels
+        self._final_activation_func = final_activation_func
+        self._mini_batch_norm_eps = mini_batch_norm_eps
+
+        self._num_output_channels = num_input_channels
+        self._num_fc_layers = 2
+        self._num_mini_batch_norms = self._num_fc_layers
+
+        self._fc_layers = self._generate_fc_layers()
+        self._mini_batch_norms = self._generate_mini_batch_norms()
+
+        kwargs = {"in_features": num_input_channels,
+                  "out_features": num_input_channels}
+        self._fc_1 = torch.nn.Linear(**kwargs)
+        self._fc_2 = torch.nn.Linear(**kwargs)
+
+        kwargs = {"num_input_channels": num_input_channels}
+        self._mini_batch_norm_1 = self._generate_mini_batch_norm(**kwargs)
+        self._mini_batch_norm_2 = self._generate_mini_batch_norm(**kwargs)
+
+        return None
+
+
+
+    def _generate_fc_layers(self):
+        num_fc_layers = self._num_fc_layers
+
+        fc_layers = tuple(self._generate_fc_layer()
+                          for fc_layer_idx
+                          in range(num_fc_layers))
+
+        fc_layers = torch.nn.ModuleList(fc_layers)
+
+        return fc_layers
+
+
+
+    def _generate_fc_layer(self):
+        kwargs = {"in_features": self._num_input_channels,
+                  "out_features": self._num_output_channels,
+                  "bias": False}
+        fc_layer = torch.nn.Linear(**kwargs)
+
+        kwargs = {"fc_layer_idx": fc_layer_idx, "fc_layer": fc_layer}
+        self._initialize_fc_layer_weights(**kwargs)
+
+        return fc_layer
+
+
+
+    def _initialize_fc_layer_weights(self, fc_layer_idx, fc_layer):
+        activation_func = (torch.nn.ReLU()
+                           if (fc_layer_idx == 0)
+                           else self._final_activation_func)
+        kwargs = {"activation_func": activation_func, "layer": fc_layer}
+        _initialize_layer_weights_according_to_activation_func(**kwargs)
+
+        return None
+
+
+
+    def _generate_mini_batch_norms(self):
+        num_mini_batch_norms = self._num_mini_batch_norms
+
+        mini_batch_norms = tuple(self._generate_mini_batch_norm()
+                                 for mini_batch_norm_idx
+                                 in range(num_mini_batch_norms))
+
+        mini_batch_norms = torch.nn.ModuleList(mini_batch_norms)
+
+        return mini_batch_norms
+
+
+
+    def _generate_mini_batch_norm(self):
+        kwargs = {"num_features": self._num_output_channels,
+                  "eps": self._mini_batch_norm_eps}
+        mini_batch_norm = torch.nn.BatchNorm1d(**kwargs)
+
+        kwargs = {"mini_batch_norm": mini_batch_norm}
+        self._initialize_mini_batch_norm_weights_and_biases(**kwargs)
+
+        return mini_batch_norm
+
+
+
+    def _initialize_mini_batch_norm_weights_and_biases(self, mini_batch_norm):
+        torch.nn.init.constant_(mini_batch_norm.weight, 1)
+        torch.nn.init.constant_(mini_batch_norm.bias, 0)
+
+        return None
+
+
+
+    def forward(self, X):
+        Y = self._fc_layers[0](X)
+        Y = self._mini_batch_norms[0](Y)
+        Y = torch.nn.functional.relu(Y)
+        Y = self._fc_layers[1](Y)
+        Y = self._mini_batch_norms[1](Y)
+        Y += X
+        Y = self._final_activation_func(Y)
+
+        return Y
 
 
 

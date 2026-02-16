@@ -38,9 +38,11 @@ keywords = [
     "deep learning"
 ]
 dependencies = [
-    "fakecbed>=0.5.0",
+    "fakecbed>=0.5.4",
     "kornia",
-    "h5pywrappers"
+    "h5pywrappers",
+    "hyperspy>=2.0.0",
+    "PyWavelets"
 ]
 requires-python = ">=3.9"
 

@@ -122,7 +122,7 @@ then
     # Install the remaining libraries in the virtual environment. Where
     # applicable, GPU-supported versions of libraries are installed.
     pkgs="numpy<2.0.0 numba hyperspy h5py pytest ipympl jupyter torch kornia"
-    pkgs=${pkgs}" blosc2 msgpack"
+    pkgs=${pkgs}" blosc2 msgpack PyWavelets"
     if [ "${install_libs_required_to_run_all_examples}" = true ]
     then
 	pkgs=${pkgs}" pyopencl pyFAI pyprismatic-gpu"
@@ -214,6 +214,8 @@ else
     pkgs="python=3.12"
     conda create -n ${virtual_env_name} ${pkgs} -y
     conda activate ${virtual_env_name}
+
+    conda install -y pyqt matplotlib -c conda-forge
 
     pip install torch ${extra_torch_install_args}
 

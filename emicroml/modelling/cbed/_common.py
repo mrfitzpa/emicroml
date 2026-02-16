@@ -574,6 +574,15 @@ def _check_and_convert_num_pixels_across_each_cbed_pattern(params):
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     num_pixels_across_each_cbed_pattern = func_alias(**kwargs)
 
+    divisor = params["divisor"]
+
+    current_func_name = "_check_and_convert_num_pixels_across_each_cbed_pattern"
+
+    if num_pixels_across_each_cbed_pattern % divisor != 0:
+        unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
+        err_msg = unformatted_err_msg.format(divisor)
+        raise ValueError(err_msg)
+
     return num_pixels_across_each_cbed_pattern
 
 
@@ -630,8 +639,7 @@ _default_max_num_disks_in_any_cbed_pattern = \
 
 
 class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
-    ctor_param_names = ("num_pixels_across_each_cbed_pattern",
-                        "max_num_disks_in_any_cbed_pattern",
+    ctor_param_names = ("max_num_disks_in_any_cbed_pattern",
                         "rng_seed",
                         "sampling_grid_dims_in_pixels",
                         "least_squares_alg_params",
@@ -650,17 +658,8 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
     
     
-    def __init__(self,
-                 num_pixels_across_each_cbed_pattern,
-                 max_num_disks_in_any_cbed_pattern,
-                 rng_seed,
-                 sampling_grid_dims_in_pixels,
-                 least_squares_alg_params,
-                 device_name,
-                 skip_validation_and_conversion):
-        kwargs = {key: val
-                  for key, val in locals().items()
-                  if (key not in ("self", "__class__"))}
+    def __init__(self, ctor_params):
+        kwargs = ctor_params
         kwargs["skip_cls_tests"] = True
         fancytypes.PreSerializableAndUpdatable.__init__(self, **kwargs)
 
@@ -910,38 +909,40 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         undistorted_tds_model_1, undistorted_tds_model_2 = \
             self._generate_undistorted_tds_models()
 
-        distortion_model = \
+        cbed_pattern_params = \
+            dict()
+        cbed_pattern_params["distortion_model"] = \
             self._generate_distortion_model(undistorted_tds_model_1)
-        
-        mask_frame = self._generate_mask_frame(distortion_model)
+
+        kwargs = {"distortion_model": cbed_pattern_params["distortion_model"]}
+        cbed_pattern_params["mask_frame"] = self._generate_mask_frame(**kwargs)
         
         kwargs = \
-            {"undistorted_tds_model_1": undistorted_tds_model_1,
-             "distortion_model": distortion_model,
-             "mask_frame": mask_frame}
-        undistorted_outer_illumination_shape = \
+            {**cbed_pattern_params,
+             "undistorted_tds_model_1": undistorted_tds_model_1}
+        cbed_pattern_params["undistorted_outer_illumination_shape"] = \
             self._generate_undistorted_outer_illumination_shape(**kwargs)
+
+        del kwargs["mask_frame"]
             
-        kwargs = \
-            {"undistorted_tds_model_1": undistorted_tds_model_1,
-             "undistorted_tds_model_2": undistorted_tds_model_2}
+        kwargs["undistorted_tds_model_2"] = \
+            undistorted_tds_model_2
+        kwargs["undistorted_outer_illumination_shape"] = \
+            cbed_pattern_params["undistorted_outer_illumination_shape"]
         undistorted_disks, undistorted_misc_shapes = \
             self._generate_undistorted_disks_and_misc_shapes(**kwargs)
 
-        cbed_pattern_params = {"undistorted_tds_model": \
+        cbed_pattern_params = {**cbed_pattern_params,
+                               "undistorted_tds_model": \
                                undistorted_tds_model_2,
                                "undistorted_disks": \
                                undistorted_disks,
                                "undistorted_misc_shapes": \
                                undistorted_misc_shapes,
-                               "undistorted_outer_illumination_shape": \
-                               undistorted_outer_illumination_shape,
                                "gaussian_filter_std_dev": \
                                self._rng.uniform(low=1, high=5),
                                "num_pixels_across_pattern": \
                                self._num_pixels_across_each_cbed_pattern,
-                               "distortion_model": \
-                               distortion_model,
                                "apply_shot_noise": \
                                True,
                                "rng_seed": \
@@ -949,9 +950,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                                "cold_pixels": \
                                self._generate_cold_pixels(),
                                "detector_partition_width_in_pixels": \
-                               2*self._rng.integers(low=0, high=4).item(),
-                               "mask_frame": \
-                               mask_frame}
+                               2*self._rng.integers(low=0, high=4).item()}
 
         return cbed_pattern_params
 
@@ -1181,7 +1180,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
         kwargs = {"center": center,
                   "semi_major_axis": semi_major_axis,
-                  "eccentricity": abs(rng.uniform(low=0, high=0.6)),
+                  "eccentricity": abs(rng.uniform(low=0.0, high=0.6)),
                   "rotation_angle": rng.uniform(low=0, high=2*np.pi),
                   "intra_shape_val": 1.0,
                   "skip_validation_and_conversion": True}
@@ -1273,14 +1272,18 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _generate_undistorted_disks_and_misc_shapes(self,
-                                                    undistorted_tds_model_1,
-                                                    undistorted_tds_model_2):
+    def _generate_undistorted_disks_and_misc_shapes(
+            self,
+            undistorted_tds_model_1,
+            undistorted_tds_model_2,
+            undistorted_outer_illumination_shape,
+            distortion_model):
+        kwargs = \
+            {key: val
+             for key, val in locals().items()
+             if (key not in ("self", "__class__"))}
         method_alias = \
             self._generate_undistorted_disks_and_max_abs_amplitude_sums
-        kwargs = \
-            {"undistorted_tds_model_1": undistorted_tds_model_1,
-             "undistorted_tds_model_2": undistorted_tds_model_2}
         undistorted_disks, max_abs_amplitude_sums = \
             method_alias(**kwargs)
 
@@ -1298,22 +1301,29 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
     def _generate_undistorted_disks_and_max_abs_amplitude_sums(
             self,
             undistorted_tds_model_1,
-            undistorted_tds_model_2):
+            undistorted_tds_model_2,
+            undistorted_outer_illumination_shape,
+            distortion_model):
+        kwargs = \
+            {key: val
+             for key, val in locals().items()
+             if (key not in ("self", "__class__", "undistorted_tds_model_2"))}
         undistorted_disk_supports = \
-            self._generate_undistorted_disk_supports(undistorted_tds_model_1)
+            self._generate_undistorted_disk_supports(**kwargs)
+
+        method_alias_1 = \
+            self._generate_intra_disk_shapes_and_max_abs_amplitude_sum
+        method_alias_2 = \
+            self._perform_additional_rescaling_to_undistorted_disks
             
         undistorted_disks = tuple()
         max_abs_amplitude_sums = []
 
         for undistorted_disk_support in undistorted_disk_supports:
-            method_alias = \
-                self._generate_intra_disk_shapes_and_max_abs_amplitude_sum
-            kwargs = \
-                {"undistorted_disk_support": undistorted_disk_support,
-                 "undistorted_tds_model_1": undistorted_tds_model_1,
-                 "undistorted_tds_model_2": undistorted_tds_model_2}
-            intra_disk_shapes, max_abs_amplitude_sum = \
-                method_alias(**kwargs)
+            kwargs = {"undistorted_disk_support": undistorted_disk_support,
+                      "undistorted_tds_model_1": undistorted_tds_model_1,
+                      "undistorted_tds_model_2": undistorted_tds_model_2}
+            intra_disk_shapes, max_abs_amplitude_sum = method_alias_1(**kwargs)
 
             if len(intra_disk_shapes) > 0:
                 NonuniformBoundedShape = fakecbed.shapes.NonuniformBoundedShape
@@ -1328,14 +1338,11 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         if num_disks > 1:
             additional_rescaling_is_to_be_performed = \
                 self._rng.choice((True, False), p=(1/4, 1-1/4)).item()
+            
             if additional_rescaling_is_to_be_performed:
-                method_alias = \
-                    self._perform_additional_rescaling_to_undistorted_disks
-                kwargs = \
-                    {"undistorted_disks": undistorted_disks,
-                     "max_abs_amplitude_sums": max_abs_amplitude_sums}
-                _ = \
-                    method_alias(**kwargs)
+                kwargs = {"undistorted_disks": undistorted_disks,
+                          "max_abs_amplitude_sums": max_abs_amplitude_sums}
+                method_alias_2(**kwargs)
 
         max_abs_amplitude_sums = tuple(max_abs_amplitude_sums)
 
@@ -1343,77 +1350,90 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _generate_undistorted_disk_supports(self, undistorted_tds_model_1):
-        u_R_support = self._generate_u_R_support()
+    def _generate_undistorted_disk_supports(
+            self,
+            undistorted_tds_model_1,
+            undistorted_outer_illumination_shape,
+            distortion_model):
+        u_a_support = self._generate_u_a_support()
+        eccentricity = self._generate_eccentricity()
+        u_theta_support = self._generate_u_theta_support()
 
         kwargs = \
-            {"u_R_support": u_R_support,
-             "undistorted_tds_model_1": undistorted_tds_model_1}
+            {"u_a_support": \
+             u_a_support,
+             "undistorted_tds_model_1": \
+             undistorted_tds_model_1,
+             "undistorted_outer_illumination_shape": \
+             undistorted_outer_illumination_shape,
+             "distortion_model": \
+             distortion_model}
         undistorted_disk_support_centers = \
             self._generate_undistorted_disk_support_centers(**kwargs)
 
         undistorted_disk_supports = tuple()
         for undistorted_disk_support_center in undistorted_disk_support_centers:
-            kwargs = {"center": undistorted_disk_support_center,
-                      "radius": u_R_support,
+            # if eccentricity == 0.0:
+            #     kwargs = {"radius": u_a_support}
+            #     support_cls = fakecbed.shapes.Circle
+            # else:
+            #     kwargs = {"semi_major_axis": u_a_support,
+            #               "eccentricity": eccentricity,
+            #               "rotation_angle": u_theta_support}
+            #     support_cls = fakecbed.shapes.Ellipse
+            # kwargs["center"] = undistorted_disk_support_center
+            # kwargs["intra_shape_val"] = 1
+            # kwargs["skip_validation_and_conversion"] = True
+            # undistorted_disk_support = support_cls(**kwargs)
+            kwargs = {"semi_major_axis": u_a_support,
+                      "eccentricity": eccentricity,
+                      "rotation_angle": u_theta_support,
+                      "center": undistorted_disk_support_center,
                       "intra_shape_val": 1,
                       "skip_validation_and_conversion": True}
-            undistorted_disk_support = fakecbed.shapes.Circle(**kwargs)
+            undistorted_disk_support = fakecbed.shapes.Ellipse(**kwargs)
             undistorted_disk_supports += (undistorted_disk_support,)
 
         return undistorted_disk_supports
 
 
 
-    def _generate_u_R_support(self):
-        u_R_support = self._rng.uniform(low=1/40, high=1/8)
+    def _generate_u_a_support(self):
+        u_a_support = self._rng.uniform(low=1/40, high=1/8)
 
-        return u_R_support
+        return u_a_support
 
 
 
-    def _generate_undistorted_disk_support_centers(self,
-                                                   u_R_support,
-                                                   undistorted_tds_model_1):
-        center_generation_has_not_been_completed = True
-        while center_generation_has_not_been_completed:
-            centers_approximately_form_a_grid = \
-                self._rng.choice((True, False), p=(1/2, 1-1/2)).item()
+    def _generate_eccentricity(self):
+        eccentricity = 0.0
 
-            if centers_approximately_form_a_grid:
-                kwargs = \
-                    {"u_R_support": u_R_support,
-                     "undistorted_tds_model_1": undistorted_tds_model_1}
-                undistorted_disk_support_centers = \
-                    self._generate_positions_from_a_jittered_grid(**kwargs)
-            else:
-                subset_of_centers_approximately_form_a_grid = \
-                    self._rng.choice((True, False), p=(1/2, 1-1/2)).item()
+        return eccentricity
 
-                kwargs = \
-                    {"u_R_support": u_R_support,
-                     "undistorted_tds_model_1": undistorted_tds_model_1}
-                if subset_of_centers_approximately_form_a_grid:
-                    undistorted_disk_support_centers = \
-                        self._generate_positions_from_a_jittered_grid(**kwargs)
-                else:
-                    undistorted_disk_support_centers = \
-                        tuple()
 
-                kwargs["undistorted_disk_support_centers"] = \
-                    undistorted_disk_support_centers
-                undistorted_disk_support_centers += \
-                    self._sample_positions_quasi_uniformly_from_space(**kwargs)
 
-            center_generation_has_not_been_completed = \
-                (len(undistorted_disk_support_centers) == 0)
+    def _generate_u_theta_support(self):
+        u_theta_support = self._rng.uniform(low=0, high=2*np.pi)
+
+        return u_theta_support
+
+
+
+    def _generate_undistorted_disk_support_centers(
+            self,
+            u_a_support,
+            undistorted_tds_model_1,
+            undistorted_outer_illumination_shape,
+            distortion_model):
+        # This method should be overridden.
+        undistorted_disk_support_centers = tuple()
 
         return undistorted_disk_support_centers
 
 
 
     def _generate_positions_from_a_jittered_grid(self,
-                                                 u_R_support,
+                                                 u_a_support,
                                                  undistorted_tds_model_1):
         jitter = 1/8
         rotation_matrix = self._generate_rotation_matrix()
@@ -1424,7 +1444,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         positions_from_a_jittered_grid = tuple()
 
         while len(positions_from_a_jittered_grid) == 0:
-            kwargs = {"u_R_support": u_R_support, "jitter": jitter}
+            kwargs = {"u_a_support": u_a_support, "jitter": jitter}
             a_1, a_2 = self._generate_primitive_lattice_vectors(**kwargs)
 
             kwargs = {"undistorted_tds_model_1": undistorted_tds_model_1}
@@ -1443,7 +1463,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                      "jitter": jitter,
                      "nn_distance": self._calc_nn_distance(a_1, a_2),
                      "rotation_matrix": rotation_matrix,
-                     "u_R_support": u_R_support}
+                     "u_a_support": u_a_support}
                 positions_from_a_jittered_grid += \
                     self._generate_positions_from_a_jittered_row(**kwargs)
 
@@ -1476,8 +1496,8 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _generate_primitive_lattice_vectors(self, u_R_support, jitter):
-        min_distance_between_undistorted_disk_support_centers = u_R_support/3
+    def _generate_primitive_lattice_vectors(self, u_a_support, jitter):
+        min_distance_between_undistorted_disk_support_centers = u_a_support/3
 
         nn_distance_threshold = \
             (1.001
@@ -1575,7 +1595,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                                                 jitter,
                                                 nn_distance,
                                                 rotation_matrix,
-                                                u_R_support):
+                                                u_a_support):
         kwargs = {"approx_tiling_radius": approx_tiling_radius,
                   "a_1": a_1,
                   "a_2": a_2,
@@ -1599,7 +1619,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             candidate_position = \
                 tuple(candidate_position.tolist())
 
-            kwargs = {"u_R_support": u_R_support,
+            kwargs = {"u_a_support": u_a_support,
                       "disk_center": candidate_position}
             if self._disk_center_is_within_acceptable_bounds(**kwargs):
                 positions_from_a_jittered_row += (candidate_position,)
@@ -1636,12 +1656,14 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _disk_center_is_within_acceptable_bounds(self, u_R_support, disk_center):
-        u_x_min = -(3/4)*u_R_support
-        u_x_max = 1 + (3/4)*u_R_support
+    def _disk_center_is_within_acceptable_bounds(self,
+                                                 u_a_support,
+                                                 disk_center):
+        u_x_min = -(3/4)*u_a_support
+        u_x_max = 1 + (3/4)*u_a_support
                 
-        u_y_min = -(3/4)*u_R_support
-        u_y_max = 1 + (3/4)*u_R_support
+        u_y_min = -(3/4)*u_a_support
+        u_y_max = 1 + (3/4)*u_a_support
                 
         result = ((u_x_min <= disk_center[0] <= u_x_max)
                   and (u_y_min <= disk_center[1] <= u_y_max))
@@ -1652,14 +1674,14 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
     def _sample_positions_quasi_uniformly_from_space(
             self,
-            u_R_support,
+            u_a_support,
             undistorted_tds_model_1,
             undistorted_disk_support_centers):
         disk_overlapping_is_enabled = \
             self._rng.choice((True, False), p=(1/2, 1-1/2)).item()
         
         min_distance_between_undistorted_disk_support_centers = \
-            (u_R_support/3 if disk_overlapping_is_enabled else 2*u_R_support)
+            (u_a_support/3 if disk_overlapping_is_enabled else 2*u_a_support)
 
         kwargs = {"low": self._min_num_non_clipped_disks_in_any_cbed_pattern,
                   "high": self._max_num_disks_in_any_cbed_pattern+1}
@@ -1678,8 +1700,8 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
                  min_distance_between_undistorted_disk_support_centers,
                  "undistorted_tds_model_1": \
                  undistorted_tds_model_1,
-                 "u_R_support": \
-                 u_R_support}
+                 "u_a_support": \
+                 u_a_support}
             sampled_position = \
                 self._sample_position_quasi_uniformly_from_space(**kwargs)
             sampled_positions += \
@@ -1695,7 +1717,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             undistorted_disk_support_centers,
             min_distance_between_undistorted_disk_support_centers,
             undistorted_tds_model_1,
-            u_R_support):
+            u_a_support):
         previously_sampled_positions = \
             np.array(previously_sampled_positions)
         undistorted_disk_support_centers = \
@@ -1723,10 +1745,10 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
                 position_sampling_has_not_been_completed = False
             else:
-                u_x = self._rng.uniform(low=-(3/4)*u_R_support,
-                                        high=1+(3/4)*u_R_support)                
-                u_y = self._rng.uniform(low=-(3/4)*u_R_support,
-                                        high=1+(3/4)*u_R_support)
+                u_x = self._rng.uniform(low=-(3/4)*u_a_support,
+                                        high=1+(3/4)*u_a_support)                
+                u_y = self._rng.uniform(low=-(3/4)*u_a_support,
+                                        high=1+(3/4)*u_a_support)
 
                 candidate_position = np.array((u_x, u_y))
                 displacements = displacement_origins - candidate_position
@@ -1854,11 +1876,13 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             undistorted_disk_support.get_core_attrs(deep_copy=False)
         u_x_c_support, u_y_c_support = \
             undistorted_disk_support_core_attrs["center"]
-        u_R_support = \
-            undistorted_disk_support_core_attrs["radius"]
+        u_a_support = \
+            (undistorted_disk_support_core_attrs["radius"]
+             if ("radius" in undistorted_disk_support_core_attrs)
+             else undistorted_disk_support_core_attrs["semi_major_axis"])
 
         kwargs = {"center": (u_x_c_support, u_y_c_support),
-                  "radius": u_R_support,
+                  "radius": u_a_support,
                   "intra_shape_val": 1,
                   "skip_validation_and_conversion": True}
         uniform_disk = fakecbed.shapes.Circle(**kwargs)
@@ -1915,16 +1939,18 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             undistorted_disk_support.get_core_attrs(deep_copy=False)
         u_x_c_support, u_y_c_support = \
             undistorted_disk_support_core_attrs["center"]
-        u_R_support = \
-            undistorted_disk_support_core_attrs["radius"]
+        u_a_support = \
+            (undistorted_disk_support_core_attrs["radius"]
+             if ("radius" in undistorted_disk_support_core_attrs)
+             else undistorted_disk_support_core_attrs["semi_major_axis"])
 
-        u_R_fg_ellipse_min = (13/12)*u_R_support
-        u_R_fg_ellipse_max = (5/4)*u_R_support
+        u_R_fg_ellipse_min = (13/12)*u_a_support
+        u_R_fg_ellipse_max = (5/4)*u_a_support
         u_R_fg_ellipse = self._rng.uniform(low=u_R_fg_ellipse_min,
                                            high=u_R_fg_ellipse_max)
 
-        u_r_c_fg_ellipse_min = u_R_fg_ellipse - (2/3)*u_R_support
-        u_r_c_fg_ellipse_max = u_R_fg_ellipse - (1/3)*u_R_support
+        u_r_c_fg_ellipse_min = u_R_fg_ellipse - (2/3)*u_a_support
+        u_r_c_fg_ellipse_max = u_R_fg_ellipse - (1/3)*u_a_support
         u_r_c_fg_ellipse = self._rng.uniform(low=u_r_c_fg_ellipse_min,
                                              high=u_r_c_fg_ellipse_max)
 
@@ -1952,11 +1978,13 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             undistorted_disk_support.get_core_attrs(deep_copy=False)
         u_x_c_support, u_y_c_support = \
             undistorted_disk_support_core_attrs["center"]
-        u_R_support = \
-            undistorted_disk_support_core_attrs["radius"]
+        u_a_support = \
+            (undistorted_disk_support_core_attrs["radius"]
+             if ("radius" in undistorted_disk_support_core_attrs)
+             else undistorted_disk_support_core_attrs["semi_major_axis"])
 
         kwargs = {"center": (u_x_c_support, u_y_c_support),
-                  "radius": u_R_support,
+                  "radius": u_a_support,
                   "intra_shape_val": 1,
                   "skip_validation_and_conversion": True}
         bg_ellipse = fakecbed.shapes.Circle(**kwargs)
@@ -1985,9 +2013,9 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
         bg_ellipse_core_attrs = bg_ellipse.get_core_attrs(deep_copy=False)
         u_x_c_support, u_y_c_support = bg_ellipse_core_attrs["center"]
-        u_R_support = bg_ellipse_core_attrs["radius"]
+        u_a_support = bg_ellipse_core_attrs["radius"]
 
-        sigma_peak = self._rng.uniform(low=u_R_support/2, high=2*u_R_support)
+        sigma_peak = self._rng.uniform(low=u_a_support/2, high=2*u_a_support)
         
         widths = sigma_peak * self._rng.uniform(low=0.8, high=1.2, size=4)
         widths = tuple(widths.tolist())
@@ -2081,8 +2109,10 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
         undistorted_disk_support_core_attrs = \
             undistorted_disk_support.get_core_attrs(deep_copy=False)
-        u_R_support = \
-            undistorted_disk_support_core_attrs["radius"]
+        u_a_support = \
+            (undistorted_disk_support_core_attrs["radius"]
+             if ("radius" in undistorted_disk_support_core_attrs)
+             else undistorted_disk_support_core_attrs["semi_major_axis"])
 
         amplitude_min = 1/3/max(num_plane_waves, 1)
         amplitude_max = 2*amplitude_min
@@ -2091,8 +2121,8 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         for _ in range(num_plane_waves):
             amplitude = self._rng.uniform(low=amplitude_min, high=amplitude_max)
 
-            wavelength = self._rng.uniform(low=(2*u_R_support)/9,
-                                           high=(2*u_R_support)/3)
+            wavelength = self._rng.uniform(low=(2*u_a_support)/9,
+                                           high=(2*u_a_support)/3)
 
             propagation_direction = self._rng.uniform(low=0, high=2*np.pi)
             phase = self._rng.uniform(low=0, high=2*np.pi)
@@ -2127,10 +2157,12 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             undistorted_disk_support.get_core_attrs(deep_copy=False)
         u_x_c_support, u_y_c_support = \
             undistorted_disk_support_core_attrs["center"]
-        u_R_support = \
-            undistorted_disk_support_core_attrs["radius"]
+        u_a_support = \
+            (undistorted_disk_support_core_attrs["radius"]
+             if ("radius" in undistorted_disk_support_core_attrs)
+             else undistorted_disk_support_core_attrs["semi_major_axis"])
 
-        u_r_c_orbital = self._rng.uniform(low=0, high=u_R_support)
+        u_r_c_orbital = self._rng.uniform(low=0, high=u_a_support)
         u_phi_c_orbital = self._rng.uniform(low=0, high=2*np.pi)
             
         u_x_c_orbital = (u_x_c_support
@@ -2144,7 +2176,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
         a_orbital = self._generate_a_orbital(n_orbital,
                                              l_orbital,
-                                             u_R_support)
+                                             u_a_support)
 
         A_orbital = self._generate_A_orbital(n_orbital,
                                              l_orbital,
@@ -2169,13 +2201,13 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
     def _generate_a_orbital(self,
                             n_orbital,
                             l_orbital,
-                            u_R_support):
+                            u_a_support):
         characteristic_sizes_of_orbitals = \
             self._characteristic_sizes_of_orbitals
         characteristic_size_of_orbital = \
             characteristic_sizes_of_orbitals[n_orbital][l_orbital]
 
-        a_orbital = ((u_R_support/0.5)
+        a_orbital = ((u_a_support/0.5)
                      * characteristic_size_of_orbital
                      * self._rng.uniform(low=3/5, high=7/5))
 
@@ -2253,8 +2285,10 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             undistorted_disk_support.get_core_attrs(deep_copy=False)
         u_x_c_support, u_y_c_support = \
             undistorted_disk_support_core_attrs["center"]
-        u_R_support = \
-            undistorted_disk_support_core_attrs["radius"]
+        u_a_support = \
+            (undistorted_disk_support_core_attrs["radius"]
+             if ("radius" in undistorted_disk_support_core_attrs)
+             else undistorted_disk_support_core_attrs["semi_major_axis"])
 
         possible_functional_forms = ("asymmetric_exponential",
                                      "asymmetric_lorentzian")
@@ -2266,13 +2300,13 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             sign_peak = 2*self._rng.binomial(n=1, p=0.5) - 1
             A_peak = sign_peak*abs_A_peak
 
-            sigma_peak = self._rng.uniform(low=u_R_support/(4*num_peaks),
-                                           high=u_R_support/(2*num_peaks))
+            sigma_peak = self._rng.uniform(low=u_a_support/(4*num_peaks),
+                                           high=u_a_support/(2*num_peaks))
             
             widths = sigma_peak * self._rng.uniform(low=0.8, high=1.2, size=4)
             widths = tuple(widths.tolist())
 
-            u_r_c_peak = self._rng.uniform(low=0, high=u_R_support+sigma_peak)
+            u_r_c_peak = self._rng.uniform(low=0, high=u_a_support+sigma_peak)
             u_phi_c_peak = self._rng.uniform(low=0, high=2*np.pi)
             
             u_x_c_peak = (u_x_c_support
@@ -2553,13 +2587,15 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
         undistorted_disk_support_core_attrs = \
             undistorted_disk_support.get_core_attrs(deep_copy=False)
-        u_R_support = \
-            undistorted_disk_support_core_attrs["radius"]
+        u_a_support = \
+            (undistorted_disk_support_core_attrs["radius"]
+             if ("radius" in undistorted_disk_support_core_attrs)
+             else undistorted_disk_support_core_attrs["semi_major_axis"])
         
         threshold = 1/20
         min_num_bands_pinned_to_disks = 0
         max_num_bands_pinned_to_disks = (0
-                                         if (u_R_support > threshold)
+                                         if (u_a_support > threshold)
                                          else num_bands)
         
         kwargs = {"low": min_num_bands_pinned_to_disks,
@@ -2612,11 +2648,13 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             undistorted_disk_support.get_core_attrs(deep_copy=False)
         u_x_c_support, u_y_c_support = \
             undistorted_disk_support_core_attrs["center"]
-        u_R_support = \
-            undistorted_disk_support_core_attrs["radius"]
+        u_a_support = \
+            (undistorted_disk_support_core_attrs["radius"]
+             if ("radius" in undistorted_disk_support_core_attrs)
+             else undistorted_disk_support_core_attrs["semi_major_axis"])
 
         r_band_min = 0
-        r_band_max = (0 if band_is_pinned_to_disk else 5/4)*u_R_support
+        r_band_max = (0 if band_is_pinned_to_disk else 5/4)*u_a_support
         r_band = self._rng.uniform(low=r_band_min, high=r_band_max)
 
         phi_band = self._rng.uniform(low=0, high=2*np.pi)
@@ -2683,11 +2721,13 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         
         undistorted_disk_support_core_attrs = \
             undistorted_disk_support.get_core_attrs(deep_copy=False)
-        u_R_support = \
-            undistorted_disk_support_core_attrs["radius"]
+        u_a_support = \
+            (undistorted_disk_support_core_attrs["radius"]
+             if ("radius" in undistorted_disk_support_core_attrs)
+             else undistorted_disk_support_core_attrs["semi_major_axis"])
 
-        w_band = self._rng.uniform(low=(1/5)*u_R_support,
-                                   high=(99/100)*u_R_support)
+        w_band = self._rng.uniform(low=(1/5)*u_a_support,
+                                   high=(99/100)*u_a_support)
 
         band_width = w_band
 
@@ -2883,8 +2923,12 @@ def _extract_common_undistorted_disk_radius_from_cbed_pattern_signal(
         cbed_pattern_signal.metadata.get_item(path_to_item)[0]
     pre_serializable_rep_of_undistorted_disk_support = \
         pre_serializable_rep_of_undistorted_disk["support"]
+    key = \
+        ("radius"
+         if ("radius" in pre_serializable_rep_of_undistorted_disk_support)
+         else "semi_major_axis")
     common_undistorted_disk_radius = \
-        np.array(pre_serializable_rep_of_undistorted_disk_support["radius"])
+        np.array(pre_serializable_rep_of_undistorted_disk_support[key])
 
     return common_undistorted_disk_radius
 
@@ -2911,8 +2955,12 @@ def _extract_intra_disk_avgs_from_cbed_pattern_signal(cbed_pattern_signal):
         pre_serializable_rep_of_undistorted_disk_support = \
             pre_serializable_rep_of_undistorted_disk["support"]
 
+        key = \
+            ("radius"
+             if ("radius" in pre_serializable_rep_of_undistorted_disk_support)
+             else "semi_major_axis")
         undistorted_disk_radii[disk_idx] = \
-            pre_serializable_rep_of_undistorted_disk_support["radius"]
+            pre_serializable_rep_of_undistorted_disk_support[key]
 
         if disk_idx > 0:
             current_radius = undistorted_disk_radii[disk_idx]
@@ -3436,7 +3484,7 @@ def _generate_undistorted_disk_set_from_ml_data_dict(ml_data_dict,
             convert_numerical_data_container(**kwargs)
         
         if key == "common_undistorted_disk_radii":
-            u_R_support = \
+            u_a_support = \
                 numerical_data_container[cbed_pattern_idx].item()
         elif key == "undistorted_disk_center_sets":
             undistorted_disk_center_set = \
@@ -3449,7 +3497,7 @@ def _generate_undistorted_disk_set_from_ml_data_dict(ml_data_dict,
     for disk_idx, disk_objectness in enumerate(disk_objectnesss):
         if disk_objectness == 1:
             kwargs = {"center": undistorted_disk_center_set[disk_idx],
-                      "radius": u_R_support,
+                      "radius": u_a_support,
                       "intra_shape_val": 1,
                       "skip_validation_and_conversion": True}
             undistorted_disk_support = fakecbed.shapes.Circle(**kwargs)
@@ -3752,6 +3800,10 @@ _default_distortion_model_generator_err_msg_2 = \
      "transformation that is not well-defined for pixels outside of the mask "
      "frame of the maximum permitted width, which is one sixth of the image "
      "width.")
+
+_check_and_convert_num_pixels_across_each_cbed_pattern_err_msg_1 = \
+    ("The object ``num_pixels_across_each_cbed_pattern`` must be positive "
+     "integer that is divisible by {}.")
 
 _default_cbed_pattern_generator_err_msg_1 = \
     ("The CBED pattern must contain at least {} non-clipped CBED disks.")

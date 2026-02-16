@@ -76,98 +76,10 @@ def _get_device(device_name):
 
 
 
-def _check_and_convert_reference_pt(params):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed._common
-    func_name = "_check_and_convert_reference_pt"
-    func_alias = getattr(module_alias, func_name)
-    reference_pt = func_alias(**kwargs)
-
-    return reference_pt
-
-
-
-def _pre_serialize_reference_pt(reference_pt):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed._common
-    func_name = "_pre_serialize_reference_pt"
-    func_alias = getattr(module_alias, func_name)
-    serializable_rep = func_alias(**kwargs)
-    
-    return serializable_rep
-
-
-
-def _de_pre_serialize_reference_pt(serializable_rep):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed._common
-    func_name = "_de_pre_serialize_reference_pt"
-    func_alias = getattr(module_alias, func_name)
-    reference_pt = func_alias(**kwargs)
-
-    return reference_pt
-
-
-
-def _check_and_convert_rng_seed(params):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed._common
-    func_name = "_check_and_convert_rng_seed"
-    func_alias = getattr(module_alias, func_name)
-    rng_seed = func_alias(**kwargs)
-
-    return rng_seed
-
-
-
-def _pre_serialize_rng_seed(rng_seed):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed._common
-    func_name = "_pre_serialize_rng_seed"
-    func_alias = getattr(module_alias, func_name)
-    serializable_rep = func_alias(**kwargs)
-    
-    return serializable_rep
-
-
-
-def _de_pre_serialize_rng_seed(serializable_rep):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed._common
-    func_name = "_de_pre_serialize_rng_seed"
-    func_alias = getattr(module_alias, func_name)
-    rng_seed = func_alias(**kwargs)
-
-    return rng_seed
-
-
-
 def _check_and_convert_sampling_grid_dims_in_pixels(params):
     kwargs = locals()
     module_alias = emicroml.modelling.cbed._common
     func_name = "_check_and_convert_sampling_grid_dims_in_pixels"
-    func_alias = getattr(module_alias, func_name)
-    sampling_grid_dims_in_pixels = func_alias(**kwargs)
-
-    return sampling_grid_dims_in_pixels
-
-
-
-def _pre_serialize_sampling_grid_dims_in_pixels(sampling_grid_dims_in_pixels):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed._common
-    func_name = "_pre_serialize_sampling_grid_dims_in_pixels"
-    func_alias = getattr(module_alias, func_name)
-    serializable_rep = func_alias(**kwargs)
-    
-    return serializable_rep
-
-
-
-def _de_pre_serialize_sampling_grid_dims_in_pixels(serializable_rep):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed._common
-    func_name = "_de_pre_serialize_sampling_grid_dims_in_pixels"
     func_alias = getattr(module_alias, func_name)
     sampling_grid_dims_in_pixels = func_alias(**kwargs)
 
@@ -186,54 +98,10 @@ def _check_and_convert_least_squares_alg_params(params):
 
 
 
-def _pre_serialize_least_squares_alg_params(least_squares_alg_params):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed._common
-    func_name = "_pre_serialize_least_squares_alg_params"
-    func_alias = getattr(module_alias, func_name)
-    serializable_rep = func_alias(**kwargs)
-    
-    return serializable_rep
-
-
-
-def _de_pre_serialize_least_squares_alg_params(serializable_rep):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed._common
-    func_name = "_de_pre_serialize_least_squares_alg_params"
-    func_alias = getattr(module_alias, func_name)
-    least_squares_alg_params = func_alias(**kwargs)
-
-    return least_squares_alg_params
-
-
-
 def _check_and_convert_device_name(params):
     kwargs = locals()
     module_alias = emicroml.modelling.cbed._common
     func_name = "_check_and_convert_device_name"
-    func_alias = getattr(module_alias, func_name)
-    device_name = func_alias(**kwargs)
-
-    return device_name
-
-
-
-def _pre_serialize_device_name(device_name):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed._common
-    func_name = "_pre_serialize_device_name"
-    func_alias = getattr(module_alias, func_name)
-    serializable_rep = func_alias(**kwargs)
-    
-    return serializable_rep
-
-
-
-def _de_pre_serialize_device_name(serializable_rep):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed._common
-    func_name = "_de_pre_serialize_device_name"
     func_alias = getattr(module_alias, func_name)
     device_name = func_alias(**kwargs)
 
@@ -285,25 +153,28 @@ _building_block_counts_in_stages_of_distoptica_net = \
 
 
 def _check_and_convert_num_pixels_across_each_cbed_pattern(params):
-    kwargs = locals()
+    params["divisor"] = _generate_divisor()
+
+    kwargs = {"params": params}
     module_alias = emicroml.modelling.cbed._common
     func_name = "_check_and_convert_num_pixels_across_each_cbed_pattern"
     func_alias = getattr(module_alias, func_name)
     num_pixels_across_each_cbed_pattern = func_alias(**kwargs)
 
+    del params["divisor"]
+
+    return num_pixels_across_each_cbed_pattern
+
+
+
+def _generate_divisor():
     max_num_downsampling_steps_in_any_encoder_used_in_ml_model = \
         (emicroml.modelling._common._DistopticaNetEntryFlow._num_downsamplings
          + len(_building_block_counts_in_stages_of_distoptica_net))
+    divisor = \
+        2**max_num_downsampling_steps_in_any_encoder_used_in_ml_model
 
-    current_func_name = "_check_and_convert_num_pixels_across_each_cbed_pattern"
-
-    M = 2**max_num_downsampling_steps_in_any_encoder_used_in_ml_model
-    if num_pixels_across_each_cbed_pattern % M != 0:
-        unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
-        err_msg = unformatted_err_msg.format(M)
-        raise ValueError(err_msg)
-
-    return num_pixels_across_each_cbed_pattern
+    return divisor
 
 
 
@@ -341,29 +212,6 @@ def _check_and_convert_max_num_disks_in_any_cbed_pattern(params):
 
 
 
-def _pre_serialize_max_num_disks_in_any_cbed_pattern(
-        max_num_disks_in_any_cbed_pattern):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed._common
-    func_name = "_pre_serialize_max_num_disks_in_any_cbed_pattern"
-    func_alias = getattr(module_alias, func_name)
-    serializable_rep = func_alias(**kwargs)
-    
-    return serializable_rep
-
-
-
-def _de_pre_serialize_max_num_disks_in_any_cbed_pattern(serializable_rep):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed._common
-    func_name = "_de_pre_serialize_max_num_disks_in_any_cbed_pattern"
-    func_alias = getattr(module_alias, func_name)
-    max_num_disks_in_any_cbed_pattern = func_alias(**kwargs)
-
-    return max_num_disks_in_any_cbed_pattern
-
-
-
 _module_alias = \
     emicroml.modelling.cbed._common
 _default_num_pixels_across_each_cbed_pattern = \
@@ -376,6 +224,23 @@ _default_max_num_disks_in_any_cbed_pattern = \
 _module_alias = emicroml.modelling.cbed._common
 _cls_alias = _module_alias._DefaultCBEDPatternGenerator
 class _DefaultCBEDPatternGenerator(_cls_alias):
+    _validation_and_conversion_funcs_ = \
+        {**_cls_alias._validation_and_conversion_funcs_,
+         "num_pixels_across_each_cbed_pattern": \
+         _check_and_convert_num_pixels_across_each_cbed_pattern}
+
+    _pre_serialization_funcs_ = \
+        {**_cls_alias._pre_serialization_funcs_,
+         "num_pixels_across_each_cbed_pattern": \
+         _pre_serialize_num_pixels_across_each_cbed_pattern}
+
+    _de_pre_serialization_funcs_ = \
+        {**_cls_alias._de_pre_serialization_funcs_,
+         "num_pixels_across_each_cbed_pattern": \
+         _de_pre_serialize_num_pixels_across_each_cbed_pattern}
+
+
+    
     def __init__(self,
                  num_pixels_across_each_cbed_pattern,
                  max_num_disks_in_any_cbed_pattern,
@@ -384,14 +249,65 @@ class _DefaultCBEDPatternGenerator(_cls_alias):
                  least_squares_alg_params,
                  device_name,
                  skip_validation_and_conversion):
-        kwargs = {key: val
-                  for key, val in locals().items()
-                  if (key not in ("self", "__class__"))}
+        ctor_params = {key: val
+                       for key, val in locals().items()
+                       if (key not in ("self", "__class__"))}
+
         module_alias = emicroml.modelling.cbed._common
         cls_alias = module_alias._DefaultCBEDPatternGenerator
-        cls_alias.__init__(self, **kwargs)
+        cls_alias.__init__(self, ctor_params)
 
         return None
+
+
+
+    def _generate_undistorted_disk_support_centers(
+            self,
+            u_a_support,
+            undistorted_tds_model_1,
+            undistorted_outer_illumination_shape,
+            distortion_model):
+        kwargs = \
+            {key: val
+             for key, val in locals().items()
+             if (key not in ("self", "__class__"))}
+        undistorted_disk_support_centers = \
+            super()._generate_undistorted_disk_support_centers(**kwargs)
+
+        center_generation_has_not_been_completed = True
+        while center_generation_has_not_been_completed:
+            centers_approximately_form_a_grid = \
+                self._rng.choice((True, False), p=(1/2, 1-1/2)).item()
+
+            if centers_approximately_form_a_grid:
+                kwargs = \
+                    {"u_a_support": u_a_support,
+                     "undistorted_tds_model_1": undistorted_tds_model_1}
+                undistorted_disk_support_centers += \
+                    self._generate_positions_from_a_jittered_grid(**kwargs)
+            else:
+                subset_of_centers_approximately_form_a_grid = \
+                    self._rng.choice((True, False), p=(1/2, 1-1/2)).item()
+
+                kwargs = \
+                    {"u_a_support": u_a_support,
+                     "undistorted_tds_model_1": undistorted_tds_model_1}
+                if subset_of_centers_approximately_form_a_grid:
+                    undistorted_disk_support_centers += \
+                        self._generate_positions_from_a_jittered_grid(**kwargs)
+                else:
+                    undistorted_disk_support_centers += \
+                        tuple()
+
+                kwargs["undistorted_disk_support_centers"] = \
+                    undistorted_disk_support_centers
+                undistorted_disk_support_centers += \
+                    self._sample_positions_quasi_uniformly_from_space(**kwargs)
+
+            center_generation_has_not_been_completed = \
+                (len(undistorted_disk_support_centers) == 0)
+
+        return undistorted_disk_support_centers
 
 
 
@@ -501,6 +417,18 @@ def _check_cbed_pattern_signal(cbed_pattern_signal,
     func_alias = getattr(module_alias, func_name)
     func_alias(**kwargs)
 
+    current_func_name = "_check_cbed_pattern_signal"
+
+    try:
+        params = {"num_pixels_across_each_cbed_pattern": \
+                  cbed_pattern_signal.axes_manager.signal_shape[0]}
+        _ = _check_and_convert_num_pixels_across_each_cbed_pattern(params)
+    except:
+        divisor = _generate_divisor()
+        unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
+        err_msg = unformatted_err_msg.format(divisor)
+        raise ValueError(err_msg)
+
     return None
 
 
@@ -522,18 +450,6 @@ _tol_for_comparing_floats = _module_alias._tol_for_comparing_floats
 
 
 
-def _de_pre_serialize_coord_transform_params(serializable_rep):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed._common
-    func_name = "_de_pre_serialize_coord_transform_params"
-    func_alias = getattr(module_alias, func_name)
-    coord_transform_params = func_alias(**kwargs)
-
-    return coord_transform_params
-        
-
-
-
 _module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._UnnormalizedMLDataInstanceGenerator
 class _UnnormalizedMLDataInstanceGenerator(_cls_alias):
@@ -545,12 +461,13 @@ class _UnnormalizedMLDataInstanceGenerator(_cls_alias):
         self._max_num_disks_in_any_cbed_pattern = \
             max_num_disks_in_any_cbed_pattern
 
-        self._expected_cbed_pattern_dims_in_pixels = None
-        
         cbed_pattern_signal = \
             _generate_cbed_pattern_signal(cbed_pattern_generator)
         self._expected_cbed_pattern_dims_in_pixels = \
             cbed_pattern_signal.axes_manager.signal_shape
+
+        _check_cbed_pattern_signal(cbed_pattern_signal,
+                                   max_num_disks_in_any_cbed_pattern)
 
         cached_ml_data_instances = self._generate(num_ml_data_instances=1)
 
@@ -568,22 +485,21 @@ class _UnnormalizedMLDataInstanceGenerator(_cls_alias):
             self._max_num_disks_in_any_cbed_pattern
         cbed_pattern_generator = \
             self._cbed_pattern_generator
+        
         cbed_pattern_signal = \
             _generate_cbed_pattern_signal(cbed_pattern_generator)
+
+        _check_cbed_pattern_signal(cbed_pattern_signal,
+                                   max_num_disks_in_any_cbed_pattern)
+
         cbed_pattern_dims_in_pixels = \
             cbed_pattern_signal.axes_manager.signal_shape
         expected_cbed_pattern_dims_in_pixels = \
             self._expected_cbed_pattern_dims_in_pixels
 
-        _check_cbed_pattern_signal(cbed_pattern_signal,
-                                   max_num_disks_in_any_cbed_pattern)
-
         if cbed_pattern_dims_in_pixels != expected_cbed_pattern_dims_in_pixels:
             err_msg = _unnormalized_ml_data_instance_generator_err_msg_1
             raise ValueError(err_msg)
-
-        self._expected_cbed_pattern_dims_in_pixels = \
-            cbed_pattern_signal.axes_manager.signal_shape
 
         method_alias = \
             super()._generate_ml_data_dict_containing_only_one_ml_data_instance
@@ -1068,6 +984,19 @@ def _generate_and_save_ml_dataset(cbed_pattern_generator,
                axes_labels_of_hdf5_datasets_of_ml_dataset_file,
                start_time)
 
+    _print_generate_and_save_ml_dataset_end_msg(start_time, output_filename)
+
+    return None
+
+
+
+def _print_generate_and_save_ml_dataset_end_msg(start_time, output_filename):
+    kwargs = locals()
+    module_alias = emicroml.modelling._common
+    func_name = "_print_generate_and_save_ml_dataset_end_msg"
+    func_alias = getattr(module_alias, func_name)
+    func_alias(**kwargs)
+
     return None
 
 
@@ -1182,7 +1111,8 @@ def _split_ml_dataset_file(output_ml_dataset_filename_1,
               rng_seed,
               "max_num_ml_data_instances_per_file_update": \
               max_num_ml_data_instances_per_file_update,
-              "split_ratio": split_ratio}
+              "split_ratio": \
+              split_ratio}
     ml_data_splitter = _MLDataSplitter(**kwargs)
 
     module_alias = emicroml.modelling._common
@@ -1251,6 +1181,79 @@ def _check_and_convert_normalize_normalizable_elems_in_ml_data_dict_params(
             del params[key]
 
     return params
+
+
+
+def _generate_default_normalization_weights():
+    obj_name = "normalization_weights"
+
+    ml_data_normalizer = _generate_default_ml_data_normalizer()
+    extrema_cache = ml_data_normalizer._extrema_cache
+
+    kwargs = {"extrema_cache": extrema_cache}
+    _update_extrema_cache_for_default_normalization_weights_and_biases(**kwargs)
+
+    ml_data_normalizer._update_normalization_weights_and_biases()
+
+    attr_name = "_" + obj_name
+    normalization_weights = getattr(ml_data_normalizer, attr_name)
+
+    return normalization_weights
+
+
+
+def _update_extrema_cache_for_default_normalization_weights_and_biases(
+        extrema_cache):
+    kwargs = {"reference_pt": \
+              _default_reference_pt,
+              "rng_seed": \
+              _default_rng_seed,
+              "sampling_grid_dims_in_pixels": \
+              _default_sampling_grid_dims_in_pixels,
+              "least_squares_alg_params": \
+              _default_least_squares_alg_params,
+              "device_name": \
+              _default_device_name,
+              "skip_validation_and_conversion": \
+              True}
+    distortion_model_generator = _DefaultDistortionModelGenerator(**kwargs)
+
+    all_valid_ml_data_dict_keys = _generate_all_valid_ml_data_dict_keys()
+
+    for key_1 in all_valid_ml_data_dict_keys:
+        if key_1 not in extrema_cache:
+            continue
+        for key_2 in ("min", "max"):
+                key_3 = "_" + key_1[:-1] + "_" + key_2
+                
+                obj_from_which_to_get_attr = distortion_model_generator
+                attr_name = key_3
+                default_value_if_attr_does_not_exist = int(key_2 == "max")
+                
+                args = (obj_from_which_to_get_attr,
+                        attr_name,
+                        default_value_if_attr_does_not_exist)
+                extrema_cache[key_1][key_2] = getattr(*args)
+
+    return None
+
+
+
+def _generate_default_normalization_biases():
+    obj_name = "normalization_biases"
+
+    ml_data_normalizer = _generate_default_ml_data_normalizer()
+    extrema_cache = ml_data_normalizer._extrema_cache
+
+    kwargs = {"extrema_cache": extrema_cache}
+    _update_extrema_cache_for_default_normalization_weights_and_biases(**kwargs)
+
+    ml_data_normalizer._update_normalization_weights_and_biases()
+
+    attr_name = "_" + obj_name
+    normalization_biases = getattr(ml_data_normalizer, attr_name)
+
+    return normalization_biases
 
 
 
@@ -1414,7 +1417,8 @@ def _check_and_convert_ml_data_dict_to_signals_params(params):
     params = params.copy()
 
     kwargs = {"obj": params["ml_data_dict"], "obj_name": "ml_data_dict"}
-    ml_data_dict = czekitout.convert.to_dict(**kwargs)
+    ml_data_dict = czekitout.convert.to_dict(**kwargs).copy()
+    params["ml_data_dict"] = ml_data_dict
 
     device_name = params["device_name"]
 
@@ -1914,7 +1918,8 @@ class _MLDatasetManager(_cls_alias):
         
         module_alias = emicroml.modelling.cbed._common
         cls_alias = module_alias._MLDatasetManager
-        cls_alias.__init__(self, ctor_params)
+        kwargs = ctor_params
+        cls_alias.__init__(self, **kwargs)
 
         return None
 
@@ -2047,9 +2052,13 @@ class _DistopticaNet(torch.nn.Module):
 
 
 def _check_and_convert_architecture(params):
+    params["accepted_strings"] = ("distoptica_net",)
+
     module_alias = emicroml.modelling.cbed._common
     func_alias = module_alias._check_and_convert_architecture
     architecture = func_alias(params)
+
+    del params["accepted_strings"]
 
     return architecture
 
@@ -2088,61 +2097,6 @@ def _check_and_convert_normalization_weights(params):
 
 
 
-def _generate_default_normalization_weights():
-    obj_name = "normalization_weights"
-
-    ml_data_normalizer = _generate_default_ml_data_normalizer()
-    extrema_cache = ml_data_normalizer._extrema_cache
-
-    kwargs = {"extrema_cache": extrema_cache}
-    _update_extrema_cache_for_default_normalization_weights_and_biases(**kwargs)
-
-    ml_data_normalizer._update_normalization_weights_and_biases()
-
-    attr_name = "_" + obj_name
-    normalization_weights = getattr(ml_data_normalizer, attr_name)
-
-    return normalization_weights
-
-
-
-def _update_extrema_cache_for_default_normalization_weights_and_biases(
-        extrema_cache):
-    kwargs = {"reference_pt": \
-              _default_reference_pt,
-              "rng_seed": \
-              _default_rng_seed,
-              "sampling_grid_dims_in_pixels": \
-              _default_sampling_grid_dims_in_pixels,
-              "least_squares_alg_params": \
-              _default_least_squares_alg_params,
-              "device_name": \
-              _default_device_name,
-              "skip_validation_and_conversion": \
-              True}
-    distortion_model_generator = _DefaultDistortionModelGenerator(**kwargs)
-
-    all_valid_ml_data_dict_keys = _generate_all_valid_ml_data_dict_keys()
-
-    for key_1 in all_valid_ml_data_dict_keys:
-        if key_1 not in extrema_cache:
-            continue
-        for key_2 in ("min", "max"):
-                key_3 = "_" + key_1[:-1] + "_" + key_2
-                
-                obj_from_which_to_get_attr = distortion_model_generator
-                attr_name = key_3
-                default_value_if_attr_does_not_exist = int(key_2 == "max")
-                
-                args = (obj_from_which_to_get_attr,
-                        attr_name,
-                        default_value_if_attr_does_not_exist)
-                extrema_cache[key_1][key_2] = getattr(*args)
-
-    return None
-
-
-
 def _check_and_convert_normalization_biases(params):
     obj_name = "normalization_biases"
 
@@ -2162,24 +2116,6 @@ def _check_and_convert_normalization_biases(params):
     module_alias = emicroml.modelling._common
     func_alias = module_alias._check_and_convert_normalization_biases
     normalization_biases = func_alias(params)
-
-    return normalization_biases
-
-
-
-def _generate_default_normalization_biases():
-    obj_name = "normalization_biases"
-
-    ml_data_normalizer = _generate_default_ml_data_normalizer()
-    extrema_cache = ml_data_normalizer._extrema_cache
-
-    kwargs = {"extrema_cache": extrema_cache}
-    _update_extrema_cache_for_default_normalization_weights_and_biases(**kwargs)
-
-    ml_data_normalizer._update_normalization_weights_and_biases()
-
-    attr_name = "_" + obj_name
-    normalization_biases = getattr(ml_data_normalizer, attr_name)
 
     return normalization_biases
 
@@ -2222,9 +2158,9 @@ class _MLModel(_cls_alias):
                  mini_batch_norm_eps,
                  normalization_weights,
                  normalization_biases):
-        ctor_params = {key: val
-                       for key, val in locals().items()
-                       if (key not in ("self", "__class__"))}
+        current_cls_ctor_params = {key: val
+                                   for key, val in locals().items()
+                                   if (key not in ("self", "__class__"))}
 
         kwargs = \
             {"num_pixels_across_each_cbed_pattern": \
@@ -2245,12 +2181,10 @@ class _MLModel(_cls_alias):
                   "ml_data_shape_analyzer": _MLDataShapeAnalyzer(),
                   "variable_axis_size_dict": variable_axis_size_dict,
                   "expected_keys_of_ml_inputs": expected_keys_of_ml_inputs,
-                  "subcls_ctor_params": ctor_params}
+                  "base_cls_ctor_params": current_cls_ctor_params}
         cls_alias.__init__(self, **kwargs)
 
-        self._initialize_ml_model_cmpnts(architecture,
-                                         num_pixels_across_each_cbed_pattern,
-                                         mini_batch_norm_eps)
+        self._initialize_ml_model_cmpnts()
 
         return None
 
@@ -2297,21 +2231,21 @@ class _MLModel(_cls_alias):
 
 
 
-    def _initialize_ml_model_cmpnts(self,
-                                    architecture,
-                                    num_pixels_across_each_cbed_pattern,
-                                    mini_batch_norm_eps):
-        base_model_cls = _DistopticaNet
+    def _initialize_ml_model_cmpnts(self):
+        core_nn_module_cls = _DistopticaNet
 
-        self._base_model = base_model_cls(num_pixels_across_each_cbed_pattern,
-                                          mini_batch_norm_eps)
+        kwargs = {"num_pixels_across_each_cbed_pattern": \
+                  self._core_attrs["num_pixels_across_each_cbed_pattern"],
+                  "mini_batch_norm_eps": \
+                  self._core_attrs["mini_batch_norm_eps"]}
+        self._core_nn_module = core_nn_module_cls(**kwargs)
 
         return None
 
 
 
     def forward(self, ml_inputs):
-        ml_predictions = self._base_model(ml_inputs)
+        ml_predictions = self._core_nn_module(ml_inputs)
 
         return ml_predictions
 
@@ -2457,7 +2391,7 @@ def _calc_cached_objs_of_coord_transform_set(ml_model, distortion_centers):
 
 def _calc_u_x_and_u_y(ml_model, distortion_centers):
     sampling_grid_dims_in_pixels = \
-        2*(ml_model._base_model._num_pixels_across_each_cbed_pattern,)
+        2*(ml_model._core_nn_module._num_pixels_across_each_cbed_pattern,)
     device = \
         distortion_centers.device
     mini_batch_size = \
@@ -2777,9 +2711,10 @@ class _MLModelTester(_cls_alias):
 ## Define error messages ##
 ###########################
 
-_check_and_convert_num_pixels_across_each_cbed_pattern_err_msg_1 = \
-    ("The object ``num_pixels_across_each_cbed_pattern`` must be positive "
-     "integer that is divisible {}.")
+_check_cbed_pattern_signal_err_msg_1 = \
+    ("The object ``cbed_pattern_generator`` must generate a CBED pattern image "
+     "with the horizontal dimension, in units of pixels, being equal to a "
+     "positive integer that is divisible by {}.")
 
 _unnormalized_ml_data_instance_generator_err_msg_1 = \
     ("The object ``cbed_pattern_generator`` must generate CBED patterns of "

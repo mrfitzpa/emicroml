@@ -11,7 +11,7 @@
 #
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
-"""For training machine learning models for distortion estimation in CBED.
+"""For training machine learning models for localizing CBED disks.
 
 """
 
@@ -28,7 +28,7 @@ import time
 
 # Contains the majority of the implementation code for this module, which is
 # also shared with other modules.
-import emicroml.modelling.cbed.distortion._common
+import emicroml.modelling.cbed.disk._common
 
 
 
@@ -43,7 +43,6 @@ __all__ = ["DefaultDistortionModelGenerator",
            "combine_ml_dataset_files",
            "split_ml_dataset_file",
            "MLDataset",
-           "ml_data_dict_to_distortion_models",
            "ml_data_dict_to_signals",
            "MLDatasetManager",
            "MLModel",
@@ -57,7 +56,7 @@ __all__ = ["DefaultDistortionModelGenerator",
 
 
 _module_alias = \
-    emicroml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.disk._common
 _default_reference_pt = \
     _module_alias._default_reference_pt
 _default_rng_seed = \
@@ -73,7 +72,7 @@ _default_skip_validation_and_conversion = \
 
 
 
-_module_alias = emicroml.modelling.cbed.distortion._common
+_module_alias = emicroml.modelling.cbed.disk._common
 _cls_alias = _module_alias._DefaultDistortionModelGenerator
 class DefaultDistortionModelGenerator(_cls_alias):
     r"""The default class of random distortion model generators.
@@ -84,7 +83,7 @@ class DefaultDistortionModelGenerator(_cls_alias):
     The current class represents the default random distortion model generators
     used to generate random "fake" CBED patterns. The current class is used in
     the class
-    :class:`emicroml.modelling.cbed.distortion.estimation.DefaultCBEDPatternGenerator`,
+    :class:`emicroml.modelling.cbed.disk.localization.DefaultCBEDPatternGenerator`,
     with the latter class representing the default random fake CBED pattern
     generators. See the documentation for the latter class for further
     discussion on the default random fake CBED pattern generators.
@@ -147,7 +146,7 @@ class DefaultDistortionModelGenerator(_cls_alias):
     of the resulting candidate distortion model are less than or equal to
     ``1/8``, then the candidate distortion model is accepted as valid and
     returned as output after calling the method
-    :meth:`emicroml.modelling.cbed.distortion.estimation.DefaultDistortionModelGenerator.generate`.
+    :meth:`emicroml.modelling.cbed.disk.localization.DefaultDistortionModelGenerator.generate`.
     Otherwise, the candidate distortion model is rejected, and new candidate
     distortion models are generated until either: one of them is accepted as
     valid; or 10 candidate distortion models have been rejected in total. In the
@@ -227,7 +226,7 @@ class DefaultDistortionModelGenerator(_cls_alias):
         kwargs = {key: val
                   for key, val in locals().items()
                   if (key not in ("self", "__class__"))}
-        module_alias = emicroml.modelling.cbed.distortion._common
+        module_alias = emicroml.modelling.cbed.disk._common
         cls_alias = module_alias._DefaultDistortionModelGenerator
         cls_alias.__init__(self, **kwargs)
 
@@ -235,15 +234,17 @@ class DefaultDistortionModelGenerator(_cls_alias):
 
 
 _module_alias = \
-    emicroml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.disk._common
 _default_num_pixels_across_each_cbed_pattern = \
     _module_alias._default_num_pixels_across_each_cbed_pattern
 _default_max_num_disks_in_any_cbed_pattern = \
     _module_alias._default_max_num_disks_in_any_cbed_pattern
+_default_num_pixels_across_each_expected_cropping_window = \
+    _module_alias._default_num_pixels_across_each_expected_cropping_window
 
 
 
-_module_alias = emicroml.modelling.cbed.distortion._common
+_module_alias = emicroml.modelling.cbed.disk._common
 _cls_alias = _module_alias._DefaultCBEDPatternGenerator
 class DefaultCBEDPatternGenerator(_cls_alias):
     r"""The default class of random "fake" CBED pattern generators.
@@ -258,6 +259,12 @@ class DefaultCBEDPatternGenerator(_cls_alias):
     class :class:`fakecbed.discretized.CBEDPattern` for a discussion on how
     fake CBED patterns are modelled/parameterized.
 
+    The current class is used in the class
+    :class:`emicroml.modelling.cbed.disk.localization.DefaultCroppedCBEDPatternGenerator`,
+    with the latter class representing the default random cropped fake CBED
+    pattern generators. See the documentation for the latter class for further
+    discussion on the default random cropped fake CBED pattern generators.
+
     A random number generator is used to fake CBED patterns. Upon construction
     of an instance of the current class, or core attribute update via the method
     :meth:`~fancytypes.Updatable.update`, a random numpy generator ``rng`` is
@@ -268,7 +275,7 @@ class DefaultCBEDPatternGenerator(_cls_alias):
     discussion on core attributes.
 
     Instances of the current class use instances of the class
-    :class:`emicroml.modelling.cbed.distortion.estimation.DefaultDistortionModelGenerator`
+    :class:`emicroml.modelling.cbed.disk.localization.DefaultDistortionModelGenerator`
     to generate random distortion models, which are subsequently used to
     generate random fake CBED patterns.
 
@@ -283,9 +290,7 @@ class DefaultCBEDPatternGenerator(_cls_alias):
         The number of pixels across each fake CBED pattern to be generated. Note
         that the number of pixels from top to bottom is also equal to
         ``num_pixels_across_each_cbed_pattern`` for each fake CBED pattern to be
-        generated. Moreover, the parameter
-        ``num_pixels_across_each_cbed_pattern`` is expected to be a positive
-        integer that is divisible by ``2**5``.
+        generated. 
     max_num_disks_in_any_cbed_pattern : `int`, optional
         The maximum number of CBED disks to appear in the image of any fake CBED
         pattern to be generated.
@@ -314,6 +319,15 @@ class DefaultCBEDPatternGenerator(_cls_alias):
         used, e.g. ``”cuda”`` or ``”cpu”``. If ``device_name`` is set to
         ``None`` and a GPU device is available, then a GPU device is to be
         used. Otherwise, the CPU is used.
+    num_pixels_across_each_expected_cropping_window : `int`, optional
+        The anticipated number of pixels across each square cropping window to
+        be used to crop each fake CBED pattern, assuming cropping is to be
+        performed elsewhere. For each fake CBED pattern to be generated, all the
+        CBED disks of the fake CBED pattern are clustered roughly in a square
+        area, the horizontal dimension of which scales with
+        ``num_pixels_across_each_expected_cropping_window``. Moreover, the
+        parameter ``num_pixels_across_each_expected_cropping_window`` is
+        expected to be a positive integer that is divisible by ``2``.
     skip_validation_and_conversion : `bool`, optional
         Let ``validation_and_conversion_funcs`` and ``core_attrs`` denote the
         attributes :attr:`~fancytypes.Checkable.validation_and_conversion_funcs`
@@ -355,12 +369,14 @@ class DefaultCBEDPatternGenerator(_cls_alias):
                  _default_least_squares_alg_params,
                  device_name=\
                  _default_device_name,
+                 num_pixels_across_each_expected_cropping_window=\
+                 _default_num_pixels_across_each_expected_cropping_window,
                  skip_validation_and_conversion=\
                  _default_skip_validation_and_conversion):
         kwargs = {key: val
                   for key, val in locals().items()
                   if (key not in ("self", "__class__"))}
-        module_alias = emicroml.modelling.cbed.distortion._common
+        module_alias = emicroml.modelling.cbed.disk._common
         cls_alias = module_alias._DefaultCBEDPatternGenerator
         cls_alias.__init__(self, **kwargs)
 
@@ -369,11 +385,159 @@ class DefaultCBEDPatternGenerator(_cls_alias):
 
 
 _module_alias = \
-    emicroml.modelling.cbed.distortion._common
-_default_num_cbed_patterns = \
-    _module_alias._default_num_cbed_patterns
-_default_cbed_pattern_generator = \
-    _module_alias._default_cbed_pattern_generator
+    emicroml.modelling.cbed.disk._common
+_default_num_pixels_across_each_cropping_window = \
+    _module_alias._default_num_pixels_across_each_cropping_window
+
+
+
+_module_alias = emicroml.modelling.cbed.disk._common
+_cls_alias = _module_alias._DefaultCroppedCBEDPatternGenerator
+class DefaultCroppedCBEDPatternGenerator(_cls_alias):
+    r"""The default class of random cropped "fake" CBED pattern generators.
+
+    The current class is a subclass of
+    :class:`fancytypes.PreSerializableAndUpdatable`.
+
+    The current class represents the default random cropped "fake" CBED pattern
+    generators used to generate random cropped fake CBED patterns, where each
+    cropped fake CBED pattern is represented by an instance of the class
+    :class:`fakecbed.discretized.CroppedCBEDPattern`. See the documentation for
+    the class :class:`fakecbed.discretized.CroppedCBEDPattern` for a discussion
+    on how cropped fake CBED patterns are modelled/parameterized.
+
+    A random number generator is used to fake cropped CBED patterns. Upon
+    construction of an instance of the current class, or core attribute update
+    via the method :meth:`~fancytypes.Updatable.update`, a random numpy
+    generator ``rng`` is constructed via ``import numpy;
+    rng=numpy.random.default_rng(rng_seed)``, where ``rng_seed`` is the
+    construction parameter or core attribute that specifies the seed used in the
+    random number generator. See the documentation for the class
+    :attr:`~fancytypes.Checkable.core_attrs` for a discussion on core
+    attributes.
+
+    Instances of the current class use instances of the class
+    :class:`emicroml.modelling.cbed.disk.localization.DefaultCBEDPatternGenerator`
+    to generate random fake CBED patterns, which are subsequently used to
+    generate random cropped fake CBED patterns. The instances of the class
+    :class:`emicroml.modelling.cbed.disk.localization.DefaultCBEDPatternGenerator`
+    use instances of the class
+    :class:`emicroml.modelling.cbed.disk.localization.DefaultDistortionModelGenerator`
+    to generate random distortion models, which are subsequently used to
+    generate random fake CBED patterns.
+
+    The randomization scheme employed by the current class to generate random
+    cropped fake CBED patterns is somewhat convoluted, and will not be
+    documented here in detail. For those who are interested, you can parse
+    through the source code of the current class for more details on the scheme.
+
+    Parameters
+    ----------
+    num_pixels_across_each_cbed_pattern : `int`, optional
+        The number of pixels across each fake CBED pattern to be generated,
+        prior to cropping. Note that the number of pixels from top to bottom is
+        also equal to ``num_pixels_across_each_cbed_pattern`` for each fake CBED
+        pattern to be generated. Moreover, the parameter
+        ``num_pixels_across_each_cbed_pattern`` is expected to be a positive
+        integer that is divisible by ``2**5``.
+    max_num_disks_in_any_cbed_pattern : `int`, optional
+        The maximum number of CBED disks to appear in the image of any fake CBED
+        pattern to be generated, prior to cropping.
+    rng_seed : `int` | `None`, optional
+        ``rng_seed`` specifies the seed used in the random number generator.
+    sampling_grid_dims_in_pixels : `array_like` (`int`, shape=(2,)), optional
+        The dimensions of the sampling grid, in units of pixels, used for
+        all distortion models.
+    least_squares_alg_params : :class:`distoptica.LeastSquaresAlgParams` | `None`, optional
+        ``least_squares_alg_params`` specifies the parameters of the
+        least-squares algorithm to be used to calculate the mappings of
+        fractional Cartesian coordinates of distorted images to those of the
+        corresponding undistorted images. ``least_squares_alg_params`` is used
+        to calculate the interim distortion models mentioned above in the
+        summary documentation. If ``least_squares_alg_params`` is set to
+        ``None``, then the parameter will be reassigned to the value
+        ``distoptica.LeastSquaresAlgParams()``. See the documentation for the
+        class :class:`distoptica.LeastSquaresAlgParams` for details on the
+        parameters of the least-squares algorithm.
+    device_name : `str` | `None`, optional
+        This parameter specifies the device to be used to perform
+        computationally intensive calls to PyTorch functions and where to store
+        attributes of the type :class:`torch.Tensor` for each fake CBED pattern
+        represented by the class :class:`fakecbed.discretized.CBEDPattern`. If
+        ``device_name`` is a string, then it is the name of the device to be
+        used, e.g. ``”cuda”`` or ``”cpu”``. If ``device_name`` is set to
+        ``None`` and a GPU device is available, then a GPU device is to be
+        used. Otherwise, the CPU is used.
+    num_pixels_across_each_cropping_window : `int`, optional
+        The number of pixels across each square cropping window to be used to
+        crop each fake CBED pattern. For each fake CBED pattern to be generated,
+        all the CBED disks of the fake CBED pattern are clustered roughly in a
+        square area, the horizontal dimension of which scales with
+        ``num_pixels_across_each_cropping_window``. Moreover, the parameter
+        ``num_pixels_across_each_cropping_window`` is expected to be a positive
+        integer that is divisible by ``2``.
+    skip_validation_and_conversion : `bool`, optional
+        Let ``validation_and_conversion_funcs`` and ``core_attrs`` denote the
+        attributes :attr:`~fancytypes.Checkable.validation_and_conversion_funcs`
+        and :attr:`~fancytypes.Checkable.core_attrs` respectively, both of which
+        being `dict` objects.
+
+        Let ``params_to_be_mapped_to_core_attrs`` denote the `dict`
+        representation of the constructor parameters excluding the parameter
+        ``skip_validation_and_conversion``, where each `dict` key ``key`` is a
+        different constructor parameter name, excluding the name
+        ``"skip_validation_and_conversion"``, and
+        ``params_to_be_mapped_to_core_attrs[key]`` would yield the value of the
+        constructor parameter with the name given by ``key``.
+
+        If ``skip_validation_and_conversion`` is set to ``False``, then for each
+        key ``key`` in ``params_to_be_mapped_to_core_attrs``,
+        ``core_attrs[key]`` is set to ``validation_and_conversion_funcs[key]
+        (params_to_be_mapped_to_core_attrs)``.
+
+        Otherwise, if ``skip_validation_and_conversion`` is set to ``True``,
+        then ``core_attrs`` is set to
+        ``params_to_be_mapped_to_core_attrs.copy()``. This option is desired
+        primarily when the user wants to avoid potentially expensive deep copies
+        and/or conversions of the `dict` values of
+        ``params_to_be_mapped_to_core_attrs``, as it is guaranteed that no
+        copies or conversions are made in this case.
+
+    """
+    def __init__(self,
+                 num_pixels_across_each_cbed_pattern=\
+                 _default_num_pixels_across_each_cbed_pattern,
+                 max_num_disks_in_any_cbed_pattern=\
+                 _default_max_num_disks_in_any_cbed_pattern,
+                 rng_seed=\
+                 _default_rng_seed,
+                 sampling_grid_dims_in_pixels=\
+                 _default_sampling_grid_dims_in_pixels,
+                 least_squares_alg_params=\
+                 _default_least_squares_alg_params,
+                 device_name=\
+                 _default_device_name,
+                 num_pixels_across_each_cropping_window=\
+                 _default_num_pixels_across_each_cropping_window,
+                 skip_validation_and_conversion=\
+                 _default_skip_validation_and_conversion):
+        kwargs = {key: val
+                  for key, val in locals().items()
+                  if (key not in ("self", "__class__"))}
+        module_alias = emicroml.modelling.cbed.disk._common
+        cls_alias = module_alias._DefaultCroppedCBEDPatternGenerator
+        cls_alias.__init__(self, **kwargs)
+
+        return None
+
+
+
+_module_alias = \
+    emicroml.modelling.cbed.disk._common
+_default_num_cropped_cbed_patterns = \
+    _module_alias._default_num_cropped_cbed_patterns
+_default_cropped_cbed_pattern_generator = \
+    _module_alias._default_cropped_cbed_pattern_generator
 _default_output_filename = \
     _module_alias._default_output_filename
 _default_max_num_ml_data_instances_per_file_update = \
@@ -382,12 +546,10 @@ _default_max_num_ml_data_instances_per_file_update = \
 
 
 def generate_and_save_ml_dataset(
-        num_cbed_patterns=\
-        _default_num_cbed_patterns,
-        max_num_disks_in_any_cbed_pattern=\
-        _default_max_num_disks_in_any_cbed_pattern,
-        cbed_pattern_generator=\
-        _default_cbed_pattern_generator,
+        num_cropped_cbed_patterns=\
+        _default_num_cropped_cbed_patterns,
+        cropped_cbed_pattern_generator=\
+        _default_cropped_cbed_pattern_generator,
         output_filename=\
         _default_output_filename,
         max_num_ml_data_instances_per_file_update=\
@@ -397,185 +559,148 @@ def generate_and_save_ml_dataset(
     According to the parameters described below, the current function generates
     a file storing a machine learning (ML) dataset that can be used to train
     and/or evaluate ML models represented by the class
-    :class:`emicroml.modelling.cbed.distortion.estimation.MLModel`.
+    :class:`emicroml.modelling.cbed.disk.localization.MLModel`.
 
     The number of ML data instances to be generated is specified by the
-    parameter ``num_cbed_patterns``. Each ML data instance is derived from a
-    "fake" CBED pattern, with each fake CBED pattern being generated from a fake
-    CBED pattern generator that is specified by the parameter
-    ``cbed_pattern_generator``. The maximum number of (fake) CBED disks that can
-    appear in any generated fake CBED pattern is specified by the parameter
-    ``max_num_disks_in_any_cbed_pattern``.
+    parameter ``num_cropped_cbed_patterns``. Each ML data instance is derived
+    from a cropped "fake" CBED pattern, with each cropped fake CBED pattern
+    being generated from a cropped fake CBED pattern generator that is specified
+    by the parameter ``cropped_cbed_pattern_generator``.
 
-    ``cbed_pattern_generator`` can be set to either ``None``, or any object that
-    satisfies the following:
+    ``cropped_cbed_pattern_generator`` can be set to either ``None``, or any
+    object that satisfies the following:
 
-    1. ``cbed_pattern_generator`` must have a method called ``generate`` which
-    returns an instance of the class :class:`fakecbed.discretized.CBEDPattern`
-    upon calling said method via ``cbed_pattern_generator.generate()``.
+    1. ``cropped_cbed_pattern_generator`` must have a method called ``generate``
+    which returns an instance of the class
+    :class:`fakecbed.discretized.CroppedCBEDPattern` upon calling said method
+    via ``cropped_cbed_pattern_generator.generate()``.
 
-    2. For each object ``fake_cbed_pattern`` returned by
-    ``cbed_pattern_generator.generate()``,
-    ``fake_cbed_pattern.core_attrs["num_pixels_across_pattern"]`` must yield the
-    same integer value ``num_pixels_across_each_pattern``.
+    2. For each object ``cropped_fake_cbed_pattern`` returned by
+    ``cropped_cbed_pattern_generator.generate()``,
+    ``cropped_fake_cbed_pattern.core_attrs["cropping_window_dims_in_pixels"]``
+    must yield the same integer value ``cropping_window_dims_in_pixels``.
 
-    3. For each object ``fake_cbed_pattern`` returned by
-    ``cbed_pattern_generator.generate()``,
-    ``fake_cbed_pattern.core_attrs["undistorted_disks"]`` must be a nonempty
-    sequence ``undistorted_disks`` where for each element ``undistorted_disk``
-    of the sequence, ``undistorted_disk.core_attrs["support"]`` must yield an
-    instance ``undistorted_disk_support`` of the class
-    :class:`fakecbed.shapes.Circle`, with
-    ``undistorted_disk_support.core_attrs["radius"]`` yielding a positive number
-    ``common_undistorted_disk_radius``. The number
-    ``common_undistorted_disk_radius`` has the same value for all elements of
-    the sequence ``undistorted_disks`` of the same object
-    ``fake_cbed_pattern``. From one object ``fake_cbed_pattern`` returned by
-    ``cbed_pattern_generator.generate()`` to another, the value of
-    ``common_undistorted_disk_radius`` can change. Further below we refer to
-    ``common_undistorted_disk_radius`` as the common undistorted disk radius.
+    3. For each object ``cropped_fake_cbed_pattern`` returned by
+    ``cropped_cbed_pattern_generator.generate()``,
+    ``cropped_fake_cbed_pattern.core_attrs["disk_boundary_sample_size"]``
+    must yield the same integer value ``disk_boundary_sample_size``.
 
-    4. For each object ``fake_cbed_pattern`` returned by
-    ``cbed_pattern_generator.generate()``,
-    ``fake_cbed_pattern.core_attrs["distortion_model"].is_standard`` must yield
-    ``True``.
+    4. For each object ``cropping_fake_cbed_pattern`` returned by
+    ``cropped_cbed_pattern_generator.generate()``, both
+    ``cropped_fake_cbed_pattern.principal_disk_is_overlapping`` and
+    ``cropped_fake_cbed_pattern.principal_disk_is_clipped`` must be equal to
+    ``False``.
 
-    5. For each object ``fake_cbed_pattern`` returned by
-    ``cbed_pattern_generator.generate()``,
-    ``(~fake_cbed_pattern.disk_absence_registry).sum().item()`` must yield an
-    integer less than or equal to ``max_num_disks_in_any_cbed_pattern``.
-
-    If ``cbed_pattern_generator`` is set to ``None``, then the parameter will be
-    reassigned to the value of
-    ``emicroml.modelling.cbed.distortion.estimation.DefaultCBEDPatternGenerator()``,
+    If ``cropped_cbed_pattern_generator`` is set to ``None``, then the parameter
+    will be reassigned to the value of
+    ``emicroml.modelling.cbed.disk.localization.DefaultCroppedCBEDPatternGenerator()``,
     which satisfies the same conditions described above.
 
-    As alluded to above, each valid object ``fake_cbed_pattern`` returned by
-    ``cbed_pattern_generator.generate()`` stores an instance
-    ``distortion_model`` of the class :class:`distoptica.DistortionModel`,
-    accessed by
-    ``fake_cbed_pattern.core_attrs["distortion_model"]``. ``distortion_model``
-    is the distortion model that determines that distortion field applied to the
-    fake CBED pattern represented by ``fake_cbed_pattern``. See the
-    documentation for :class:`distoptica.DistortionModel` for additional
-    context. As implied above, ``distortion_model`` is a "standard" distortion
-    model, meaning that the corresponding coordinate transformation
-    :math:`T_{⌑;x}\left(u_{x},u_{y}\right)` that describes the optical
-    distortions can be specified equivalently by an instance
-    ``standard_coord_transform_params`` of
-    :class:`distoptica.StandardCoordTransformParams`.
-    ``standard_coord_transform_params`` is the standard coordinate
-    transformation parameter set of the fake CBED pattern. As discussed in the
-    documentation for the class
-    :class:`distoptica.StandardCoordTransformParams`, each instance of said
-    class specifies a distortion center :math:`\left(x_{c;D},y_{c;D}\right)`, a
-    quadratic radial distortion amplitude :math:`A_{r;0,2}`, an elliptical
-    distortion vector :math:`\left(A_{r;2,0},B_{r;1,0}\right)`, a spiral
-    distortion amplitude :math:`A_{t;0,2}`, and a parabolic distortion vector
-    :math:`\left(A_{r;1,1},B_{r;0,1}\right)`.
-
-    As alluded to above, each valid object ``fake_cbed_pattern`` returned by
-    ``cbed_pattern_generator.generate()`` stores a nonempty sequence
-    ``undistorted_disks``, accessed by
-    ``fake_cbed_pattern.core_attrs["undistorted_disks"]``. For every nonnegative
-    integer ``k`` less than ``fake_cbed_pattern.num_disks``,
-    ``undistorted_disks[k]`` specifies the intensity pattern of the ``k`` th
-    undistorted fake CBED disk of the fake CBED pattern represented by
-    ``fake_cbed_pattern``. The center of the ``k`` th undistorted fake CBED disk
-    can be accessed by
-    ``undistorted_disks[k].core_attrs["support"].core_attrs["center"]``. During
-    the process of deriving an ML data instance from ``fake_cbed_pattern``, the
-    intra-disk averages of the distorted fake CBED disks of the fake CBED
-    pattern are calculated, where the ``k`` th distorted fake CBED disk
-    corresponds to the ``k`` th undistorted fake CBED disk, i.e. the former is
-    obtained by distorting the latter. The intra-disk average
-    ``kth_intra_disk_avg`` of the ``k`` th distorted fake CBED disk is
-    calculated by
+    Each valid object ``cropped_fake_cbed_pattern`` returned by
+    ``cropped_cbed_pattern_generator.generate()`` stores a sample of points on
+    the boundary of the support of the "principal" CBED disk, in fractional
+    coordinates of the cropped CBED pattern, represented by the object
+    ``cropped_fake_cbed_pattern``. This sample of points can be accessed by
+    ``cropped_fake_cbed_pattern.principal_disk_boundary_pts_in_cropped_image_fractional_coords``.
+    See the documentation for the attribute
+    :attr:`fakecbed.discretized.CroppedCBEDPattern.cropped_fake_cbed_pattern.principal_disk_boundary_pts_in_cropped_image_fractional_coords`
+    for a discussion on how said boundary is sampled. As discussed further
+    below, this set of points is reinterpolated, yielding a new set of points to
+    which multi-resolution analysis (MRA) is applied using a variety of
+    Daubechies wavelets, yielding approximation coefficients for each wavelet.
+    MRA is performed using the Python library :mod:`pywt`, with the wavelets
+    being represented by the class :class:`pywt.Wavelet`. The Daubechies
+    wavelets to be used are
 
     .. code-block:: python
 
-        kth_intra_disk_sum = (fake_cbed_pattern.image
-                              * fake_cbed_pattern.disk_supports[k]).sum().item()
+        wavelets = [pywt.Wavelet("db"+str(idx)) for idx in (1, 2, 4, 8, 16, 32)]
 
-        kth_disk_area = (fake_cbed_pattern.disk_supports[k].sum().item()
-                         / (fake_cbed_pattern.image.shape[0]**2))
-
-        if (kth_disk_area > 0):
-            kth_intra_disk_avg = kth_intra_disk_sum/kth_disk_area
-        else:
-            kth_intra_disk_avg = 0
-
-    We reference intra-disk averages again further below.
+    The number of points used in the reinterpolation can be expressed as ``N_j =
+    2**j_dashv``, where ``j_dashv`` is a positive integer greater than
+    ``6``. Further below, we discuss how ``j_dashv`` is calculated.
 
     The ML data instances generated by the current function are stored in an
     HDF5 file, which has the following file structure:
 
-    - cbed_pattern_images: <HDF5 3D dataset>
+    - cropped_cbed_pattern_images: <HDF5 3D dataset>
     
-        + dim_0: "cbed pattern idx"
+        + dim_0: "cropped cbed pattern idx"
         + dim_1: "row"
         + dim_2: "col"
 
-    - disk_overlap_maps: <HDF5 3D dataset>
+    - cropped_disk_overlap_maps: <HDF5 3D dataset>
     
-        + dim_0: "cbed pattern idx"
+        + dim_0: "cropped cbed pattern idx"
         + dim_1: "row"
         + dim_2: "col"
 
-    - disk_objectness_sets: <HDF5 2D dataset>
+    - cropped_principal_disk_supports: <HDF5 3D dataset>
     
-        + dim_0: "cbed pattern idx"
-        + dim_1: "disk idx"
+        + dim_0: "cropped cbed pattern idx"
+        + dim_1: "row"
+        + dim_2: "col"
 
-    - disk_clipping_registries: <HDF5 2D dataset>
+    - principal_disk_bounding_boxes: <HDF5 2D dataset>
     
-        + dim_0: "cbed pattern idx"
-        + dim_1: "disk idx"
+        + dim_0: "cropped cbed pattern idx"
+        + dim_1: "box side idx"
+        + normalization_weight: <float>
+        + normalization_bias: <float>
 
-    - undistorted_disk_center_sets: <HDF5 3D dataset>
+    - principal_disk_boundary_pt_sets: <HDF5 3D dataset>
     
-        + dim_0: "cbed pattern idx"
-        + dim_1: "disk idx"
+        + dim_0: "cropped cbed pattern idx"
+        + dim_1: "pt idx"
         + dim_2: "vector cmpnt idx [0->x, 1->y]"
         + normalization_weight: <float>
         + normalization_bias: <float>
 
-    - common_undistorted_disk_radii: <HDF5 1D dataset>
+    - max_level_db1_approx_coeff_sets_of_principal_disk_boundary_pt_sets: <HDF5 3D dataset>
     
-        + dim_0: "cbed pattern idx"
+        + dim_0: "cropped cbed pattern idx"
+        + dim_1: "max level db1 approx coeff idx"
+        + dim_2: "vector cmpnt idx [0->x, 1->y]"
         + normalization_weight: <float>
         + normalization_bias: <float>
 
-    - distortion_centers: <HDF5 2D dataset>
+    - max_level_db2_approx_coeff_sets_of_principal_disk_boundary_pt_sets: <HDF5 3D dataset>
     
-        + dim_0: "cbed pattern idx"
-        + dim_1: "vector cmpnt idx [0->x, 1->y]"
+        + dim_0: "cropped cbed pattern idx"
+        + dim_1: "max level db2 approx coeff idx"
+        + dim_2: "vector cmpnt idx [0->x, 1->y]"
         + normalization_weight: <float>
         + normalization_bias: <float>
 
-    - quadratic_radial_distortion_amplitudes: <HDF5 1D dataset>
+    - max_level_db4_approx_coeff_sets_of_principal_disk_boundary_pt_sets: <HDF5 3D dataset>
     
-        + dim_0: "cbed pattern idx"
+        + dim_0: "cropped cbed pattern idx"
+        + dim_1: "max level db4 approx coeff idx"
+        + dim_2: "vector cmpnt idx [0->x, 1->y]"
         + normalization_weight: <float>
         + normalization_bias: <float>
 
-    - spiral_distortion_amplitudes: <HDF5 1D dataset>
+    - max_level_db8_approx_coeff_sets_of_principal_disk_boundary_pt_sets: <HDF5 3D dataset>
     
-        + dim_0: "cbed pattern idx"
+        + dim_0: "cropped cbed pattern idx"
+        + dim_1: "max level db8 approx coeff idx"
+        + dim_2: "vector cmpnt idx [0->x, 1->y]"
         + normalization_weight: <float>
         + normalization_bias: <float>
 
-    - elliptical_distortion_vectors: <HDF5 2D dataset>
+    - max_level_db16_approx_coeff_sets_of_principal_disk_boundary_pt_sets: <HDF5 3D dataset>
     
-        + dim_0: "cbed pattern idx"
-        + dim_1: "vector cmpnt idx [0->x, 1->y]"
+        + dim_0: "cropped cbed pattern idx"
+        + dim_1: "max level db16 approx coeff idx"
+        + dim_2: "vector cmpnt idx [0->x, 1->y]"
         + normalization_weight: <float>
         + normalization_bias: <float>
 
-    - parabolic_distortion_vectors: <HDF5 2D dataset>
+    - max_level_db32_approx_coeff_sets_of_principal_disk_boundary_pt_sets: <HDF5 3D dataset>
     
-        + dim_0: "cbed pattern idx"
-        + dim_1: "vector cmpnt idx [0->x, 1->y]"
+        + dim_0: "cropped cbed pattern idx"
+        + dim_1: "max level db32 approx coeff idx"
+        + dim_2: "vector cmpnt idx [0->x, 1->y]"
         + normalization_weight: <float>
         + normalization_bias: <float>
 
@@ -585,12 +710,17 @@ def generate_and_save_ml_dataset(
     ``"dim_{}".format(i)`` with ``i`` being an integer ranging from 0 to the
     rank of said HDF5 dataset minus 1. Attribute ``"dim_{}".format(i)`` of a
     given HDF5 dataset labels the ``i`` th dimension of the underlying array of
-    the dataset. The ``"cbed pattern idx"`` dimension is of the size
-    ``num_cbed_patterns``, the ``"row"`` dimension is of the size
-    ``num_pixels_across_each_pattern``, the ``"col"`` dimension is of the size
-    ``num_pixels_across_each_pattern``, the ``"disk idx"`` dimension is of the
-    size ``max_num_disks_in_any_cbed_pattern``, and the ``"vector cmpnt idx
-    [0->x, 1->y]"`` is of the size ``2``.
+    the dataset. The ``"cropped cbed pattern idx"`` dimension is of the size
+    ``num_cropped_cbed_patterns``, the ``"row"`` dimension is of the size
+    ``cropping_window_dims_in_pixels``, the ``"col"`` dimension is of the size
+    ``cropping_window_dims_in_pixels``, the ``"box side idx"`` dimension is of
+    the size ``4``, the ``"vector cmpnt idx [0->x, 1->y]"`` is of the size
+    ``2``, ``"pt idx"`` is of the size ``2**j_dashv``, ``"max level db32 approx
+    coeff idx"`` is of the size ``2**6``, ``"max level db16 approx coeff idx"``
+    is of the size ``2**5``, ``"max level db8 approx coeff idx"`` is of the size
+    ``2**4``, ``"max level db4 approx coeff idx"`` is of the size ``2**3``,
+    ``"max level db2 approx coeff idx"`` is of the size ``2**2``, and ``"max
+    level db1 approx coeff idx"`` is of the size ``2**0``.
 
     The HDF5 datasets that have attributes named ``"normalization_weight"`` and
     ``"normalization_bias"`` are min-max normalized, and are referred to as
@@ -608,148 +738,172 @@ def generate_and_save_ml_dataset(
 
     1. Set ``N`` to ``num_pixels_across_each_pattern``.
 
-    2. Set ``cbed_pattern_images`` to ``np.zeros((num_cbed_patterns, N, N))``,
-    where ``np`` is an alias for the NumPy library ``numpy``.
+    2. Set ``j_dashv`` to ``7``.
 
-    3. Set ``disk_overlap_maps`` to ``np.zeros((num_cbed_patterns, N, N),
-    dtype="int")``.
+    3. Set ``cropped_cbed_pattern_images`` to
+    ``np.zeros((num_cropped_cbed_patterns, N, N))``, where ``np`` is an alias
+    for the NumPy library ``numpy``.
 
-    4. Set ``disk_objectness_sets`` to ``np.zeros((num_cbed_patterns,
-    max_num_disks_in_any_cbed_pattern))``.
+    4. Set ``cropped_disk_overlap_maps`` to
+    ``np.zeros((num_cropped_cbed_patterns, N, N), dtype="int")``.
 
-    5. Set ``disk_clipping_registries`` to ``np.zeros((num_cbed_patterns,
-    max_num_disks_in_any_cbed_pattern), dtype="bool")``.
+    5. Set ``cropped_principal_disk_supports`` to
+    ``np.zeros((num_cropped_cbed_patterns, N, N), dtype="bool")``.
 
-    6. Set ``undistorted_disk_center_sets`` to ``np.zeros((num_cbed_patterns,
-    max_num_disks_in_any_cbed_pattern, 2))``.
+    6. Set ``principal_disk_bounding_boxes`` to
+    ``np.zeros((num_cropped_cbed_patterns, 4))``.
 
-    7. Set ``common_undistorted_disk_radii`` to
-    ``np.zeros((num_cbed_patterns,))``.
+    7. Set ``principal_disk_boundary_pt_sets_temp`` to
+    ``np.zeros((num_cropped_cbed_patterns, disk_boundary_sample_size, 2))``.
 
-    8. Set ``distortion_centers`` to ``np.zeros((num_cbed_patterns, 2))``.
+    8. Set
+    ``max_level_db1_approx_coeff_sets_of_principal_disk_boundary_pt_sets`` to
+    ``np.zeros((num_cropped_cbed_patterns, 2**0, 2))``.
 
-    9. Set ``quadratic_radial_distortion_amplitudes`` to
-    ``np.zeros((num_cbed_patterns,))``.
+    9. Set
+    ``max_level_db2_approx_coeff_sets_of_principal_disk_boundary_pt_sets`` to
+    ``np.zeros((num_cropped_cbed_patterns, 2**2, 2))``.
 
-    10. Set ``spiral_distortion_amplitudes`` to
-    ``np.zeros((num_cbed_patterns,))``.
+    10. Set
+    ``max_level_db4_approx_coeff_sets_of_principal_disk_boundary_pt_sets`` to
+    ``np.zeros((num_cropped_cbed_patterns, 2**3, 2))``.
 
-    11. Set ``elliptical_distortion_vectors`` to ``np.zeros((num_cbed_patterns,
-    2))``.
+    11. Set
+    ``max_level_db8_approx_coeff_sets_of_principal_disk_boundary_pt_sets`` to
+    ``np.zeros((num_cropped_cbed_patterns, 2**4, 2))``.
 
-    12. Set ``parabolic_distortion_vectors`` to ``np.zeros((num_cbed_patterns,
-    2))``.
+    12. Set
+    ``max_level_db16_approx_coeff_sets_of_principal_disk_boundary_pt_sets`` to
+    ``np.zeros((num_cropped_cbed_patterns, 2**5, 2))``.
 
-    13. Set ``cbed_pattern_idx`` to ``-1``.
+    13. Set
+    ``max_level_db32_approx_coeff_sets_of_principal_disk_boundary_pt_sets`` to
+    ``np.zeros((num_cropped_cbed_patterns, 2**6, 2))``.
 
-    14. Set ``cbed_pattern_idx`` to ``cbed_pattern_idx+1``.
+    14. Set ``cropped_cbed_pattern_idx`` to ``-1``.
 
-    15. Set ``fake_cbed_pattern`` to ``cbed_pattern_generator.generate()``.
+    15. Set ``cropped_cbed_pattern_idx`` to ``cropped_cbed_pattern_idx+1``.
 
-    16. Store ``fake_cbed_pattern.image.numpy(force=True)`` in
-    ``cbed_pattern_images[cbed_pattern_idx]``.
+    16. Set ``cropped_fake_cbed_pattern`` to
+    ``cropped_cbed_pattern_generator.generate()``.
 
-    17. Store ``fake_cbed_pattern.disk_overlap_map.numpy(force=True)`` in
-    ``disk_overlap_maps[cbed_pattern_idx]``.
+    17. Store ``cropped_fake_cbed_pattern.image.numpy(force=True)`` in
+    ``cropped_cbed_pattern_images[cropped_cbed_pattern_idx]``.
 
-    18. Set ``intra_disk_avgs`` to ``np.zeros((fake_cbed_pattern.num_disks,))``.
+    18. Store ``cropped_fake_cbed_pattern.disk_overlap_map.numpy(force=True)``
+    in ``cropped_disk_overlap_maps[cropped_cbed_pattern_idx]``.
 
-    19. Set ``num_elems_to_pad`` to ``max_num_disks_in_any_cbed_pattern -
-    fake_cbed_pattern.num_disks``.
+    19. Set ``principal_disk_idx`` to
+    ``cropped_fake_cbed_pattern.core_attrs["principal_disk_idx"]``.
 
-    20. Set ``single_dim_slice`` to ``slice(0,
-    max_num_disks_in_any_cbed_pattern)``.
+    20. Store
+    ``cropped_fake_cbed_pattern.disk_supports[principal_disk_idx].numpy(force=True)``
+    in ``cropped_principal_disk_supports[cropped_cbed_pattern_idx]``.
 
-    21. For every nonnegative integer ``k`` less than
-    ``fake_cbed_pattern.num_disks``, store the intra-disk average of the ``k``
-    th distorted fake CBED disk of `fake_cbed_pattern`` in
-    ``intra_disk_avgs[k]``.
+    21. Store
+    ``cropped_fake_cbed_pattern.principal_disk_bounding_box_in_cropped_image_fractional_coords``
+    in ``principal_disk_bounding_boxes[cropped_cbed_pattern_idx]``.
 
-    22. Set ``new_disk_order`` to ``np.argsort(intra_disk_avgs)[::-1]``.
+    22. Set ``principal_disk_boundary_pt_set_temp`` to
+    ``cropped_fake_cbed_pattern.principal_disk_boundary_pts_in_cropped_image_fractional_coords.numpy(force=True)``.
 
-    23. Set ``disk_objectness_set`` to ``(intra_disk_avgs >
-    0).astype("float")``.
+    23. Store ``principal_disk_boundary_pt_set_temp`` in
+    ``principal_disk_boundary_pt_sets_temp[cropped_cbed_pattern_idx]``.
 
-    24. Set ``disk_objectness_set`` to ``disk_objectness_set[new_disk_order]``.
+    24. Set ``L`` to the perimeter of the polygon with vertices equal to the
+    points stored in ``principal_disk_boundary_pt_set_temp``.
 
-    25. Pad ``num_elems_to_pad`` times ``0`` to the end of the zeroth axis of
-    ``disk_objectness_set``.
+    25. Set ``j`` to ``np.log2(N*L)``.
 
-    26. Set ``disk_objectness_set`` to
-    ``disk_objectness_set[single_dim_slice]``.
+    26. Set ``j`` to ``(np.round(j) if (np.isclose(j, round(j))) else
+    np.ceil(j)).item()``.
 
-    27. Store ``disk_objectness_set`` in
-    ``disk_objectness_sets[cbed_pattern_idx]``.
+    27. Set ``j_dashv_candidate`` to ``round(j)``.
 
-    28. Set ``disk_clipping_registry`` to
-    ``fake_cbed_pattern.disk_clipping_registry.numpy(force=True)``.
+    28. Set ``j_dashv`` to ``max(j_dashv, j_dashv_candidate)``.
 
-    29. Pad ``num_elems_to_pad`` times ``0`` to the end of the zeroth axis of
-    ``disk_clipping_registry``.
+    29. If ``cropped_cbed_pattern_idx < num_cropped_cbed_patterns-1``, then go
+    to instruction 15. Otherwise, go to instruction 30.
 
-    30. Set ``disk_clipping_registry`` to
-    ``disk_clipping_registry[single_dim_slice]``.
+    30. Set ``principal_disk_boundary_pt_sets`` to
+    ``np.zeros((num_cropped_cbed_patterns, 2**j_dashv, 2))``.
 
-    31. Store ``disk_clipping_registry`` in
-    ``disk_clipping_registries[cbed_pattern_idx]``.
+    31. Set ``cropped_cbed_pattern_idx`` to ``-1``.
 
-    32. Set ``undistorted_disk_center_set`` to
-    ``np.ones((fake_cbed_pattern.num_disks, 2))/2``.
+    32. Set ``cropped_cbed_pattern_idx`` to ``cropped_cbed_pattern_idx+1``.
 
-    33. For every nonnegative integer ``k`` less than
-    ``fake_cbed_pattern.num_disks``, if ``intra_disk_avgs[k]>0`` then store the
-    center of the ``k`` th undistorted fake CBED disk of ``fake_cbed_pattern``
-    in ``undistorted_disk_center_set[k]``.
+    33. Set ``principal_disk_boundary_pt_set_temp`` to
+    ``principal_disk_boundary_pt_sets_temp[cropped_cbed_pattern_idx]``.
 
-    34. Pad ``num_elems_to_pad`` times ``0.5`` to the end of the zeroth axis of
-    ``undistorted_disk_center_set``.
+    34. Starting from the right-most point in
+    ``principal_disk_boundary_pt_set_temp``, sample counterclockwise
+    ``2**j_dashv`` evenly spaced points along the perimeter of the polygon with
+    vertices equal to the points stored in
+    ``principal_disk_boundary_pt_set_temp``, and store the resulting sample of
+    points in ``principal_disk_boundary_pt_set``.
 
-    35. Set ``undistorted_disk_center_set`` to
-    ``undistorted_disk_center_set[single_dim_slice]``.
+    35. Store ``principal_disk_boundary_pt_set`` in
+    ``principal_disk_boundary_pt_sets[cropped_cbed_pattern_idx]``.
 
-    36. Store ``undistorted_disk_center_set`` in
-    ``undistorted_disk_center_sets[cbed_pattern_idx]``.
+    36. Set ``pt_set`` to ``principal_disk_boundary_pt_set``.
 
-    37. Store the common undistorted disk radius of ``fake_cbed_pattern`` in
-    ``common_undistorted_disk_radii[cbed_pattern_idx]``.
+    37. Set ``pattern_idx`` to ``cropped_cbed_pattern_idx``.
 
-    38. Store the distortion center of ``fake_cbed_pattern`` in
-    ``distortion_centers[cbed_pattern_idx]``.
+    38. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
+    ``pywt.wavedec(data=pt_set[cartesian_idx], wavelet="db1",
+    mode="periodization", level=j_dashv-0)[0]`` in
+    ``max_level_db1_approx_coeff_sets_of_principal_disk_boundary_pt_sets[pattern_idx,
+    :, cartesian_idx]``.
 
-    39. Store the quadratic radial distortion amplitude of ``fake_cbed_pattern``
-    in ``quadratic_radial_distortion_amplitudes[cbed_pattern_idx]``.
+    39. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
+    ``pywt.wavedec(data=pt_set[cartesian_idx], wavelet="db2",
+    mode="periodization", level=j_dashv-2)[0]`` in
+    ``max_level_db2_approx_coeff_sets_of_principal_disk_boundary_pt_sets[pattern_idx,
+    :, cartesian_idx]``.
 
-    40. Store the spiral distortion amplitude of ``fake_cbed_pattern`` in
-    ``spiral_distortion_amplitudes[cbed_pattern_idx]``.
+    40. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
+    ``pywt.wavedec(data=pt_set[cartesian_idx], wavelet="db4",
+    mode="periodization", level=j_dashv-3)[0]`` in
+    ``max_level_db4_approx_coeff_sets_of_principal_disk_boundary_pt_sets[pattern_idx,
+    :, cartesian_idx]``.
 
-    41. Store the elliptical distortion vector of ``fake_cbed_pattern`` in
-    ``elliptical_distortion_vectors[cbed_pattern_idx]``.
+    41. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
+    ``pywt.wavedec(data=pt_set[cartesian_idx], wavelet="db8",
+    mode="periodization", level=j_dashv-4)[0]`` in
+    ``max_level_db8_approx_coeff_sets_of_principal_disk_boundary_pt_sets[pattern_idx,
+    :, cartesian_idx]``.
 
-    42. Store the parabolic distortion vector of ``fake_cbed_pattern`` in
-    ``parabolic_distortion_vectors[cbed_pattern_idx]``.
+    42. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
+    ``pywt.wavedec(data=pt_set[cartesian_idx], wavelet="db16",
+    mode="periodization", level=j_dashv-5)[0]`` in
+    ``max_level_db16_approx_coeff_sets_of_principal_disk_boundary_pt_sets[pattern_idx,
+    :, cartesian_idx]``.
 
-    43. If ``cbed_pattern_idx < num_cbed_patterns-1``, then go to 
-    instruction 14. Otherwise, go to instruction 44.
+    43. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
+    ``pywt.wavedec(data=pt_set[cartesian_idx], wavelet="db32",
+    mode="periodization", level=j_dashv-6)[0]`` in
+    ``max_level_db32_approx_coeff_sets_of_principal_disk_boundary_pt_sets[pattern_idx,
+    :, cartesian_idx]``.
 
-    44. For each normalizable HDF5 dataset, calculate the values of the HDF5
+    44. If ``cropped_cbed_pattern_idx < num_cropped_cbed_patterns-1``, then go
+    to instruction 32. Otherwise, go to instruction 45.
+
+    45. For each normalizable HDF5 dataset, calculate the values of the HDF5
     attributes ``"normalization_weight"`` and ``"normalization_bias"`` of the
     HDF5 dataset that would min-max normalize correctly the HDF5 dataset.
 
-    45. Min-max normalized all normalizable HDF5 datasets.
+    46. Min-max normalized all normalizable HDF5 datasets.
 
-    46. Stop.
+    47. Stop.
 
     Parameters
     ----------
-    num_cbed_patterns : `int`, optional
-        The number of images of fake CBED patterns to generate and store in the
-        machine learning (ML) dataset.
-    max_num_disks_in_any_cbed_pattern : `int`, optional
-        The maximum number of CBED disks to appear in the image of any fake CBED
-        pattern to be generated.
-    cbed_pattern_generator : `any_fake_cbed_pattern_generator` | `None`, optional
-        ``cbed_pattern_generator`` specifies the fake CBED pattern generator to 
-        be used.
+    num_cropped_cbed_patterns : `int`, optional
+        The number of images of cropped fake CBED patterns to generate and store
+        in the machine learning (ML) dataset.
+    cropped_cbed_pattern_generator : `any_fake_cbed_pattern_generator` | `None`, optional
+        ``cropped_cbed_pattern_generator`` specifies the fake CBED pattern
+        generator to be used.
     output_filename : `str`, optional
         The relative or absolute filename of the HDF5 file to which to store the
         ML dataset to be generated.
@@ -778,7 +932,7 @@ def generate_and_save_ml_dataset(
 
 def _check_and_convert_generate_and_save_ml_dataset_params(params):
     module_alias = \
-        emicroml.modelling.cbed.distortion._common
+        emicroml.modelling.cbed.disk._common
     func_alias = \
         module_alias._check_and_convert_generate_and_save_ml_dataset_params
     params = \
@@ -788,14 +942,13 @@ def _check_and_convert_generate_and_save_ml_dataset_params(params):
 
 
 
-def _generate_and_save_ml_dataset(max_num_disks_in_any_cbed_pattern,
-                                  cbed_pattern_generator,
+def _generate_and_save_ml_dataset(cropped_cbed_pattern_generator,
                                   max_num_ml_data_instances_per_file_update,
-                                  num_cbed_patterns,
+                                  num_cropped_cbed_patterns,
                                   output_filename,
                                   start_time):
     kwargs = locals()
-    module_alias = emicroml.modelling.cbed.distortion._common
+    module_alias = emicroml.modelling.cbed.disk._common
     func_alias = module_alias._generate_and_save_ml_dataset
     func_alias(**kwargs)
 
@@ -804,7 +957,7 @@ def _generate_and_save_ml_dataset(max_num_disks_in_any_cbed_pattern,
 
 
 _module_alias = \
-    emicroml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.disk._common
 _default_output_ml_dataset_filename = \
     _module_alias._default_output_ml_dataset_filename
 _default_rm_input_ml_dataset_files = \
@@ -828,20 +981,157 @@ def combine_ml_dataset_files(
 
     The input HDF5 files and the output HDF5 file are assumed to have the same
     file structure as an HDF5 file generated by the function
-    :func:`emicroml.modelling.cbed.distortion.estimation.generate_and_save_ml_dataset`.
+    :func:`emicroml.modelling.cbed.disk.localization.generate_and_save_ml_dataset`.
     See the documentation of said function for a description of the file
     structure. Moreover, the input HDF5 files are assumed to have been created
     in a manner that is consistent with the way HDF5 files are generated by the
     function
-    :func:`emicroml.modelling.cbed.distortion.estimation.generate_and_save_ml_dataset`.
+    :func:`emicroml.modelling.cbed.disk.localization.generate_and_save_ml_dataset`.
 
-    As discussed in the aforementioned documentation, some of the HDF5 datasets
-    are normalizable. Prior to combining all the copies of the input ML data
-    instances into a single new output HDF5 file, the copies of the normalizable
-    input HDF5 datasets are unnormalized. After combining the input ML data
-    instances into the new output HDF5 file, the normalizable HDF5 datasets
-    therein are min-max normalized, only this time with respect to all ML data
-    instances.
+    Assuming that the Python library :mod:`h5py` has been imported, let
+
+    .. code-block:: python
+
+        input_file_objs = [h5py.File(filename, "r") 
+                           for filename 
+                           in input_ml_dataset_filenames]
+
+    For every pair of nonnegative integers ``(i, k)`` that does not raise an
+    ``IndexError`` exception upon calling
+    ``input_file_objs[i]["principal_disk_boundary_pt_sets"][k]``,
+    ``input_file_objs[i]["principal_disk_boundary_pt_sets"][k]`` stores points
+    that lie approximately on the boundary of the principal CBED disk of the
+    cropped "fake" CBED pattern from which the ``k`` th ML data instance of the
+    ``i`` th input HDF5 file.
+    
+    1. Set ``output_file_obj`` to ``h5py.File(output_ml_dataset_filename,
+    "w")``.
+
+    2. Set ``j_dashv`` to ``7``.
+
+    3. Set ``num_output_ml_data_instances`` to ``0``.
+
+    4. Set ``input_file_idx`` to ``-1``.
+
+    5. Set ``input_file_idx`` to ``input_file_idx+1``.
+
+    6. Set ``input_file_obj`` to ``input_file_objs[input_file_idx]``.
+
+    7. Set ``j_dashv_candidate`` to
+    ``input_file_obj["principal_disk_boundary_pt_sets"].shape[1]``.
+
+    8. Set ``j_dashv`` to ``max(j_dashv, j_dashv_candidate)``.
+
+    9. Set ``num_ml_data_instances_in_input_file`` to
+    ``input_file_obj["cropped_disk_overlap_maps"].shape[0]``.
+
+    10. Set ``num_output_ml_data_instances`` to
+    ````num_output_ml_data_instances+num_ml_data_instances_in_input_file``.
+
+    11. If ``input_file_idx < len(input_file_objs)-1``, then go to 
+    instruction 4. Otherwise, go to instruction 9.
+
+    12. Set ``stop`` to ``0``.
+
+    13. Set ``input_file_idx`` to ``-1``.
+
+    14. Set ``input_file_idx`` to ``input_file_idx+1``.
+
+    15. Set ``input_file_obj`` to ``input_file_objs[input_file_idx]``.
+
+    16. Set ``num_ml_data_instances_in_input_file`` to
+    ``input_file_obj["cropped_disk_overlap_maps"].shape[0]``.
+
+    17. Set ``start`` to ``stop``.
+
+    18. Set ``stop`` to ``stop+num_ml_data_instances_in_input_file``.
+
+    19. Set ``path_subset`` to a Python list storing all the HDF5 paths to all
+    HDF5 datasets stored in ``input_file_obj``, except for the HDF5 path
+    ``principal_disk_boundary_pt_sets``.
+
+    20. Set ``path_idx`` to ``-1``.
+
+    21. Set ``path_idx`` to ``path_idx+1``.
+
+    22. Set ``path`` to ``path_subset[path_idx]``.
+
+    23. If ``output_file_obj[path]`` does not return an HDF5 dataset then go to
+    instruction 24. Otherwise, go to instruction 26.
+
+    24. Set ``output_array_shape`` to
+    ``(num_output_ml_data_instances,)+input_file_obj[path].shape[1:]``.
+
+    25. Set ``output_file_obj[path]`` to ``np.zeros(output_array_shape,
+    dtype=input_file_obj[path].dtype)``, where ``np`` is an alias for the NumPy
+    library ``numpy``.
+
+    26. Copy the data from ``input_file_obj[path]`` and store the copy in
+    ``data_copy``, unnormalize ``data_copy`` if the HDF5 dataset
+    ``input_file_obj[path]`` is normalizable, then store ``data_copy`` into
+    ``output_file_obj[path][start:stop]``.
+
+    27. If ``path != "principal_disk_boundary_pt_sets"``, then go to 
+    instruction 28. Otherwise, go to instruction ??.
+
+    28. If ``path_idx < len(path_subset)-1``, then go to 
+    instruction 21. Otherwise, go to instruction 29.
+
+    29. Set ``path`` to ``"principal_disk_boundary_pt_sets"``.
+
+    30. If ``input_file_obj[path].shape[1] == j_dashv``, then go to 
+    instruction 23. Otherwise, go to instruction 31.
+
+    31. Copy the data from ``input_file_obj[path]`` and store the copy in
+    ``data_copy``, then unnormalize ``data_copy``.
+
+    32. Set ``pattern_idx`` to ``-1``.
+
+    33. Set ``pattern_idx`` to ``pattern_idx+1``.
+
+    34. Set ``pt_set_temp`` to ``data_copy[pattern_idx]``.
+
+    35. Starting from the right-most point in ``pt_set_temp``, sample
+    counterclockwise ``2**j_dashv`` evenly spaced points along the perimeter of
+    the polygon with vertices equal to the points stored in ``pt_set_temp``, and
+    store the resulting sample points in ``pt_set``.
+
+    36. Store ``pt_set`` in ``output_file_obj[path][start+pattern_idx]``.
+
+    37. Set ``wavelet_idx`` to ``-1``.
+
+    38. Set ``wavelet_idx`` to ``wavelet_idx+1``.
+
+    39. Set ``wavelet_name`` to ``"db"+str(2**wavelet_idx)``.
+
+    40. Set ``unformatted_path`` to
+    ``"max_level_{}_approx_coeff_sets_of_principal_disk_boundary_pt_sets"``.
+
+    41. Set ``path`` to ``unformatted_path.format(wavelet_name)``.
+
+    42. Set ``j_vdash`` to ``round(np.log2(2**wavelet_idx)+(wavelet_idx>0))``.
+
+    43. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
+    ``pywt.wavedec(data=pt_set[cartesian_idx], wavelet=wavelet_name,
+    mode="periodization", level=j_dashv-j_vdash)[0]`` in
+    ``output_file_obj[path][start+pattern_idx]``.
+
+    44. If ``wavelet_idx < 5``, then go to instruction 38. Otherwise, go to
+    instruction 45.
+
+    45. If ``pattern_idx < data_copy.shape[0]-1``, then go to 
+    instruction 33. Otherwise, go to instruction 46.
+
+    46. If ``input_file_idx < len(input_file_objs)-1``, then go to 
+    instruction 14. Otherwise, go to instruction 47.
+
+    47. For each normalizable output HDF5 dataset, calculate the values of the
+    HDF5 attributes ``"normalization_weight"`` and ``"normalization_bias"`` of
+    the HDF5 dataset that would min-max normalize correctly the HDF5 dataset.
+
+    48. Min-max normalized all normalizable output HDF5 datasets.
+
+    49. Stop.
 
     Parameters
     ----------
@@ -878,7 +1168,7 @@ def combine_ml_dataset_files(
 
 
 def _check_and_convert_combine_ml_dataset_files_params(params):
-    module_alias = emicroml.modelling.cbed.distortion._common
+    module_alias = emicroml.modelling.cbed.disk._common
     func_alias = module_alias._check_and_convert_combine_ml_dataset_files_params
     params = func_alias(params)
 
@@ -892,7 +1182,7 @@ def _combine_ml_dataset_files(max_num_ml_data_instances_per_file_update,
                               rm_input_ml_dataset_files,
                               start_time):
     kwargs = locals()
-    module_alias = emicroml.modelling.cbed.distortion._common
+    module_alias = emicroml.modelling.cbed.disk._common
     func_alias = module_alias._combine_ml_dataset_files
     func_alias(**kwargs)
 
@@ -901,7 +1191,7 @@ def _combine_ml_dataset_files(max_num_ml_data_instances_per_file_update,
 
 
 _module_alias = \
-    emicroml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.disk._common
 _default_output_ml_dataset_filename_1 = \
     _module_alias._default_output_ml_dataset_filename_1
 _default_output_ml_dataset_filename_2 = \
@@ -943,17 +1233,17 @@ def split_ml_dataset_file(
 
     The input HDF5 file and the output HDF5 files are assumed to have the same
     file structure as an HDF5 file generated by the function
-    :func:`emicroml.modelling.cbed.distortion.estimation.generate_and_save_ml_dataset`.
+    :func:`emicroml.modelling.cbed.disk.localization.generate_and_save_ml_dataset`.
     See the documentation of said function for a description of the file
     structure. Moreover, the input HDF5 file is assumed to have been created in
     a manner that is consistent with the way HDF5 files are generated by the
     function
-    :func:`emicroml.modelling.cbed.distortion.estimation.generate_and_save_ml_dataset`.
+    :func:`emicroml.modelling.cbed.disk.localization.generate_and_save_ml_dataset`.
 
     Unlike the combining of ML datasets, as implemented in
-    :func:`emicroml.modelling.cbed.distortion.estimation.combine_ml_dataset_files`, no
-    renormalization is performed in the process of splitting a machine learning
-    dataset.
+    :func:`emicroml.modelling.cbed.disk.localization.combine_ml_dataset_files`,
+    no renormalization is performed in the process of splitting a machine
+    learning dataset.
 
     The actual number of output HDF5 files is determined by the parameter
     ``split_ratio``. The distribution of the copies of the input ML data
@@ -1081,7 +1371,7 @@ def split_ml_dataset_file(
 
 
 def _check_and_convert_split_ml_dataset_file_params(params):
-    module_alias = emicroml.modelling.cbed.distortion._common
+    module_alias = emicroml.modelling.cbed.disk._common
     func_alias = module_alias._check_and_convert_split_ml_dataset_file_params
     params = func_alias(params)
 
@@ -1100,7 +1390,7 @@ def _split_ml_dataset_file(output_ml_dataset_filename_1,
                            rm_input_ml_dataset_file,
                            start_time):
     kwargs = locals()
-    module_alias = emicroml.modelling.cbed.distortion._common
+    module_alias = emicroml.modelling.cbed.disk._common
     func_alias = module_alias._split_ml_dataset_file
     func_alias(**kwargs)
 
@@ -1109,7 +1399,7 @@ def _split_ml_dataset_file(output_ml_dataset_filename_1,
 
 
 _module_alias = \
-    emicroml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.disk._common
 _default_max_num_ml_data_instances_per_chunk = \
     _module_alias._default_max_num_ml_data_instances_per_chunk
 _default_entire_ml_dataset_is_to_be_cached = \
@@ -1119,7 +1409,7 @@ _default_ml_data_values_are_to_be_checked = \
 
 
 
-_module_alias = emicroml.modelling.cbed.distortion._common
+_module_alias = emicroml.modelling.cbed.disk._common
 _cls_alias = _module_alias._MLDataset
 class MLDataset(_cls_alias):
     r"""A wrapper to the PyTorch dataset class 
@@ -1130,7 +1420,7 @@ class MLDataset(_cls_alias):
 
     The current class represents machine learning (ML) datasets that can be used
     to train and/or evaluate ML models represented by the class
-    :class:`emicroml.modelling.cbed.distortion.estimation.MLModel`.
+    :class:`emicroml.modelling.cbed.disk.localization.MLModel`.
 
     Parameters
     ----------
@@ -1138,12 +1428,12 @@ class MLDataset(_cls_alias):
         The relative or absolute filename of the HDF5 file in which the ML
         dataset is stored. The input HDF5 file is assumed to have the same file
         structure as an HDF5 file generated by the function
-        :func:`emicroml.modelling.cbed.distortion.estimation.generate_and_save_ml_dataset`.
+        :func:`emicroml.modelling.cbed.disk.localization.generate_and_save_ml_dataset`.
         See the documentation of said function for a description of the file
         structure. Moreover, the input HDF5 file is assumed to have been created
         in a manner that is consistent with the way HDF5 files are generated by
         the function
-        :func:`emicroml.modelling.cbed.distortion.estimation.generate_and_save_ml_dataset`.
+        :func:`emicroml.modelling.cbed.disk.localization.generate_and_save_ml_dataset`.
     entire_ml_dataset_is_to_be_cached : `bool`, optional
         If ``entire_ml_dataset_is_to_be_cached`` is set to ``True``, then as
         long as there is sufficient memory, the entire ML dataset is read from
@@ -1211,7 +1501,7 @@ class MLDataset(_cls_alias):
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
         
-        module_alias = emicroml.modelling.cbed.distortion._common
+        module_alias = emicroml.modelling.cbed.disk._common
         cls_alias = module_alias._MLDataset
         kwargs = ctor_params
         cls_alias.__init__(self, **kwargs)
@@ -1220,176 +1510,109 @@ class MLDataset(_cls_alias):
 
 
 
-def ml_data_dict_to_distortion_models(ml_data_dict,
-                                      sampling_grid_dims_in_pixels=\
-                                      _default_sampling_grid_dims_in_pixels,
-                                      device_name=\
-                                      _default_device_name,
-                                      least_squares_alg_params=\
-                                      _default_least_squares_alg_params):
-    r"""Convert a dictionary representation of ML data instances to a sequence 
-    of distortion models.
-
-    The current function converts a dictionary representation ``ml_data_dict``
-    of complete or incomplete machine learning (ML) data instances to a sequence
-    of distortion models. A complete dictionary representation is identical in
-    structure to a dictionary returned by the method
-    :meth:`emicroml.modelling.cbed.distortion.estimation.MLDataset.get_ml_data_instances`
-    of the class
-    :class:`emicroml.modelling.cbed.distortion.estimation.MLDataset`.  See the
-    documentation for said method for more details. An incomplete dictionary
-    representation is identical in structure to a complete dictionary
-    representation, except that at least one `dict` item is missing. If
-    incomplete, the dictionary representation must have the following keys:
-    ``"distortion_centers"``, ``"quadratic_radial_distortion_amplitudes"``,
-    ``"spiral_distortion_amplitudes"``, ``"elliptical_distortion_vectors"`, and
-    ``"parabolic_distortion_vectors"``. The `dict` items corresponding to the
-    aforementioned `dict` keys are the only `dict` items used to construct the
-    distortion models.
-
-    For each ML data instance, an instance ``distortion_model`` of the class
-    :class:`distoptica.DistortionModel` is constructed according to the ML data
-    instance's features. See the documentation for the class
-    :class:`distoptica.DistortionModel` for a discussion on distortion models.
-
-    Parameters
-    ----------
-    ml_data_dict : `dict`
-        The dictionary representation of the ML data instances to be converted.
-        The current function assumes that all normalizable features of the ML
-        data instances are unnormalized. If the normalizable features of the ML
-        data instances are not normalized, they can be unnormalized using the
-        function
-        :func:`emicroml.modelling.cbed.distortion.estimation.unnormalize_normalizable_elems_in_ml_data_dict`
-        prior to using the current function.
-    sampling_grid_dims_in_pixels : `array_like` (`int`, shape=(2,)), optional
-        The dimensions of the sampling grid, in units of pixels, used for
-        all distortion models.
-    least_squares_alg_params : :class:`distoptica.LeastSquaresAlgParams` | `None`, optional
-        ``least_squares_alg_params`` specifies the parameters of the
-        least-squares algorithm to be used to calculate the mappings of
-        fractional Cartesian coordinates of distorted images to those of the
-        corresponding undistorted images. ``least_squares_alg_params`` is used
-        to calculate the distortion models mentioned above in the summary
-        documentation. If ``least_squares_alg_params`` is set to ``None``, then
-        the parameter will be reassigned to the value
-        ``distoptica.LeastSquaresAlgParams()``. See the documentation for the
-        class :class:`distoptica.LeastSquaresAlgParams` for details on the
-        parameters of the least-squares algorithm.
-    device_name : `str` | `None`, optional
-        This parameter specifies the device to be used to perform
-        computationally intensive calls to PyTorch functions and where to store
-        attributes of the type :class:`torch.Tensor` for each distortion model
-        represented by the class :class:`distoptica.DistortionModel`. If
-        ``device_name`` is a string, then it is the name of the device to be
-        used, e.g. ``”cuda”`` or ``”cpu”``. If ``device_name`` is set to
-        ``None`` and a GPU device is available, then a GPU device is to be
-        used. Otherwise, the CPU is used.
-
-    Returns
-    -------
-    distortion_models : `array_like` (:class:`distoptica.DistortionModel`, ndim=1)
-        The distortion models.
-
-    """
-    params = locals()
-
-    global_symbol_table = globals()
-
-    func_name = "_check_and_convert_ml_data_dict_to_distortion_models_params"
-    func_alias = global_symbol_table[func_name]
-    params = func_alias(params)
-
-    func_name = func_name[18:-7]
-    func_alias = global_symbol_table[func_name]
-    kwargs = params
-    distortion_models = func_alias(**kwargs)
-
-    return distortion_models
-
-
-
-def _check_and_convert_ml_data_dict_to_distortion_models_params(params):
-    module_alias = \
-        emicroml.modelling.cbed.distortion._common
-    func_alias = \
-        module_alias._check_and_convert_ml_data_dict_to_distortion_models_params
-    params = \
-        func_alias(params)
-
-    return params
-
-
-
-def _ml_data_dict_to_distortion_models(ml_data_dict,
-                                       sampling_grid_dims_in_pixels,
-                                       device_name,
-                                       least_squares_alg_params):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed.distortion._common
-    func_alias = module_alias._ml_data_dict_to_distortion_models
-    distortion_models = func_alias(**kwargs)
-    
-    return distortion_models
+_module_alias = \
+    emicroml.modelling.cbed.disk._common
+_default_bounding_box_marker_style_kwargs = \
+    _module_alias._default_bounding_box_marker_style_kwargs
+_default_boundary_pt_marker_style_kwargs = \
+    _module_alias._default_boundary_pt_marker_style_kwargs
 
 
 
 def ml_data_dict_to_signals(ml_data_dict,
-                            sampling_grid_dims_in_pixels=\
-                            _default_sampling_grid_dims_in_pixels,
-                            device_name=\
-                            _default_device_name,
-                            least_squares_alg_params=\
-                            _default_least_squares_alg_params):
+                            bounding_box_marker_style_kwargs=\
+                            _default_bounding_box_marker_style_kwargs,
+                            boundary_pt_marker_style_kwargs=\
+                            _default_boundary_pt_marker_style_kwargs):
     r"""Convert a dictionary representation of ML data instances to a sequence 
     of Hyperspy signals.
 
     See the documentation for the classes
-    :class:`fakecbed.discretized.CBEDPattern`,
-    :class:`distoptica.DistortionModel`, and
-    :class:`hyperspy._signals.signal2d.Signal2D` for discussions on "fake" CBED
-    patterns, distortion models, and Hyperspy signals respectively.
+    :class:`fakecbed.discretized.CroppedCBEDPattern`, and
+    :class:`hyperspy._signals.signal2d.Signal2D` for discussions on cropped
+    "fake" CBED patterns, and Hyperspy signals respectively.
 
     The current function converts a dictionary representation ``ml_data_dict``
     of complete or incomplete machine learning (ML) data instances to a sequence
     of Hyperspy signals. If incomplete, the ML data instances can, at the very
     least be used to evaluate ML models represented by the class
-    :class:`emicroml.modelling.cbed.distortion.estimation.MLModel`, and if
-    complete, the ML data instances can be used to train such ML models as well.
+    :class:`emicroml.modelling.cbed.disk.localization.MLModel`, and if complete,
+    the ML data instances can be used to train such ML models as well.
     
     Each `dict` key in ``ml_data_dict`` is the name of a feature of the ML data
-    instances. The only required `dict` key is ``"cbed_pattern_images"``. If
-    additional valid `dict` items are present in ``ml_data_dict``, then more
-    data and metadata can be stored potentially in the Hyperspy representations
-    of the ML data instances. A complete dictionary representation is identical
-    in structure to a dictionary returned by the method
-    :meth:`emicroml.modelling.cbed.distortion.estimation.MLDataset.get_ml_data_instances`
-    of the class
-    :class:`emicroml.modelling.cbed.distortion.estimation.MLDataset`.  See the
-    documentation for said method for more details. An incomplete dictionary
-    representation is identical in structure to a complete dictionary
+    instances. The only required `dict` key is
+    ``"cropped_cbed_pattern_images"``. If additional valid `dict` items are
+    present in ``ml_data_dict``, then more data and metadata can be stored
+    potentially in the Hyperspy representations of the ML data instances. A
+    complete dictionary representation is identical in structure to a dictionary
+    returned by the method
+    :meth:`emicroml.modelling.cbed.disk.localization.MLDataset.get_ml_data_instances`
+    of the class :class:`emicroml.modelling.cbed.disk.localization.MLDataset`.
+    See the documentation for said method for more details. An incomplete
+    dictionary representation is identical in structure to a complete dictionary
     representation, except that at least one `dict` item is missing.
 
-    For each ML data instance, an instance ``distortion_model`` of the class
-    :class:`distoptica.DistortionModel` is constructed according to the ML data
-    instance's features. The object ``distortion_model`` is a distortion model
-    that describes the distortion field of the imaged CBED pattern of the ML
-    data instance. If no distortion information is present in ``ml_data_dict``,
-    then ``distortion_model.is_trivial`` yields ``True``, i.e. the distortion
-    model is assumed to be trivial. After constructing ``distortion_model``, an
-    instance of the class :class:`fakecbed.discretized.CBEDPattern` is
-    constructed according to the ML data instance's features and
-    ``distortion_model``. ``fake_cbed_pattern`` is a fake CBED pattern
-    representation of the CBED pattern of the ML data instance. Next, a Hyperspy
-    signal ``fake_cbed_pattern_signal`` is obtained from
-    ``fake_cbed_pattern.signal``. The Hyperspy signal representation of the ML
-    data instance is obtained by modifying in place
-    ``fake_cbed_pattern_signal.data[1:3]`` according to the ML data instance's
-    features. Note that the illumination support of the fake CBED pattern
-    representation of the CBED pattern of the ML data instance is inferred from
-    the features of the ML data instance, and is stored in
-    ``fake_cbed_pattern_signal.data[1]``. Moreover, the illumination suport
-    implied by the signal's metadata should be ignored.
+    Each ML data instance is expected to represent a subset of the properties of
+    a cropped CBED pattern, that could be represented hypothetically as an
+    instance ``cropped_fake_cbed_pattern`` of the class
+    :class:`fakecbed.discretized.CroppedCBEDPattern`. Let ``k`` be a nonnegative
+    integer less than the number of ML data instances stored in
+    ``ml_data_dict``. The signal data ``signal_data`` of the Hyperspy signal
+    representation ``ml_data_instance_as_signal`` of the ``k`` th ML data
+    instance is calculated as follows:
+
+    .. code-block:: python
+
+        import numpy as np
+
+        ml_data_dict_copy = ml_data_dict.copy()
+        for key in ml_data_dict_copy:
+            ml_data_dict_elem = ml_data_dict_copy[key]
+            if isinstance(ml_data_dict_elem, torch.Tensor):
+                ml_data_dict_copy[key] = ml_data_dict_elem.numpy(force=True)
+
+        cropped_cbed_pattern_images = \
+            ml_data_dict_copy["cropped_cbed_pattern_images"]
+        cropped_disk_overlap_maps = \
+            ml_data_dict_copy.get("cropped_disk_overlap_maps", None)
+        cropped_principal_disk_support = \
+            ml_data_dict_copy.get("cropped_principal_disk_supports", None)
+
+        inferred_illumination_support = \
+            (cropped_cbed_pattern_images[k] != 0)
+        if cropped_disk_overlap_maps is not None:
+            inferred_illumination_support += \
+                (cropped_disk_overlap_maps[k] > 0)
+
+        signal_data_shape = (4,) + cropped_cbed_pattern_images[k].shape
+        
+        signal_data = np.zeros(signal_data_shape,
+                               dtype=cropped_cbed_pattern_images[k].dtype)
+        signal_data[0] = cropped_cbed_pattern_images[k]
+        signal_data[1] = inferred_illumination_support
+        if cropped_disk_overlap_maps is not None:
+            signal_data[2] = cropped_disk_overlap_maps[k]
+        if cropped_principal_disk_supports is not None:
+            signal_data[3] = cropped_principal_disk_supports[k]            
+
+    The signal space axes of ``ml_data_instance_as_signal`` are chosen such that
+    coordinates in this space are consistent with the fractional coordinates of
+    the corresponding cropped fake CBED pattern. If the parameter
+    ``bounding_box_marker_style_kwargs`` is not set to ``None``, but a valid
+    dictionary (see parameter descriptions below for details), and a valid
+    dictionary item is stored in
+    ``ml_data_dict["principal_disk_bounding_boxes"]``, the bounding box of the
+    principal disk of the corresponding cropped fake CBED pattern is permanently
+    added to ``ml_data_instance_as_signal`` as a Hyperspy marker, with style
+    properties according to ``bounding_box_marker_style_kwargs``. Similarly, if
+    the parameter ``boundary_pt_marker_style_kwargs`` is not set to ``None``,
+    but a valid dictionary, and a valid dictionary item is stored in
+    ``ml_data_dict["principal_disk_boundary_pt_sets"]``, points on the boundary
+    of the principal disk of the cropped fake CBED pattern are permanently added
+    to ``ml_data_instance_as_signal`` as Hyperspy markers, with style properties
+    according to ``boundary_pt_marker_style_kwargs``. Note that apart from the
+    default signal metadata, no other metadata is added to the signal. The title
+    of each Hyperspy signal is ``"Cropped CBED Intensity Pattern"``.
 
     Parameters
     ----------
@@ -1399,30 +1622,87 @@ def ml_data_dict_to_signals(ml_data_dict,
         data instances are unnormalized. If the normalizable features of the ML
         data instances are not normalized, they can be unnormalized using the
         function
-        :func:`emicroml.modelling.cbed.distortion.estimation.unnormalize_normalizable_elems_in_ml_data_dict`
+        :func:`emicroml.modelling.cbed.disk.localization.unnormalize_normalizable_elems_in_ml_data_dict`
         prior to using the current function.
-    sampling_grid_dims_in_pixels : `array_like` (`int`, shape=(2,)), optional
-        The dimensions of the sampling grid, in units of pixels, used for
-        all distortion models.
-    least_squares_alg_params : :class:`distoptica.LeastSquaresAlgParams` | `None`, optional
-        ``least_squares_alg_params`` specifies the parameters of the
-        least-squares algorithm to be used to calculate the mappings of
-        fractional Cartesian coordinates of distorted images to those of the
-        corresponding undistorted images. ``least_squares_alg_params`` is used
-        to calculate the interim distortion models mentioned above in the
-        summary documentation. If ``least_squares_alg_params`` is set to
-        ``None``, then the parameter will be reassigned to the value
-        ``distoptica.LeastSquaresAlgParams()``. See the documentation for the
-        class :class:`distoptica.LeastSquaresAlgParams` for details on the
-        parameters of the least-squares algorithm.
-    device_name : `str` | `None`, optional
-        This parameter specifies the device to be used to perform
-        computationally intensive calls to PyTorch functions and to store
-        intermediate arrays of the type :class:`torch.Tensor`. If
-        ``device_name`` is a string, then it is the name of the device to be
-        used, e.g. ``”cuda”`` or ``”cpu”``. If ``device_name`` is set to
-        ``None`` and a GPU device is available, then a GPU device is to be
-        used. Otherwise, the CPU is used.
+    bounding_box_marker_style_kwargs : `None` | `dict`, optional
+        If ``bounding_box_marker_style_kwargs`` is set to ``None``, or no valid
+        dictionary item is stored in
+        ``ml_data_dict["principal_disk_bounding_boxes"]``, then the bounding
+        boxes of the principal disks of the cropped fake CBED patterns
+        corresponding to the ML data instances in the subset are not accessed,
+        nor are they added to their corresponding Hyperspy signal
+        representations of said ML data instances.
+            
+        Otherwise, the bounding boxes are added permanently to their
+        corresponding Hyperspy signals as instances of the
+        :class:`hyperspy.api.plot.markers.Rectangles` class (i.e. as rectangular
+        Hyperspy markers), with stylistic properties determined by
+        ``bounding_box_marker_style_kwargs``. All valid dictionary items are
+        optional. A valid dictionary item is any keyword argument for the
+        constructor of the class :class:`hyperspy.api.plot.markers.Rectangles`
+        other than::
+
+        * ``"offset_transform"``
+        * ``"transform"``
+        * ``"shift"``
+        * ``"plot_on_signal"``
+        * ``"name"``
+        * ``"ScalarMappable_array"``
+        * ``"offsets"``
+        * ``"heights"``
+        * ``"widths"``
+        * ``"angles"``
+
+        The default value of each valid dictionary item is that of the
+        corresponding keyword argument for the constructor. These valid
+        dictionary items are used directly to construct rectangular Hyperspy
+        markers.
+    boundary_pt_marker_style_kwargs : `None` | `dict`, optional            
+        If ``boundary_pt_marker_style_kwargs`` is set to ``None`` or no valid
+        dictionary item is stored in
+        ``ml_data_dict["principal_disk_boundary_pt_sets"]``, then no points on
+        the boundaries of the principal disks of the cropped fake CBED patterns
+        corresponding to the ML data instances in the subset are accessed, nor
+        are any points added to their corresponding Hyperspy signal
+        representations of said ML data instances.
+
+        Otherwise, subsets of the points on the boundaries are added permanently
+        to their corresponding Hyperspy signals as instances of the
+        :class:`hyperspy.api.plot.markers.Points` class (i.e. as collections of
+        point/circular Hyperspy markers), with stylistic properties determined
+        by ``boundary_pt_marker_style_kwargs``. All valid dictionary items are
+        optional. One of the valid dictionary items is a `slice` object stored
+        in ``boundary_pt_marker_style_kwargs["single_dim_slice"]``, which
+        controls what subset of available points are added as a collection of
+        markers, for each ML data instance. For each ML data instance, the
+        boundary point indices are indexed from ``0`` to
+        ``total_num_pts_per_ml_data_instance-1``, where
+        ``total_num_pts_per_ml_data_instance`` is the total number of sampled
+        boundary points per ML data instance.
+        ``tuple(range(total_num_pts_per_ml_data_instance))[boundary_pt_marker_style_kwargs["single_dim_slice"]]``
+        yields the indices of the points to add as markers. It is recommended
+        that users limit the number of points that they add to the signals as
+        this can slow down signal plotting if the number is too large. The
+        default value of ``boundary_pt_marker_style_kwargs["single_dim_slice"]``
+        is ``slice(None)``.
+
+        The remaining valid dictionary items are any keyword arguments for the
+        constructor of the class :class:`hyperspy.api.plot.markers.Points` other
+        than::
+
+        * ``"offset_transform"``
+        * ``"transform"``
+        * ``"shift"``
+        * ``"plot_on_signal"``
+        * ``"name"``
+        * ``"ScalarMappable_array"``
+        * ``"offsets"``
+        * ``"sizes"``
+
+        The default value of each valid dictionary item listed immediately above
+        is that of the corresponding keyword argument for the constructor. These
+        valid dictionary items are used directly to construct point/circular
+        Hyperspy markers.
 
     Returns
     -------
@@ -1449,7 +1729,7 @@ def ml_data_dict_to_signals(ml_data_dict,
 
 
 def _check_and_convert_ml_data_dict_to_signals_params(params):
-    module_alias = emicroml.modelling.cbed.distortion._common
+    module_alias = emicroml.modelling.cbed.disk._common
     func_alias = module_alias._check_and_convert_ml_data_dict_to_signals_params
     params = func_alias(params)
 
@@ -1458,11 +1738,10 @@ def _check_and_convert_ml_data_dict_to_signals_params(params):
 
 
 def _ml_data_dict_to_signals(ml_data_dict,
-                             sampling_grid_dims_in_pixels,
-                             device_name,
-                             least_squares_alg_params):
+                             bounding_box_marker_style_kwargs,
+                             boundary_pt_marker_style_kwargs):
     kwargs = locals()
-    module_alias = emicroml.modelling.cbed.distortion._common
+    module_alias = emicroml.modelling.cbed.disk._common
     func_alias = module_alias._ml_data_dict_to_signals
     signals = func_alias(**kwargs)
     
@@ -1474,7 +1753,7 @@ def _check_and_convert_ml_training_dataset(params):
     key = "accepted_nontrivial_cls_of_obj_alias_of_ml_dataset"
     params[key] = MLDataset
 
-    module_alias = emicroml.modelling.cbed.distortion._common
+    module_alias = emicroml.modelling.cbed.disk._common
     func_alias = module_alias._check_and_convert_ml_training_dataset
     ml_training_dataset = func_alias(params)
 
@@ -1484,7 +1763,7 @@ def _check_and_convert_ml_training_dataset(params):
 
 def _pre_serialize_ml_training_dataset(ml_training_dataset):
     obj_to_pre_serialize = ml_training_dataset
-    module_alias = emicroml.modelling.cbed.distortion._common
+    module_alias = emicroml.modelling.cbed.disk._common
     func_alias = module_alias._pre_serialize_ml_training_dataset
     serializable_rep = func_alias(obj_to_pre_serialize)
     
@@ -1505,7 +1784,7 @@ def _check_and_convert_ml_validation_dataset(params):
     key = "accepted_nontrivial_cls_of_obj_alias_of_ml_dataset"
     params[key] = MLDataset
     
-    module_alias = emicroml.modelling.cbed.distortion._common
+    module_alias = emicroml.modelling.cbed.disk._common
     func_alias = module_alias._check_and_convert_ml_validation_dataset
     ml_validation_dataset = func_alias(params)
 
@@ -1515,7 +1794,7 @@ def _check_and_convert_ml_validation_dataset(params):
 
 def _pre_serialize_ml_validation_dataset(ml_validation_dataset):
     obj_to_pre_serialize = ml_validation_dataset
-    module_alias = emicroml.modelling.cbed.distortion._common
+    module_alias = emicroml.modelling.cbed.disk._common
     func_alias = module_alias._pre_serialize_ml_validation_dataset
     serializable_rep = func_alias(obj_to_pre_serialize)
     
@@ -1537,7 +1816,7 @@ def _check_and_convert_ml_testing_dataset(params):
     key = "accepted_nontrivial_cls_of_obj_alias_of_ml_dataset"
     params[key] = MLDataset
     
-    module_alias = emicroml.modelling.cbed.distortion._common
+    module_alias = emicroml.modelling.cbed.disk._common
     func_alias = module_alias._check_and_convert_ml_testing_dataset
     ml_testing_dataset = func_alias(params)
 
@@ -1547,7 +1826,7 @@ def _check_and_convert_ml_testing_dataset(params):
 
 def _pre_serialize_ml_testing_dataset(ml_testing_dataset):
     obj_to_pre_serialize = ml_testing_dataset
-    module_alias = emicroml.modelling.cbed.distortion._common
+    module_alias = emicroml.modelling.cbed.disk._common
     func_alias = module_alias._pre_serialize_ml_testing_dataset
     serializable_rep = func_alias(obj_to_pre_serialize)
     
@@ -1566,7 +1845,7 @@ def _de_pre_serialize_ml_testing_dataset(serializable_rep):
 
 
 _module_alias = \
-    emicroml.modelling.cbed.distortion._common
+    emicroml.modelling.cbed.disk._common
 _default_ml_training_dataset = \
     _module_alias._default_ml_training_dataset
 _default_ml_validation_dataset = \
@@ -1580,7 +1859,7 @@ _default_num_data_loader_workers = \
 
 
 
-_module_alias = emicroml.modelling.cbed.distortion._common
+_module_alias = emicroml.modelling.cbed.disk._common
 _cls_alias = _module_alias._MLDatasetManager
 class MLDatasetManager(_cls_alias):
     r"""A machine learning dataset manager.
@@ -1590,28 +1869,28 @@ class MLDatasetManager(_cls_alias):
 
     The current class represents machine learning (ML) dataset manager that can
     be used to train and/or evaluate ML models represented by the class
-    :class:`emicroml.modelling.cbed.distortion.estimation.MLModel`.
+    :class:`emicroml.modelling.cbed.disk.localization.MLModel`.
 
     Parameters
     ----------
-    ml_training_dataset : :class:`emicroml.modelling.cbed.distortion.estimation.MLDataset` | `None`, optional
+    ml_training_dataset : :class:`emicroml.modelling.cbed.disk.localization.MLDataset` | `None`, optional
         This parameter specifies the ML training dataset to be used, if any at
         all. If ``ml_training_dataset`` is an instance of the class
-        :class:`emicroml.modelling.cbed.distortion.estimation.MLDataset`, then a
+        :class:`emicroml.modelling.cbed.disk.localization.MLDataset`, then a
         ML training dataset is to be used, and is represented by the object
         ``ml_training_dataset``. Otherwise, no ML training dataset is to be
         used.
-    ml_validation_dataset : :class:`emicroml.modelling.cbed.distortion.estimation.MLDataset` | `None`, optional
+    ml_validation_dataset : :class:`emicroml.modelling.cbed.disk.localization.MLDataset` | `None`, optional
         This parameter specifies the ML validation dataset to be used, if any at
         all. If ``ml_validation_dataset`` is an instance of the class
-        :class:`emicroml.modelling.cbed.distortion.estimation.MLDataset`, then a
+        :class:`emicroml.modelling.cbed.disk.localization.MLDataset`, then a
         ML validation dataset is to be used, and is represented by the object
         ``ml_validation_dataset``. Otherwise, no ML validation dataset is to be
         used.
-    ml_testing_dataset : :class:`emicroml.modelling.cbed.distortion.estimation.MLDataset` | `None`, optional
+    ml_testing_dataset : :class:`emicroml.modelling.cbed.disk.localization.MLDataset` | `None`, optional
         This parameter specifies the ML testing dataset to be used, if any at
         all. If ``ml_testing_dataset`` is an instance of the class
-        :class:`emicroml.modelling.cbed.distortion.estimation.MLDataset`, then a
+        :class:`emicroml.modelling.cbed.disk.localization.MLDataset`, then a
         ML testing dataset is to be used, and is represented by the object
         ``ml_testing_dataset``. Otherwise, no ML testing dataset is to be used.
     mini_batch_size : `int`, optional
@@ -1690,7 +1969,7 @@ class MLDatasetManager(_cls_alias):
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
         
-        module_alias = emicroml.modelling.cbed.distortion._common
+        module_alias = emicroml.modelling.cbed.disk._common
         cls_alias = module_alias._MLDatasetManager
         kwargs = ctor_params
         cls_alias.__init__(self, **kwargs)
@@ -1703,7 +1982,7 @@ def _check_and_convert_ml_dataset_manager(params):
     key = "ml_dataset_manager_cls"
     params[key] = MLDatasetManager
     
-    module_alias = emicroml.modelling.cbed.distortion._common
+    module_alias = emicroml.modelling.cbed.disk._common
     func_alias = module_alias._check_and_convert_ml_dataset_manager
     ml_dataset_manager = func_alias(params)
 
@@ -1713,7 +1992,7 @@ def _check_and_convert_ml_dataset_manager(params):
 
 def _pre_serialize_ml_dataset_manager(ml_dataset_manager):
     obj_to_pre_serialize = ml_dataset_manager
-    module_alias = emicroml.modelling.cbed.distortion._common
+    module_alias = emicroml.modelling.cbed.disk._common
     func_alias = module_alias._pre_serialize_ml_dataset_manager
     serializable_rep = func_alias(obj_to_pre_serialize)
     
@@ -1729,11 +2008,9 @@ def _de_pre_serialize_ml_dataset_manager(serializable_rep):
 
 
 _module_alias = \
-    emicroml.modelling.cbed.distortion._common
-_default_num_pixels_across_each_cbed_pattern = \
-    _module_alias._default_num_pixels_across_each_cbed_pattern
-_default_architecture = \
-    _module_alias._default_architecture
+    emicroml.modelling.cbed.disk._common
+_default_num_pixels_across_each_cropped_cbed_pattern = \
+    _module_alias._default_num_pixels_across_each_cropped_cbed_pattern
 _default_mini_batch_norm_eps = \
     _module_alias._default_mini_batch_norm_eps
 _default_normalization_weights = \
@@ -1745,13 +2022,11 @@ _default_unnormalize_normalizable_elems_of_ml_predictions = \
 
 
 
-_module_alias = emicroml.modelling.cbed.distortion._common
+_module_alias = emicroml.modelling.cbed.disk._common
 _cls_alias = _module_alias._MLModel
 class _MLModel(_cls_alias):
     def __init__(self,
-                 num_pixels_across_each_cbed_pattern,
-                 max_num_disks_in_any_cbed_pattern,
-                 architecture,
+                 num_pixels_across_each_cropped_cbed_pattern,
                  mini_batch_norm_eps,
                  normalization_weights,
                  normalization_biases):
@@ -1760,9 +2035,13 @@ class _MLModel(_cls_alias):
                        if (key not in ("self", "__class__"))}
         ctor_params = self._check_and_convert_ctor_params(ctor_params)
         
-        module_alias = emicroml.modelling.cbed.distortion._common
+        module_alias = emicroml.modelling.cbed.disk._common
         cls_alias = module_alias._MLModel
-        kwargs = ctor_params
+        kwargs = {**ctor_params,
+                  "ml_model_task": "cbed/disk/localization",
+                  "wavelet_name": None,
+                  "j_epsilon": None,
+                  "j_dashv": None}
         cls_alias.__init__(self, **kwargs)
 
         return None
@@ -1770,192 +2049,64 @@ class _MLModel(_cls_alias):
 
 
 class MLModel(_MLModel):
-    r"""A machine learning model for distortion estimation in CBED.
+    r"""A machine learning model for localizing CBED disks.
 
     The current class is a subclass of :class:`torch.nn.Module`.
 
     A given machine learning (ML) model represented by the current class takes
     as input a mini-batch of images, where each image is assumed to depict a
-    distorted CBED pattern, and as output, the ML model predicts sets of
-    coordinate transformation parameters that specify the coordinate
-    transformations that describe the distortions of the input images. The
-    coordinate transformation used to describe the distortions of an image is
-    defined in the documentation for the class
-    :class:`distoptica.StandardCoordTransformParams`. The parameter set
-    parameterizing said coordinate transformation is referred to as the
-    "standard" coordinate transformation parameter set, and is represented by
-    the class :class:`distoptica.StandardCoordTransformParams`.
+    cropped distorted CBED pattern, and as output, the ML model predicts the
+    bounding boxes of the principal CBED disks of the cropped distorted CBED
+    patterns. For a given input image, the principal CBED disk is expected to be
+    the CBED disk with the bounding box center that is closest to the center of
+    the input image.
 
     ML models are trained using the
-    :class:`emicroml.modelling.cbed.distortion.estimation.MLModelTrainer`. 
+    :class:`emicroml.modelling.cbed.disk.localization.MLModelTrainer`. 
 
     After a ML model has been trained, users should use the method
-    :meth:`emicroml.modelling.cbed.distortion.estimation.MLModel.make_predictions`
+    :meth:`emicroml.modelling.cbed.disk.localization.MLModel.make_predictions`
     of the current class to make predictions.
+
+    At the moment, only one network architecture is available for this ML
+    model. Below we refer to this network architecture as the LocalizationNet
+    architecture.
+
+    In short, the LocalizationNet (or ``"localization_net"``) architecture is a
+    custom residual network with 37 non-trivial layers, and downsampling
+    operations being performed using strided convolutions rather than
+    pooling. By a non-trivial layer, we mean either a fully connected layer or a
+    2D convolutional layer with kernel dimensions other than :math:`1 \times 1`.
+
+    The LocalizationNet architecture is identical to the "DistopticaNet"
+    archecture, except that there are only 4 output channels in the last
+    fully-connected layer in the former. The DistopticaNet architecture is
+    described in detail in the documentation for the ``architecture`` parameter
+    of the class :class:`emicroml.modelling.cbed.distortion.estimation.MLModel`.
+    The LocalizationNet architecture can be defined graphically as:
+
+    .. _modelling_cbed_disk_localization_localization_net:
+    .. figure:: ../_images/modelling/cbed/disk/localization/localization_net.png
+
+       The ``"localization_net"`` architecture, where :math:`W` is the width
+       of the input tensor in pixels.
+
+    See the documentation for the ``architecture`` parameter of the class
+    :class:`emicroml.modelling.cbed.distortion.estimation.MLModel` for detailed
+    descriptions of the graphical components appearing on the right-hand-side of
+    the equation shown in the above figure.
 
     Parameters
     ----------
-    num_pixels_across_each_cbed_pattern : `int`, optional
-        The number of pixels across each imaged CBED pattern stored in the ML
-        dataset used or to be used to train the ML model. This parameter is
-        expected to be equal to the instance attribute
-        :attr:`emicroml.modelling.cbed.distortion.estimation.MLDataset.num_pixels_across_each_cbed_pattern`
+    num_pixels_across_each_cropped_cbed_pattern : `int`, optional
+        The number of pixels across each imaged cropped CBED pattern stored in
+        the ML dataset used or to be used to train the ML model. This parameter
+        is expected to be equal to the instance attribute
+        :attr:`emicroml.modelling.cbed.disk.localization.MLDataset.num_pixels_across_each_cropped_cbed_pattern`
         of the instance of the class
-        :class:`emicroml.modelling.cbed.distortion.estimation.MLDataset`
+        :class:`emicroml.modelling.cbed.disk.localization.MLDataset`
         representing the aforementioned ML dataset. Moreover, the parameter is
         expected to be a positive integer that is divisible by ``2**5``.
-    max_num_disks_in_any_cbed_pattern : `int`, optional
-        The maximum possible number of CBED disks in any imaged CBED pattern
-        stored in the ML dataset used or to be used to train the ML model. This
-        parameter is expected to be equal to the instance attribute
-        :attr:`emicroml.modelling.cbed.distortion.estimation.MLDataset.max_num_disks_in_any_cbed_pattern`
-        of the instance of the class
-        :class:`emicroml.modelling.cbed.distortion.estimation.MLDataset`
-        representing the aforementioned ML dataset.
-    architecture : `str`, optional
-        This parameter specifies the network architecture of the ML model. At
-        the moment, only one network architecture is available for this ML
-        model, and it is specified by setting ``architecture`` to
-        ``"distoptica_net"``, referring to the DistopticaNet architecture. Below
-        we refer to this network architecture as the DistopticaNet architecture.
-
-        In short, the DistopticaNet architecture is a custom residual network
-        with 37 non-trivial layers, and downsampling operations being performed
-        using strided convolutions rather than pooling. By a non-trivial layer,
-        we mean either a fully connected layer or a 2D convolutional layer with
-        kernel dimensions other than :math:`1 \times 1`.
-
-        Before describing in more detail the DistopticaNet architecture, it is
-        worth introducing several smaller networks used to construct the
-        architecture.
-
-        First, we introduce the residual network building block, defined
-        graphically as:
-
-        .. _modelling_cbed_distortion_estimation_resnet_building_block:
-        .. figure:: ../_images/modelling/cbed/distortion/estimation/resnet_building_block.png
-
-           The residual network building block, where :math:`C_1`, :math:`C_2`,
-           :math:`K`, :math:`N_{\downarrow}`, and :math:`f` are the number of
-           input channels, the number of output channels, the maximum kernel
-           size, the number of downsamplings to perform in the first
-           convolutional layer, and the final activation function respectively.
-
-        The above image introduces several mathematical objects:
-        :math:`\text{conv_2d}\left(C_{1},C_{2},K,S\right)` is a 2D convolutional
-        layer with :math:`C_1` input channels, :math:`C_2` output channels, a
-        kernel size of :math:`K`, a stride of :math:`S`, a zero-padding width of
-        :math:`(K-1) // 2` on all sides, all biases fixed to zero, a dilation of
-        unity, and all inputs are convolved to all outputs;
-        :math:`\text{mini_batch_norm_2d}\left(C\right)` is a mini-batch
-        normalization layer of 2D inputs with :math:`C` input channels;
-        :math:`\text{relu}` is the ReLU activation function;
-        :math:`\text{shortcut}\left(C_{1},C_{2},N_{\downarrow}\right)` is
-        :math:`\text{conv_2d}\left(C_{1},C_{2},1,1+N_{\downarrow}\right)`
-        followed by :math:`\text{mini_batch_norm_2d}\left(C_{2}\right)` if
-        either :math:`C_{1} \neq C_{2}` or :math:`N_{\downarrow} > 0`, else it
-        is an identity shortcut connection; :math:`+` is the addition operator;
-        :math:`f` is an activation function.
-
-        Next, we introduce the residual network stage, defined graphically as:
-
-        .. _modelling_cbed_distortion_estimation_resnet_stage:
-        .. figure:: ../_images/modelling/cbed/distortion/estimation/resnet_stage.png
-
-           The residual network stage, where :math:`C`, :math:`K`, :math:`N_B`,
-           and :math:`f` are the number of input channels, the maximum kernel
-           size, the number of residual network building blocks in the stage,
-           and the final activation function respectively.
-
-        Next, we introduce the "enhance" operation, defined graphically as:
-
-        .. _modelling_cbed_distortion_estimation_enhance:
-        .. figure:: ../_images/modelling/cbed/distortion/estimation/enhance.png
-
-           The enhance operation.
-
-        The above image introduces a few mathematical objects:
-        :math:`\text{min-max normalize}` is the min-max normalization operation,
-        applied to each image stored in the input tensor of the entry flow;
-        :math:`\text{pow}\left(\gamma\right)` is the gamma correction operation
-        with the power-law exponent :math:`\gamma`; :math:`\text{equalize}` is
-        the histogram equalization operation, applied to each feature map.
-
-        Next, we introduce the DistopticaNet entry flow, defined graphically as:
-
-        .. _modelling_cbed_distortion_estimation_distoptica_net_entry_flow:
-        .. figure:: ../_images/modelling/cbed/distortion/estimation/distoptica_net_entry_flow.png
-
-           The DistopticaNet entry flow, where :math:`C_1`, :math:`C_2`,
-           :math:`K_1`, and :math:`K_2` are the number of input channels, the
-           number of output channels, the kernel size of the first convolutional
-           layer, and the maximum kernel size of the resnet building blocks
-           respectively.
-
-        Next, we introduce the DistopticaNet middle flow, defined graphically
-        as:
-
-        .. _modelling_cbed_distortion_estimation_distoptica_net_middle_flow:
-        .. figure:: ../_images/modelling/cbed/distortion/estimation/distoptica_net_middle_flow.png
-
-           The DistopticaNet middle flow, where :math:`C_1`, :math:`K`, and
-           :math:`\mathbf{N}_{\mathbf{B}}` are the number of input channels, the
-           maximum kernel size, and the building block counts in the residual
-           network stages of the middle flow respectively.
-
-        The above image introduces the block of the general form :math:`X
-        \leftarrow Y`, which denotes the operation of setting the variable
-        :math:`X` to the value of :math:`Y` while leaving the input tensor of
-        said block unchanged.
-
-        Next, we introduce the DistopticaNet exit flow, defined graphically as:
-
-        .. _modelling_cbed_distortion_estimation_distoptica_net_exit_flow:
-        .. figure:: ../_images/modelling/cbed/distortion/estimation/distoptica_net_exit_flow.png
-
-           The no-pool DistopticaNet exit flow, where :math:`F_1`, :math:`F_2`,
-           and :math:`F_3` are the number of nodes in the third last, the second
-           last, and the last layers respectively.
-
-        The above image introduces several mathematical objects:
-        :math:`\text{flatten}` is the flatten operation applied to all but the
-        ML data instance dimension;
-        :math:`\text{fc}\left(F_{1},F_{2},\text{biases}\right)` is a
-        fully-connected layer with :math:`F_1` input channels, :math:`F_2`
-        output channels, and the biases fixed to zero if the boolean variable
-        :math:`\text{biases}` is set to :math:`\text{False}`;
-        :math:`\text{mini_batch_norm_1d}\left(C\right)` is a mini-batch
-        normalization layer of 1D inputs with :math:`C` input channels.
-
-        Finally, the DistopticaNet architecture is defined graphically as:
-
-        .. _modelling_cbed_distortion_estimation_distoptica_net:
-        .. figure:: ../_images/modelling/cbed/distortion/estimation/distoptica_net.png
-
-           The ``"distoptica_net"`` architecture, where :math:`W` is the width
-           of the input tensor in pixels.
-
-        See the documentation for the method
-        :meth:`emicroml.modelling.cbed.distortion.estimation.MLModel.forward`
-        for a discussion on how the output tensor is parsed as a dictionary.
-
-        The weights of all the convolutional and fully-connected (FC) layers,
-        except for those of the last FC layer, are He-initialized using the
-        function :func:`torch.nn.init.kaiming_normal_`, with the parameters
-        ``a``, ``mode``, ``nonlinearity``, and ``generator`` set to ``0``,
-        ``'fan_out'``, ``'relu'``, and ``None`` respectively. The weights of the
-        last FC layer are Glorot-initialized using the function
-        :func:`torch.nn.init.xavier_normal_`, with the parameters ``gain``, and
-        ``generator`` set to ``5/3`` and ``None`` respectively.
-
-        The biases of the last FC layer, and all of the mini-batch normalization
-        layers are initialized to zero; the weights of all the mini-batch
-        normalization layers except for those of the mini-batch normalization
-        layers in :math:`\text{shortcut}\left(C_{1},C_{2},N_{\downarrow}\right)`
-        objects are normalized to unity; and the weights of the mini-batch
-        normalization layers in
-        :math:`\text{shortcut}\left(C_{1},C_{2},N_{\downarrow}\right)` objects
-        are normalized to zero.
     mini_batch_norm_eps : `float`, optional
         This parameter specifies the value to use for the construction parameter
         ``eps`` for every construction of an instance of the class
@@ -1965,30 +2116,26 @@ class MLModel(_MLModel):
         The normalization weights of the ML dataset used or to be used to train
         the ML model. This parameter is expected to be equal to the instance
         attribute
-        :attr:`emicroml.modelling.cbed.distortion.estimation.MLDataset.normalization_weights`
+        :attr:`emicroml.modelling.cbed.disk.localization.MLDataset.normalization_weights`
         of the instance of the class
-        :class:`emicroml.modelling.cbed.distortion.estimation.MLDataset`
+        :class:`emicroml.modelling.cbed.disk.localization.MLDataset`
         representing the aforementioned ML dataset. See the documentation for
         the function
-        :func:`emicroml.modelling.cbed.distortion.estimation.normalize_normalizable_elems_in_ml_data_dict`
+        :func:`emicroml.modelling.cbed.disk.localization.normalize_normalizable_elems_in_ml_data_dict`
         for a discussion on normalizing features of ML data instances.
     normalization_biases : `dict`, optional
         The normalization biases of the ML dataset used or to be used to train
         the ML model. This parameter is expected to be equal to the instance
         attribute
-        :attr:`emicroml.modelling.cbed.distortion.estimation.MLDataset.normalization_biases`
+        :attr:`emicroml.modelling.cbed.disk.localization.MLDataset.normalization_biases`
         of the instance of the class
-        :class:`emicroml.modelling.cbed.distortion.estimation.MLDataset`
+        :class:`emicroml.modelling.cbed.disk.localization.MLDataset`
         representing the aforementioned ML dataset.
 
     """
     def __init__(self,
-                 num_pixels_across_each_cbed_pattern=\
-                 _default_num_pixels_across_each_cbed_pattern,
-                 max_num_disks_in_any_cbed_pattern=\
-                 _default_max_num_disks_in_any_cbed_pattern,
-                 architecture=\
-                 _default_architecture,
+                 num_pixels_across_each_cropped_cbed_pattern=\
+                 _default_num_pixels_across_each_cropped_cbed_pattern,
                  mini_batch_norm_eps=\
                  _default_mini_batch_norm_eps,
                  normalization_weights=\
@@ -2203,73 +2350,6 @@ class MLModel(_MLModel):
         ml_predictions = super().make_predictions(**kwargs)
 
         return ml_predictions
-
-
-
-    def predict_distortion_models(self,
-                                  cbed_pattern_images,
-                                  sampling_grid_dims_in_pixels=\
-                                  _default_sampling_grid_dims_in_pixels,
-                                  least_squares_alg_params=\
-                                  _default_least_squares_alg_params):
-        r"""Predict distortion models according to a mini-batch of images.
-
-        The machine learning (ML) model takes as input a mini-batch of images,
-        where each image is assumed to depict a distorted CBED pattern, and as
-        output, the ML model predicts a set of distortion models that describe
-        the distortions of the input images. The distortion model used to
-        describe the distortion of an image is defined in the documentation for
-        the class :class:`distoptica.DistortionModel`. See the documentation for
-        the class :class:`distoptica.DistortionModel` for a discussion on
-        distortion models.
-
-        For each CBED pattern image, an instance ``distortion_model`` of the
-        class :class:`distoptica.DistortionModel` is constructed according to
-        the distortions predicted by the ML model. 
-
-        Parameters
-        ----------
-        cbed_pattern_images : `array_like` (`float`, ndim=3)
-            The mini-batch of images. Let ``mini_batch_size`` be
-            ``cbed_pattern_images.shape[0]``, and ``core_attrs`` be the
-            instance attribute
-            :attr:`emicroml.modelling.cbed.distortion.estimation.MLModel.core_attrs`.
-            For each nonnegative integer ``n`` less than ``mini_batch_size``,
-            ``cbed_pattern_images[n]`` stores the ``n`` th input image of the
-            mini-batch. ``mini_batch_size`` must be positive and
-            ``cbed_pattern_images.shape[1:]`` must be equal to
-            ``2*(num_pixels_across_each_cbed_pattern,)``, where
-            ``num_pixels_across_each_cbed_pattern`` is
-            ``core_attrs["num_pixels_across_each_cbed_pattern"]``, i.e. the
-            number of pixels across each input image.
-        sampling_grid_dims_in_pixels : `array_like` (`int`, shape=(2,)), optional
-            The dimensions of the sampling grid, in units of pixels, used for
-            all distortion models.
-        least_squares_alg_params : :class:`distoptica.LeastSquaresAlgParams` | `None`, optional
-            ``least_squares_alg_params`` specifies the parameters of the
-            least-squares algorithm to be used to calculate the mappings of
-            fractional Cartesian coordinates of distorted images to those of the
-            corresponding undistorted images. ``least_squares_alg_params`` is
-            used to calculate the distortion models mentioned above in the
-            summary documentation. If ``least_squares_alg_params`` is set to
-            ``None``, then the parameter will be reassigned to the value
-            ``distoptica.LeastSquaresAlgParams()``. See the documentation for
-            the class :class:`distoptica.LeastSquaresAlgParams` for details on
-            the parameters of the least-squares algorithm.
-
-        Returns
-        -------
-        distortion_models : `array_like` (:class:`distoptica.DistortionModel`, ndim=1)
-            The distortion models. Note that each distortion model is stored on 
-            the same device as that on which the ML model is stored.
-
-        """
-        kwargs = {key: val
-                  for key, val in locals().items()
-                  if (key not in ("self", "__class__"))}
-        distortion_models = super().predict_distortion_models(**kwargs)
-
-        return distortion_models
 
 
 

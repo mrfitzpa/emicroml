@@ -248,7 +248,47 @@ class InvalidCBEDPatternGenerator4(_cls_alias):
 
     def generate(self):
         cbed_pattern = super().generate()
-        
+
+        if self._generation_count > 0:
+            kwargs = {"num_pixels_across_pattern": \
+                      2*self._num_pixels_across_each_cbed_pattern,
+                      "undistorted_disks": \
+                      cbed_pattern.core_attrs["undistorted_disks"]}
+            cbed_pattern = fakecbed.discretized.CBEDPattern(**kwargs)
+
+        self._generation_count += 1
+
+        return cbed_pattern
+
+
+
+_module_alias = emicroml.modelling.cbed.distortion.estimation
+_cls_alias = _module_alias.DefaultCBEDPatternGenerator
+class InvalidCBEDPatternGenerator5(_cls_alias):
+    def __init__(self,
+                 num_pixels_across_each_cbed_pattern,
+                 max_num_disks_in_any_cbed_pattern,
+                 rng_seed,
+                 sampling_grid_dims_in_pixels,
+                 least_squares_alg_params,
+                 device_name,
+                 skip_validation_and_conversion):
+        kwargs = {key: val
+                  for key, val in locals().items()
+                  if (key not in ("self", "__class__"))}
+        module_alias = emicroml.modelling.cbed.distortion.estimation
+        cls_alias = module_alias.DefaultCBEDPatternGenerator
+        cls_alias.__init__(self, **kwargs)
+
+        self._generation_count = 0
+
+        return None
+
+
+
+    def generate(self):
+        cbed_pattern = super().generate()
+
         if self._generation_count > 0:
             new_core_attr_subset_candidate = \
                 {"num_pixels_across_pattern": \
@@ -264,7 +304,7 @@ class InvalidCBEDPatternGenerator4(_cls_alias):
 
 _module_alias = emicroml.modelling.cbed.distortion.estimation
 _cls_alias = _module_alias.DefaultCBEDPatternGenerator
-class InvalidCBEDPatternGenerator5(_cls_alias):
+class InvalidCBEDPatternGenerator6(_cls_alias):
     def __init__(self,
                  num_pixels_across_each_cbed_pattern,
                  max_num_disks_in_any_cbed_pattern,
@@ -1200,7 +1240,7 @@ def test_1_of_DefaultCBEDPatternGenerator():
     cbed_pattern_generator.generate()
 
     new_core_attr_subset_candidate = {"max_num_disks_in_any_cbed_pattern": 4,
-                                      "rng_seed": 0}
+                                      "rng_seed": 2}
     cbed_pattern_generator.update(new_core_attr_subset_candidate)
 
     with pytest.raises(RuntimeError) as err_info:
@@ -1228,6 +1268,7 @@ def test_1_of_generate_and_save_ml_dataset():
     invalid_cbed_pattern_generator_3 = InvalidCBEDPatternGenerator3(**kwargs)
     invalid_cbed_pattern_generator_4 = InvalidCBEDPatternGenerator4(**kwargs)
     invalid_cbed_pattern_generator_5 = InvalidCBEDPatternGenerator5(**kwargs)
+    invalid_cbed_pattern_generator_6 = InvalidCBEDPatternGenerator6(**kwargs)
 
     output_filename = "./test_data/modelling/cbed/distortion/ml_dataset.h5"
 
@@ -1238,7 +1279,7 @@ def test_1_of_generate_and_save_ml_dataset():
               "max_num_ml_data_instances_per_file_update": 3}
     module_alias.generate_and_save_ml_dataset(**kwargs)
 
-    error_cls_set = (RuntimeError, TypeError) + 4*(ValueError,) + (IOError,)
+    error_cls_set = (RuntimeError, TypeError) + 5*(ValueError,) + (IOError,)
     
     cbed_pattern_generator_candidate_set = (2,
                                             invalid_cbed_pattern_generator_1,
@@ -1246,13 +1287,12 @@ def test_1_of_generate_and_save_ml_dataset():
                                             invalid_cbed_pattern_generator_2,
                                             invalid_cbed_pattern_generator_3,
                                             invalid_cbed_pattern_generator_4,
-                                            invalid_cbed_pattern_generator_5)
+                                            invalid_cbed_pattern_generator_5,
+                                            invalid_cbed_pattern_generator_6)
 
-    max_num_disks_in_any_cbed_pattern_set = 2*(90,) + (1,) + 4*(90,)
+    max_num_disks_in_any_cbed_pattern_set = 2*(90,) + (1,) + 5*(90,)
 
-    num_iterations = len(error_cls_set)
-    
-    for iteration_idx in range(num_iterations):
+    for iteration_idx, _ in enumerate(error_cls_set):
         with pytest.raises(error_cls_set[iteration_idx]) as err_info:
             kwargs["cbed_pattern_generator"] = \
                 cbed_pattern_generator_candidate_set[iteration_idx]
