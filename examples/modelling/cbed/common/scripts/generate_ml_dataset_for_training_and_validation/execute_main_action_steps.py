@@ -56,10 +56,15 @@ script.
 # For parsing command line arguments.
 import argparse
 
+# For accessing imported modules via their names stored as strings.
+import sys
+
 
 
 # For generating images and targets in ML datasets.
 import emicroml.modelling.cbed.distortion.estimation
+import emicroml.modelling.cbed.disk.localization
+import emicroml.modelling.cbed.disk.segmentation
 
 
 
@@ -68,7 +73,9 @@ import emicroml.modelling.cbed.distortion.estimation
 ##############################################
 
 def parse_and_convert_cmd_line_args():
-    accepted_ml_model_tasks = ("cbed/distortion/estimation",)
+    accepted_ml_model_tasks = ("cbed/distortion/estimation",
+                               "cbed/disk/localization",
+                               "cbed/disk/segmentation")
 
     current_func_name = "parse_and_convert_cmd_line_args"
 
@@ -86,8 +93,14 @@ def parse_and_convert_cmd_line_args():
             or (ml_dataset_idx < 0)):
             raise
     except:
+        num_placeholders = len(accepted_ml_model_tasks)
+        unformatted_partial_err_msg = (("``<{}>``, "*(num_placeholders-1))
+                                       + "or ``<{}>``")
+        args = accepted_ml_model_tasks
+        partial_err_msg = unformatted_partial_err_msg.format(*args)
+        
         unformatted_err_msg = globals()["_"+current_func_name+"_err_msg_1"]
-        err_msg = unformatted_err_msg.format(accepted_ml_model_tasks[0])
+        err_msg = unformatted_err_msg.format(partial_err_msg)
         raise SystemExit(err_msg)
 
     converted_cmd_line_args = {"ml_model_task": ml_model_task,
@@ -110,9 +123,9 @@ _parse_and_convert_cmd_line_args_err_msg_1 = \
      "--ml_dataset_idx=<ml_dataset_idx> "
      "--data_dir_1=<data_dir_1>\n"
      "\n"
-     "where ``<ml_model_task>`` must be set to {}; ``<ml_dataset_idx>`` must "
-     "be a nonnegative integer; and ``<data_dir_1>`` must be a valid absolute "
-     "path to a valid existing directory or one to be created.")
+     "where ``<ml_model_task>`` must be {}; ``<ml_dataset_idx>`` must be a "
+     "nonnegative integer; and ``<data_dir_1>`` must be a valid absolute path "
+     "to a valid existing directory or one to be created.")
 
 
 
@@ -129,27 +142,40 @@ path_to_data_dir_1 = converted_cmd_line_args["path_to_data_dir_1"]
 
 
 # Select the ``emicroml`` submodule required to generate a ML dataset that is
-# appropriate to the specified ML model task. Also, select the RNG seed
-# according to the specified ML dataset index and ML model task.
-if ml_model_task == "cbed/distortion/estimation":
-    ml_model_task_module = emicroml.modelling.cbed.distortion.estimation
+# appropriate to the specified ML model task. 
+module_name = "emicroml.modelling.{}".format(ml_model_task).replace("/", ".")
+ml_model_task_module = sys.modules[module_name]
 
     
 
 # Construct the "fake" CBED pattern generator.
 num_pixels_across_each_cbed_pattern = 512
-max_num_disks_in_any_cbed_pattern = 90
 sampling_grid_dims_in_pixels = 2*(num_pixels_across_each_cbed_pattern,)
 
-kwargs = \
-    {"num_pixels_across_each_cbed_pattern": num_pixels_across_each_cbed_pattern,
-     "max_num_disks_in_any_cbed_pattern": max_num_disks_in_any_cbed_pattern,
-     "rng_seed": ml_dataset_idx + 4000,
-     "sampling_grid_dims_in_pixels": sampling_grid_dims_in_pixels,
-     "least_squares_alg_params": None,
-     "device_name": None}
-cbed_pattern_generator = \
-    ml_model_task_module.DefaultCBEDPatternGenerator(**kwargs)
+kwargs = {"num_pixels_across_each_cbed_pattern": \
+          num_pixels_across_each_cbed_pattern,
+          "rng_seed": \
+          ml_dataset_idx + 4000,
+          "sampling_grid_dims_in_pixels": \
+          sampling_grid_dims_in_pixels,
+          "least_squares_alg_params": \
+          None,
+          "device_name": \
+          None}
+if ml_model_task == "cbed/distortion/estimation":
+    kwargs = {**kwargs,
+              "max_num_disks_in_any_cbed_pattern": \
+              90}
+    cls_name = "DefaultCBEDPatternGenerator"
+else:
+    kwargs = {**kwargs,
+              "max_num_disks_in_any_cbed_pattern": \
+              10,
+              "num_pixels_across_each_cropping_window": \
+              num_pixels_across_each_cbed_pattern//4}
+    cls_name = "DefaultCroppedCBEDPatternGenerator"
+cls_alias = getattr(ml_model_task_module, cls_name)
+pattern_generator = cls_alias(**kwargs)
 
 
 
@@ -160,13 +186,23 @@ unformatted_output_filename = (path_to_data_dir_1
                                + "/ml_dataset_{}.h5")
 output_filename = unformatted_output_filename.format(ml_dataset_idx)
 
-kwargs = \
-    {"num_cbed_patterns": 11520,
-     "cbed_pattern_generator": cbed_pattern_generator,
-     "output_filename": output_filename,
-     "max_num_ml_data_instances_per_file_update": 576}
+# num_patterns = 11520
+num_patterns = 2
+
+kwargs = {"output_filename": output_filename,
+          "max_num_ml_data_instances_per_file_update": 576}
 if ml_model_task == "cbed/distortion/estimation":
-    kwargs["max_num_disks_in_any_cbed_pattern"] = \
-        max_num_disks_in_any_cbed_pattern
-    
+    kwargs = {**kwargs,
+              "num_cbed_patterns": \
+              num_patterns,
+              "cbed_pattern_generator": \
+              pattern_generator,
+              "max_num_disks_in_any_cbed_pattern": \
+              pattern_generator.core_attrs["max_num_disks_in_any_cbed_pattern"]}
+else:
+    kwargs = {**kwargs,
+              "num_cropped_cbed_patterns": \
+              num_patterns,
+              "cropped_cbed_pattern_generator": \
+              pattern_generator}
 ml_model_task_module.generate_and_save_ml_dataset(**kwargs)

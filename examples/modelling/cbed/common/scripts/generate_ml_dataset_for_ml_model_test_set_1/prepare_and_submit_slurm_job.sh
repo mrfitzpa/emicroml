@@ -136,7 +136,12 @@ fi
 # their expected final destinations. Also delete/remove any remaining temporary
 # files or directories.
 partial_path_4=ml_datasets/ml_datasets_for_ml_model_test_set_1
-partial_path_5=${partial_path_4}/ml_datasets_with_cbed_patterns_of_
+if [ "${ml_model_task}" == "cbed/distortion/estimation" ]
+then
+    partial_path_5=${partial_path_4}/ml_datasets_with_cbed_patterns_of_
+else
+    partial_path_5=${partial_path_4}/ml_datasets_with_cropped_cbed_patterns_of_
+fi
 partial_path_6=${partial_path_5}${sample_name}
 partial_path_7=${partial_path_6}/ml_datasets_with_${disk_size}_sized_disks
 

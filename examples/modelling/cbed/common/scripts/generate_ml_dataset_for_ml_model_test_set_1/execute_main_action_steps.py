@@ -97,6 +97,8 @@ import skimage.restoration
 
 # For generating ML datsets.
 import emicroml.modelling.cbed.distortion.estimation
+import emicroml.modelling.cbed.disk.localization
+import emicroml.modelling.cbed.disk.segmentation
 
 
 
@@ -122,6 +124,9 @@ class CBEDPatternGenerator():
             rng_seed
         self._device_name = \
             device_name
+
+        self.max_num_disks_in_any_cbed_pattern = \
+            max_num_disks_in_any_cbed_pattern
         
         kwargs = {"path_to_stem_multislice_sim_params": \
                   path_to_stem_multislice_sim_params}
@@ -137,6 +142,8 @@ class CBEDPatternGenerator():
         self._sampling_grid_dims_in_pixels = \
             (undistorted_image_dims_in_pixels[0]//2,
              undistorted_image_dims_in_pixels[1]//2)
+
+        self._ml_model_task_module = self._get_ml_model_task_module()
         
         self._distortion_model_generator = \
             self._generate_distortion_model_generator()
@@ -204,21 +211,34 @@ class CBEDPatternGenerator():
 
 
 
-    def _generate_distortion_model_generator(self):
-        if ml_model_task == "cbed/distortion/estimation":
-            module_alias = emicroml.modelling.cbed.distortion.estimation
-            cls_alias = module_alias.DefaultDistortionModelGenerator
-            kwargs = {"reference_pt": \
-                      (0.5, 0.5),
-                      "rng_seed": \
-                      self._rng_seed,
-                      "sampling_grid_dims_in_pixels": \
-                      self._sampling_grid_dims_in_pixels,
-                      "least_squares_alg_params": \
-                      None,
-                      "device_name": \
-                      self._device_name}
+    def _get_ml_model_task_module(self):
+        ml_model_task = self._ml_model_task
 
+        global_symbol_table = \
+            globals()
+        module_name = \
+            "emicroml.modelling.{}".format(ml_model_task).replace("/", ".")
+        ml_model_task_module = \
+            global_symbol_table[module_name]
+
+        return ml_model_task_module
+
+
+
+    def _generate_distortion_model_generator(self):
+        ml_model_task_module = self._ml_model_task_module
+
+        cls_alias = ml_model_task_module.DefaultDistortionModelGenerator
+        kwargs = {"reference_pt": \
+                  (0.5, 0.5),
+                  "rng_seed": \
+                  self._rng_seed,
+                  "sampling_grid_dims_in_pixels": \
+                  self._sampling_grid_dims_in_pixels,
+                  "least_squares_alg_params": \
+                  None,
+                  "device_name": \
+                  self._device_name}
         distortion_model_generator = cls_alias(**kwargs)
 
         return distortion_model_generator
@@ -518,7 +538,8 @@ class CBEDPatternGenerator():
         quadruple_2 = self._rng.uniform(**kwargs)
 
         trivial_mask_frame_is_not_to_be_generated = \
-            self._rng.choice((True, False), p=(1/2, 1-1/2)).item()
+            (self._rng.choice((True, False), p=(1/2, 1-1/2)).item()
+             * ("cbed/disk" not in self._ml_model_task))
 
         mask_frame = \
             tuple(np.round(((quadruple_1>=quadruple_2)*quadruple_1
@@ -743,8 +764,344 @@ class CBEDPatternGenerator():
 
 
 
+class CroppedCBEDPatternGenerator():
+    def __init__(self,
+                 ml_model_task,
+                 path_to_stem_multislice_sim_intensity_output,
+                 max_num_disks_in_any_cbed_pattern,
+                 rng_seed,
+                 device_name,
+                 path_to_stem_multislice_sim_params,
+                 path_to_ml_training_dataset):
+        self._path_to_ml_training_dataset = \
+            path_to_ml_training_dataset
+
+        kwargs = {key: val
+                  for key, val in locals().items()
+                  if (key not in ("self", "__class__"))}
+        self._cbed_pattern_generator = CBEDPatternGenerator(**kwargs)
+
+        self._principal_disk_idx_candidates = \
+            self._generate_principal_disk_idx_candidates()
+
+        self._rng = self._cbed_pattern_generator._rng
+
+        self._initialize_and_cache_cbed_pattern_params()
+
+        return None
+
+
+
+    def _generate_principal_disk_idx_candidates(self):
+        undistorted_disk_centers = self._get_undistorted_disk_centers()
+
+        ref_pt = np.array((0.5, 0.5))
+        distances = np.linalg.norm(undistorted_disk_centers-ref_pt)
+        disk_idx = distances.argmin().item()
+
+        ref_pt = undistorted_disk_centers[disk_idx]
+        distances = np.linalg.norm(undistorted_disk_centers-ref_pt)
+        nn_distance = np.sort(distances)[1].item()
+        nnn_distance = (np.sqrt(3)*nn_distance).item()
+
+        principal_disk_idx_candidates = \
+            tuple(np.where(distances <= 1.05*nnn_distance)[0].tolist())
+
+        return principal_disk_idx_candidates
+
+
+
+    def _get_undistorted_disk_centers(self):
+        undistorted_disks = self._cbed_pattern_generator._undistorted_disks
+
+        undistorted_disk_centers = \
+            tuple()
+        for undistorted_disk in undistorted_disks:
+            kwargs = \
+                {"undistorted_disk": undistorted_disk}
+            undistorted_disk_center = \
+                _get_undistorted_disk_center(**kwargs)
+            undistorted_disk_centers += \
+                (undistorted_disk_center,)
+        undistorted_disk_centers = \
+            np.array(undistorted_disk_centers)
+
+        return undistorted_disk_centers
+
+
+
+    def _get_undistorted_disk_center(self, undistorted_disk):
+        undistorted_disk_core_attrs = \
+            undistorted_disk.get_core_attrs(deep_copy=False)
+        undistorted_disk_support = \
+            undistorted_disk_core_attrs["support"]
+
+        undistorted_disk_support_core_attrs = \
+            undistorted_disk_support.get_core_attrs(deep_copy=False)
+        undistorted_disk_center = \
+            undistorted_disk_support_core_attrs["center"]
+
+        return undistorted_disk_center
+
+
+
+    def _initialize_and_cache_cbed_pattern_params(self):
+        num_pixels_across_each_uncropped_pattern = \
+            self._cbed_pattern_generator._sampling_grid_dims_in_pixels[0]
+        ml_model_task_module = \
+            self._cbed_pattern_generator._ml_model_task_module
+
+        cropping_window_dims_in_pixels = \
+            2*(num_pixels_across_each_uncropped_pattern//4,)
+
+        kwargs = {"path_to_ml_dataset": self._path_to_ml_training_dataset,
+                  "entire_ml_dataset_is_to_be_cached": False,
+                  "ml_data_values_are_to_be_checked": False,
+                  "max_num_ml_data_instances_per_chunk": 32}
+        ml_dataset = ml_model_task_module.MLDataset(**kwargs)
+
+        kwargs = {"single_dim_slice": slice(0, 1), "device_name": "cpu"}
+        ml_data_instances = ml_dataset.get_ml_data_instances(**kwargs)
+
+        self._cropped_cbed_pattern_params = \
+            {"cropping_window_dims_in_pixels": \
+             2*(num_pixels_across_each_uncropped_pattern//4,),
+             "disk_boundary_sample_size": \
+             ml_data_instances["principal_disk_boundary_pt_sets"].shape[1],
+             "mask_frame": \
+             4*(0,)}
+
+        return None
+
+
+
+    def generate(self):
+        cropped_cbed_pattern_params = self._cropped_cbed_pattern_params
+
+        generation_attempt_count = 0
+        max_num_generation_attempts = 10
+        cropped_cbed_pattern_generation_has_not_been_completed = True
+        
+        while cropped_cbed_pattern_generation_has_not_been_completed:
+            try:
+                param_name_subset = ("principal_disk_idx",
+                                     "cbed_pattern",
+                                     "cropping_window_center")
+                for param_name in param_name_subset:
+                    method_name = "_generate_{}".format(param_name)
+                    method_alias = getattr(self, method_name)
+                    cropped_cbed_pattern_params[param_name] = method_alias()
+                    
+                cls_alias = fakecbed.discretized.CroppedCBEDPattern
+                kwargs = {**cropped_cbed_pattern_params,
+                          "skip_validation_and_conversion": True}
+                cropped_cbed_pattern = cls_alias(**kwargs)
+
+                self._check_cropped_cbed_pattern(cropped_cbed_pattern)
+
+                mask_frame = self._generate_mask_frame(cropped_cbed_pattern)
+
+                kwargs = {"new_core_attr_subset_candidate": \
+                          {"mask_frame": mask_frame},
+                          "skip_validation_and_conversion": \
+                          True}
+                cropped_cbed_pattern.update(**kwargs)
+                
+                cropped_cbed_pattern.get_signal(deep_copy=False)
+
+                cropped_cbed_pattern_generation_has_not_been_completed = False
+            except:
+                generation_attempt_count += 1
+                
+                if generation_attempt_count == max_num_generation_attempts:
+                    unformatted_err_msg = \
+                        _cropped_cbed_pattern_generator_err_msg_2
+                    
+                    args = ("", " ({})".format(max_num_generation_attempts))
+                    err_msg = unformatted_err_msg.format(*args)                    
+                    raise RuntimeError(err_msg)
+
+        return cropped_cbed_pattern
+
+
+
+    def _generate_principal_disk_idx(self):
+        kwargs = {"a": self._principal_disk_idx_candidates}
+        principal_disk_idx = self._rng.choice(**kwargs).item()
+
+        return principal_disk_idx
+
+
+
+    def _generate_cbed_pattern(self):
+        cbed_pattern = self._cbed_pattern_generator.generate()
+
+        return cbed_pattern
+
+
+
+    def _generate_cropping_window_center(self):
+        cropped_cbed_pattern_params = self._cropped_cbed_pattern_params
+        cbed_pattern = cropped_cbed_pattern_params["cbed_pattern"]
+        principal_disk_idx = cropped_cbed_pattern_params["principal_disk_idx"]
+
+        device = cbed_pattern.device
+
+        kwargs = \
+            {"cbed_pattern": cbed_pattern,
+             "principal_disk_idx": principal_disk_idx}
+        q_x_c_and_q_y_c = \
+            self._generate_q_x_c_and_q_y_c_of_principal_disk(**kwargs)
+
+        disk_supports = cbed_pattern.get_disk_supports(deep_copy=False)
+        q_x, q_y = self._generate_q_x_and_q_y_of_cbed_pattern_signal(device)
+
+        disk_support_COMs_shape = (cbed_pattern.num_disks, 2)
+        disk_support_COMs = torch.zeros(disk_support_COMs_shape,
+                                        device=device)
+
+        disk_support_COMs[:, 0] = \
+            ((q_x[None, :, :]*disk_supports).sum(dim=(1, 2))
+             / disk_supports.sum(dim=(1, 2)))
+        disk_support_COMs[:, 1] = \
+            ((q_y[None, :, :]*disk_supports).sum(dim=(1, 2))
+             / disk_supports.sum(dim=(1, 2)))
+
+        displacements = (disk_support_COMs
+                         - disk_support_COMs[principal_disk_idx])
+        distances = torch.linalg.norm(displacements, dim=-1)
+        nn_distance = torch.sort(distances).values[1].item()
+
+        kwargs = {"low": 0, "high": 2*np.pi}
+        phi = self._rng.uniform(**kwargs)
+        
+        kwargs = {"low": 0, "high": 0.4*nn_distance}
+        R = self._rng.uniform(**kwargs)
+
+        cropping_window_center = (q_x_c + R*np.cos(phi).item(),
+                                  q_y_c + R*np.sin(phi).item())
+        
+        return cropping_window_center
+
+
+
+    def _generate_q_x_c_and_q_y_c_of_principal_disk(self,
+                                                    cbed_pattern,
+                                                    principal_disk_idx):
+        cbed_pattern_core_attrs = cbed_pattern.get_core_attrs(deep_copy=False)
+        
+        undistorted_disks = cbed_pattern_core_attrs["undistorted_disks"]
+        undistorted_disk = undistorted_disks[principal_disk_idx]
+
+        distortion_model = cbed_pattern_core_attrs["distortion_model"]
+
+        distortion_model_core_attrs = \
+            distortion_model.get_core_attrs(deep_copy=False)
+        coord_transform_params = \
+            distortion_model_core_attrs["coord_transform_params"]
+        
+        undistorted_disk_core_attrs = \
+            undistorted_disk.get_core_attrs(deep_copy=False)
+        u_x_c, u_y_c = \
+            undistorted_disk_core_attrs_core_attrs["center"]
+
+        device = cbed_pattern.device
+
+        kwargs = {"u_x": torch.tensor(((u_x_c,),), device=device),
+                  "u_y": torch.tensor(((u_y_c,),), device=device),
+                  "coord_transform_params": coord_transform_params,
+                  "device": device,
+                  "skip_validation_and_conversion": True}
+        q_x, q_y = distoptica.apply_coord_transform(**kwargs)
+
+        q_x_c_and_q_y_c_of_principal_disk = (q_x[0, 0].item(), q_y[0, 0].item())
+
+        return q_x_c_and_q_y_c_of_principal_disk
+
+
+
+    def _generate_q_x_and_q_y_of_cbed_pattern_signal(self, device):
+        size = self._num_pixels_across_each_cbed_pattern
+        scale = 1/size
+        offset = 0.5*scale
+
+        pair_of_1d_coord_arrays = \
+            (scale*torch.arange(size, device=device)+offset,
+             1 - (scale*torch.arange(size, device=device)+offset))
+
+        generate_q_x_and_q_y_of_cbed_pattern_signal = \
+            torch.meshgrid(*pair_of_1d_coord_arrays, indexing="xy")
+
+        return generate_q_x_and_q_y_of_cbed_pattern_signal
+
+
+
+    def _check_cropped_cbed_pattern(self, cropped_cbed_pattern):
+        principal_disk_is_overlapping = \
+            cropped_cbed_pattern.principal_disk_is_overlapping
+        principal_disk_is_clipped = \
+            cropped_cbed_pattern.principal_disk_is_clipped
+
+        if principal_disk_is_overlapping or principal_disk_is_clipped:
+            err_msg = _cropped_cbed_pattern_generator_err_msg_1
+            raise ValueError(err_msg)
+
+        return None
+
+
+
+    def _generate_mask_frame(self, cropped_cbed_pattern):
+        ml_model_task = self._cbed_pattern_generator._ml_model_task
+        cropped_cbed_pattern_params = self._cropped_cbed_pattern_params
+
+        num_pixels_across_each_cropping_window = \
+            cropped_cbed_pattern_params["cropping_window_dims_in_pixels"][0]
+        
+        d_q = 1/num_pixels_across_each_cropping_window
+
+        method_name = ("get_principal_disk_bounding_box_"
+                       "in_cropped_image_fractional_coords")
+        method_alias = getattr(cropped_cbed_pattern, method_name)
+        bounding_box = method_alias(deep_copy=False)
+
+        if ml_model_task == "cbed/disk/localization":
+            bounding_box_buffer = 4*d_q*np.ones((4,))
+        else:
+            kwargs = {"low": 4*d_q,"high": max(1/10, 4*d_q), "size": 4}
+            bounding_box_buffer = self._rng.uniform(**kwargs)
+
+        quadruple_1 = np.array(max(bounding_box[0]-bounding_box_buffer[0], 0),
+                               max(1-bounding_box[1]-bounding_box_buffer[1], 0),
+                               max(bounding_box[2]-bounding_box_buffer[2], 0),
+                               max(1-bounding_box[3]-bounding_box_buffer[3], 0))
+
+        if ml_model_task == "cbed/disk/localization":
+            kwargs = {"low": 0/4, "high": 1/4, "size": 4}
+            quadruple_2 = self._rng.uniform(**kwargs)
+            p = (1/2, 1-1/2)
+        else:
+            quadruple_2 = quadruple_1
+            p = (1, 0)
+
+        kwargs = \
+            {"a": (True, False), "p": p}
+        trivial_mask_frame_is_not_to_be_generated = \
+            self._rng.choice(**kwargs).item()
+
+        mask_frame = \
+            tuple(np.round(((quadruple_1<quadruple_2)*quadruple_1
+                            + (quadruple_1>=quadruple_2)*quadruple_2)
+                           * num_pixels_across_each_cropping_window).astype(int)
+                  * trivial_mask_frame_is_not_to_be_generated)
+
+        return mask_frame
+
+
+
 def parse_and_convert_cmd_line_args():
-    accepted_ml_model_tasks = ("cbed/distortion/estimation",)
+    accepted_ml_model_tasks = ("cbed/distortion/estimation",
+                               "cbed/disk/localization",
+                               "cbed/disk/segmentation")
 
     current_func_name = "parse_and_convert_cmd_line_args"
 
@@ -771,8 +1128,14 @@ def parse_and_convert_cmd_line_args():
             or (ml_dataset_idx < 0)):
             raise
     except:
+        num_placeholders = len(accepted_ml_model_tasks)
+        unformatted_partial_err_msg = (("``<{}>``, "*(num_placeholders-1))
+                                       + "or ``<{}>``")
+        args = accepted_ml_model_tasks
+        partial_err_msg = unformatted_partial_err_msg.format(*args)
+        
         unformatted_err_msg = globals()["_"+current_func_name+"_err_msg_1"]
-        err_msg = unformatted_err_msg.format(accepted_ml_model_tasks[0])
+        err_msg = unformatted_err_msg.format(partial_err_msg)
         raise SystemExit(err_msg)
 
     converted_cmd_line_args = {"ml_model_task": ml_model_task,
@@ -797,6 +1160,14 @@ _cbed_pattern_generator_err_msg_2 = \
      "of attempts{} to generate a valid CBED pattern: see traceback for "
      "details.")
 
+_cropped_cbed_pattern_generator_err_msg_1 = \
+    ("The principal CBED disk of the cropped CBED pattern must not be clipped "
+     "nor overlapping with any other CBED disks.")
+_cropped_cbed_pattern_generator_err_msg_2 = \
+    ("The cropped CBED pattern generator{} has exceeded its programmed maximum "
+     "number of attempts{} to generate a valid cropped CBED pattern: see "
+     "traceback for details.")
+
 _parse_and_convert_cmd_line_args_err_msg_1 = \
     ("The correct form of the command is:\n"
      "\n"
@@ -808,12 +1179,12 @@ _parse_and_convert_cmd_line_args_err_msg_1 = \
      "--data_dir_1=<data_dir_1> "
      "--data_dir_2=<data_dir_2>\n"
      "\n"
-     "where ``<ml_model_task>`` must be set to {}; ``<disk_size_idx>`` must be "
-     "a nonnegative integer; ``<disk_size>`` must be one of the strings "
-     "``small``, ``medium``, or ``large``; ``<ml_dataset_idx>`` must be a "
-     "nonnegative integer; ``<data_dir_1>`` must be a valid absolute path to a "
-     "valid existing directory or one to be created; and ``<data_dir_2>`` "
-     "must be the absolute path to a valid directory.")
+     "where ``<ml_model_task>`` must be {}; ``<disk_size_idx>`` must be a "
+     "nonnegative integer; ``<disk_size>`` must be ``small``, ``medium``, or "
+     "``large``; ``<ml_dataset_idx>`` must be a nonnegative integer; "
+     "``<data_dir_1>`` must be a valid absolute path to a valid existing "
+     "directory or one to be created; and ``<data_dir_2>`` must be the "
+     "absolute path to a valid directory.")
 
 
 
@@ -835,24 +1206,19 @@ path_to_data_dir_2 = converted_cmd_line_args["path_to_data_dir_2"]
 # Select the ``emicroml`` submodule required to generate a ML dataset that is
 # appropriate to the specified ML model task. Also, select the RNG seed
 # according to the specified ML dataset index and disk size index.
-if ml_model_task == "cbed/distortion/estimation":
-    ml_model_task_module = emicroml.modelling.cbed.distortion.estimation
-    rng_seed = disk_size_idx + ml_dataset_idx + 100000
+global_symbol_table = globals()
+module_name = "emicroml.modelling.{}".format(ml_model_task).replace("/", ".")
+ml_model_task_module = global_symbol_table[module_name]
+
+rng_seed = disk_size_idx + ml_dataset_idx + 100000
 
 
 
 # Construct the "fake" CBED pattern generator.
-path_to_stem_multislice_sim_params = \
-    path_to_data_dir_2 + "/stem_sim_params.json"
-path_to_stem_multislice_sim_intensity_output = \
-    path_to_data_dir_2 + "/stem_sim_intensity_output.h5"
-
-max_num_disks_in_any_cbed_pattern = 90
-
 kwargs = {"ml_model_task": \
           ml_model_task,
           "path_to_stem_multislice_sim_intensity_output": \
-          path_to_stem_multislice_sim_intensity_output,
+          path_to_data_dir_2 + "/stem_sim_intensity_output.h5",
           "max_num_disks_in_any_cbed_pattern": \
           90,
           "rng_seed": \
@@ -860,31 +1226,50 @@ kwargs = {"ml_model_task": \
           "device_name": \
           None,
           "path_to_stem_multislice_sim_params": \
-          path_to_stem_multislice_sim_params}
-cbed_pattern_generator = CBEDPatternGenerator(**kwargs)
+          path_to_data_dir_2 + "/stem_sim_params.json"}
+if ml_model_task == "cbed/distortion/estimation":
+    cls_name = "CBEDPatternGenerator"
+else:
+    kwargs = {**kwargs,
+              "path_to_ml_training_dataset": \
+              path_to_data_dir_1+"/ml_datasets/ml_dataset_for_training.h5"}
+    cls_name = "CroppedCBEDPatternGenerator"
+cls_alias = global_symbol_table[cls_name]
+pattern_generator = cls_alias(**kwargs)
 
 
 
 # Generate and save the ML dataset.
+cbed_pattern_descriptor = "cropped_" * ("cbed/disk" in ml_model_task)
 sample_name = "MoS2_on_amorphous_C"
 
 unformatted_output_filename = (path_to_data_dir_1
                                + "/ml_datasets"
                                + "/ml_datasets_for_ml_model_test_set_1"
-                               + "/ml_datasets_with_cbed_patterns_of_{}"
+                               + "/ml_datasets_with_{}cbed_patterns_of_{}"
                                + "/ml_datasets_with_{}_sized_disks"
                                + "/ml_dataset_{}.h5")
-output_filename = unformatted_output_filename.format(sample_name,
+output_filename = unformatted_output_filename.format(cbed_pattern_descriptor,
+                                                     sample_name,
                                                      disk_size,
                                                      ml_dataset_idx)
 
-kwargs = \
-    {"num_cbed_patterns": 2880,
-     "cbed_pattern_generator": cbed_pattern_generator,
-     "output_filename": output_filename,
-     "max_num_ml_data_instances_per_file_update": 288}
+num_patterns = 2880
+
+kwargs = {"output_filename": output_filename,
+          "max_num_ml_data_instances_per_file_update": 288}
 if ml_model_task == "cbed/distortion/estimation":
-    kwargs["max_num_disks_in_any_cbed_pattern"] = \
-        max_num_disks_in_any_cbed_pattern
-    
+    kwargs = {**kwargs,
+              "num_cbed_patterns": \
+              num_patterns,
+              "cbed_pattern_generator": \
+              pattern_generator,
+              "max_num_disks_in_any_cbed_pattern": \
+              pattern_generator.max_num_disks_in_any_cbed_pattern}
+else:
+    kwargs = {**kwargs,
+              "num_cropped_cbed_patterns": \
+              num_patterns,
+              "cropped_cbed_pattern_generator": \
+              pattern_generator}    
 ml_model_task_module.generate_and_save_ml_dataset(**kwargs)

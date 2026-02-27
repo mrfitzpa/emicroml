@@ -60,6 +60,9 @@ import hyperspy.axes
 # For image processing tools that can be integrated into deep learning models.
 import kornia
 
+# For calculating the similarity between images.
+import skimage.metrics
+
 # For performing multi-resolution analysis.
 import pywt
 import pytorch_wavelets
@@ -92,10 +95,65 @@ def _get_device(device_name):
 
 
 
+def _check_and_convert_rng_seed(params):
+    kwargs = locals()
+    module_alias = emicroml.modelling.cbed._common
+    func_name = "_check_and_convert_rng_seed"
+    func_alias = getattr(module_alias, func_name)
+    rng_seed = func_alias(**kwargs)
+
+    return rng_seed
+
+
+
+def _pre_serialize_rng_seed(rng_seed):
+    kwargs = locals()
+    module_alias = emicroml.modelling.cbed._common
+    func_name = "_pre_serialize_rng_seed"
+    func_alias = getattr(module_alias, func_name)
+    serializable_rep = func_alias(**kwargs)
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_rng_seed(serializable_rep):
+    kwargs = locals()
+    module_alias = emicroml.modelling.cbed._common
+    func_name = "_de_pre_serialize_rng_seed"
+    func_alias = getattr(module_alias, func_name)
+    rng_seed = func_alias(**kwargs)
+
+    return rng_seed
+
+
+
 def _check_and_convert_sampling_grid_dims_in_pixels(params):
     kwargs = locals()
     module_alias = emicroml.modelling.cbed._common
     func_name = "_check_and_convert_sampling_grid_dims_in_pixels"
+    func_alias = getattr(module_alias, func_name)
+    sampling_grid_dims_in_pixels = func_alias(**kwargs)
+
+    return sampling_grid_dims_in_pixels
+
+
+
+def _pre_serialize_sampling_grid_dims_in_pixels(sampling_grid_dims_in_pixels):
+    kwargs = locals()
+    module_alias = emicroml.modelling.cbed._common
+    func_name = "_pre_serialize_sampling_grid_dims_in_pixels"
+    func_alias = getattr(module_alias, func_name)
+    serializable_rep = func_alias(**kwargs)
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_sampling_grid_dims_in_pixels(serializable_rep):
+    kwargs = locals()
+    module_alias = emicroml.modelling.cbed._common
+    func_name = "_de_pre_serialize_sampling_grid_dims_in_pixels"
     func_alias = getattr(module_alias, func_name)
     sampling_grid_dims_in_pixels = func_alias(**kwargs)
 
@@ -114,10 +172,54 @@ def _check_and_convert_least_squares_alg_params(params):
 
 
 
+def _pre_serialize_least_squares_alg_params(least_squares_alg_params):
+    kwargs = locals()
+    module_alias = emicroml.modelling.cbed._common
+    func_name = "_pre_serialize_least_squares_alg_params"
+    func_alias = getattr(module_alias, func_name)
+    serializable_rep = func_alias(**kwargs)
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_least_squares_alg_params(serializable_rep):
+    kwargs = locals()
+    module_alias = emicroml.modelling.cbed._common
+    func_name = "_de_pre_serialize_least_squares_alg_params"
+    func_alias = getattr(module_alias, func_name)
+    least_squares_alg_params = func_alias(**kwargs)
+
+    return least_squares_alg_params
+
+
+
 def _check_and_convert_device_name(params):
     kwargs = locals()
     module_alias = emicroml.modelling.cbed._common
     func_name = "_check_and_convert_device_name"
+    func_alias = getattr(module_alias, func_name)
+    device_name = func_alias(**kwargs)
+
+    return device_name
+
+
+
+def _pre_serialize_device_name(device_name):
+    kwargs = locals()
+    module_alias = emicroml.modelling.cbed._common
+    func_name = "_pre_serialize_device_name"
+    func_alias = getattr(module_alias, func_name)
+    serializable_rep = func_alias(**kwargs)
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_device_name(serializable_rep):
+    kwargs = locals()
+    module_alias = emicroml.modelling.cbed._common
+    func_name = "_de_pre_serialize_device_name"
     func_alias = getattr(module_alias, func_name)
     device_name = func_alias(**kwargs)
 
@@ -212,6 +314,29 @@ def _check_and_convert_max_num_disks_in_any_cbed_pattern(params):
     kwargs = locals()
     module_alias = emicroml.modelling.cbed._common
     func_name = "_check_and_convert_max_num_disks_in_any_cbed_pattern"
+    func_alias = getattr(module_alias, func_name)
+    max_num_disks_in_any_cbed_pattern = func_alias(**kwargs)
+
+    return max_num_disks_in_any_cbed_pattern
+
+
+
+def _pre_serialize_max_num_disks_in_any_cbed_pattern(
+        max_num_disks_in_any_cbed_pattern):
+    kwargs = locals()
+    module_alias = emicroml.modelling.cbed._common
+    func_name = "_pre_serialize_max_num_disks_in_any_cbed_pattern"
+    func_alias = getattr(module_alias, func_name)
+    serializable_rep = func_alias(**kwargs)
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_max_num_disks_in_any_cbed_pattern(serializable_rep):
+    kwargs = locals()
+    module_alias = emicroml.modelling.cbed._common
+    func_name = "_de_pre_serialize_max_num_disks_in_any_cbed_pattern"
     func_alias = getattr(module_alias, func_name)
     max_num_disks_in_any_cbed_pattern = func_alias(**kwargs)
 
@@ -371,8 +496,11 @@ class _DefaultCBEDPatternGenerator(_cls_alias):
         undistorted_principal_disk_support_center = \
             self._generate_undistorted_principal_disk_support_center(**kwargs)
 
-        kwargs["undistorted_principal_disk_support_center"] = \
-            undistorted_principal_disk_support_center
+        kwargs = \
+            {"u_a_support": \
+             u_a_support,
+             "undistorted_principal_disk_support_center": \
+             undistorted_principal_disk_support_center}
         undistorted_satellite_disk_support_centers = \
             self._generate_undistorted_satellite_disk_support_centers(**kwargs)
 
@@ -413,8 +541,8 @@ class _DefaultCBEDPatternGenerator(_cls_alias):
             e_OI = undistorted_OI_params["eccentricity"]
             theta_OI = undistorted_OI_params["rotation_angle"]
 
-            R_OI = a_OI * np.sqrt((1 - e**2)
-                                  / (1 - (e*np.cos(u_theta_OI+theta_OI))**2))
+            R_OI = a_OI * np.sqrt((1 - e_OI**2)
+                                  / (1 - (e_OI*np.cos(u_theta_OI+theta_OI))**2))
         else:
             u_x_c_OI, u_y_c_OI = undistorted_OI_params["radial_reference_pt"]
             D_OI = undistorted_OI_params["radial_amplitudes"]
@@ -425,7 +553,8 @@ class _DefaultCBEDPatternGenerator(_cls_alias):
             for n in range(1, N_phi_OI+1):
                 R_OI += D_OI[n]*np.cos(n*u_theta_OI - phi_OI[n-1])
 
-        kwargs = {"low": 0, "high": max(0, R_OI-1.2*u_a_support)}
+        kwargs = {"low": 0,
+                  "high": max(0, min(R_OI, 0.5)-1.2*u_a_support)}
         u_r_OI = self._rng.uniform(**kwargs)
 
         undistorted_principal_disk_support_center = \
@@ -449,7 +578,7 @@ class _DefaultCBEDPatternGenerator(_cls_alias):
             u_x_c_0, u_y_c_0 = undistorted_principal_disk_support_center
 
             min_distance_from_principal_disk_support_center = \
-                (u_a_support
+                (2*u_a_support
                  + (4/self._num_pixels_across_each_cbed_pattern))
             max_distance_from_principal_disk_support_center = \
                 ((0.5
@@ -473,6 +602,21 @@ class _DefaultCBEDPatternGenerator(_cls_alias):
                 (undistorted_satellite_disk_support_center,)
 
         return undistorted_satellite_disk_support_centers
+
+
+
+    def _generate_intra_disk_shape_wishlist(self, undistorted_disks):
+        intra_disk_shape_wishlist = \
+            super()._generate_intra_disk_shape_wishlist(undistorted_disks)
+
+        if len(undistorted_disks) == 0:
+            idx = self._rng.choice((0, 1, 2), p=(1/4, 1/2, 1/4)).item()
+            bool_set = ((True, True), (True, False), (False, True))[idx]
+            
+            intra_disk_shape_wishlist["uniform_disk_set"] = bool_set[0]
+            intra_disk_shape_wishlist["nonuniform_lune_set"] = bool_set[1]
+
+        return intra_disk_shape_wishlist
 
 
 
@@ -514,6 +658,11 @@ def _de_pre_serialize_num_pixels_across_each_cropping_window(
 
 
 
+_default_num_pixels_across_each_cropping_window = \
+    _default_num_pixels_across_each_expected_cropping_window
+
+
+
 _cls_alias = fancytypes.PreSerializableAndUpdatable
 class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
     ctor_param_names = ("num_pixels_across_each_cbed_pattern",
@@ -537,8 +686,18 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
 
 
 
-    def __init__(self, ctor_params):
-        kwargs = ctor_params
+    def __init__(self,
+                 num_pixels_across_each_cbed_pattern,
+                 max_num_disks_in_any_cbed_pattern,
+                 rng_seed,
+                 sampling_grid_dims_in_pixels,
+                 least_squares_alg_params,
+                 device_name,
+                 num_pixels_across_each_cropping_window,
+                 skip_validation_and_conversion):
+        kwargs = {key: val
+                  for key, val in locals().items()
+                  if (key not in ("self", "__class__"))}
         kwargs["skip_cls_tests"] = True
         fancytypes.PreSerializableAndUpdatable.__init__(self, **kwargs)
 
@@ -560,12 +719,13 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
 
         kwargs = {**self_core_attrs,
                   "num_pixels_across_each_expected_cropping_window": \
-                  self._num_pixels_across_each_cropping_window}
-        del kwargs["disk_boundary_sample_size"]
+                  self._num_pixels_across_each_cropping_window,
+                  "skip_validation_and_conversion": \
+                  True}
         del kwargs["num_pixels_across_each_cropping_window"]
         self._cbed_pattern_generator = _DefaultCBEDPatternGenerator(**kwargs)
 
-        j = np.log2(num_pixels_across_each_cropping_window).item()
+        j = np.log2(self._num_pixels_across_each_cropping_window).item()
         j = (np.round(j) if (np.isclose(j, round(j))) else np.ceil(j)).item()
         self._disk_boundary_sample_size = round(4*4*2**j)
 
@@ -646,7 +806,7 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
                 cropped_cbed_pattern_params = \
                     self._generate_cropped_cbed_pattern_params()
                 kwargs = \
-                    cbed_pattern_params
+                    cropped_cbed_pattern_params
                 cropped_cbed_pattern = \
                     fakecbed.discretized.CroppedCBEDPattern(**kwargs)
 
@@ -666,11 +826,13 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
                           "skip_validation_and_conversion": \
                           True}
                 cropped_cbed_pattern.update(**kwargs)
+
+                self._check_contrast_of_principcal_disk(cropped_cbed_pattern)
                 
                 cropped_cbed_pattern.get_signal(deep_copy=False)
 
                 cropped_cbed_pattern_generation_has_not_been_completed = False
-            except:
+            except Exception as error:
                 generation_attempt_count += 1
                 
                 if generation_attempt_count == max_num_generation_attempts:
@@ -697,7 +859,7 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
             {"cbed_pattern": cbed_pattern,
              "cropping_window_center": cropping_window_center,
              "cropping_window_dims_in_pixels": cropping_window_dims_in_pixels,
-             "principal_disk_idx": 0,
+             "principal_disk_idx": self._principal_disk_idx,
              "disk_boundary_sample_size": self._disk_boundary_sample_size,
              "mask_frame": 4*(0,)}
 
@@ -706,88 +868,73 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
 
 
     def _generate_cropping_window_center(self, cbed_pattern):
-        q_x_c_and_q_y_c = \
-            self._generate_q_x_c_and_q_y_c_of_principal_disk(**kwargs)
+        disk_supports = \
+            cbed_pattern.get_disk_supports(deep_copy=False)
+        disk_absence_registry = \
+            cbed_pattern.get_disk_absence_registry(deep_copy=False)
 
-        disk_supports = cbed_pattern.get_disk_supports(deep_copy=False)
-        q_x, q_y = self._generate_q_x_and_q_y_of_cbed_pattern_signal()
-
-        disk_support_COMs_shape = (cbed_pattern.num_disks, 2)
-        disk_support_COMs = torch.zeros(disk_support_COMs_shape,
-                                        device=self._device)
-
-        disk_support_COMs[:, 0] = \
-            ((q_x[None, :, :]*disk_supports).sum(dim=(1, 2))
-             / disk_supports.sum(dim=(1, 2)))
-        disk_support_COMs[:, 1] = \
-            ((q_y[None, :, :]*disk_supports).sum(dim=(1, 2))
-             / disk_supports.sum(dim=(1, 2)))
+        method_alias = \
+            self._calc_approximate_bounding_boxes_of_disk_supports_in_pixels
+        kwargs = \
+            {"disk_supports": disk_supports}
+        approximate_bounding_boxes_of_disk_supports_in_pixels = \
+            method_alias(**kwargs)
 
         principal_disk_idx = self._principal_disk_idx
+        N = self._num_pixels_across_each_cbed_pattern
 
-        displacements = (disk_support_COMs
-                         - disk_support_COMs[principal_disk_idx])
+        L_set, R_set, B_set, T_set = \
+            approximate_bounding_boxes_of_disk_supports_in_pixels.t()
+
+        q_x_c_box_set = (L_set+(N-R_set))/(2*N) + 1e6*disk_absence_registry
+        q_y_c_box_set = (B_set+(N-T_set))/(2*N) + 1e6*disk_absence_registry
+
+        kwargs = {"tensors": (q_x_c_box_set, q_y_c_box_set), "dim": 1}
+        positions = torch.stack(**kwargs)
+
+        displacements = (positions - positions[principal_disk_idx])
         distances = torch.linalg.norm(displacements, dim=-1)
-        nn_distance = torch.sort(distances).values[1].item()
+        nn_distance = (torch.sort(distances).values[1].item()
+                       if (len(distances) > 1)
+                       else 1e6)
+
+        q_x_c_box = q_x_c_box_set[principal_disk_idx].item()
+        q_y_c_box = q_y_c_box_set[principal_disk_idx].item()
+
+        tensors = (L_set, R_set, B_set, T_set)
+        L, R, B, T = [tensor[principal_disk_idx].item() for tensor in tensors]
 
         kwargs = {"low": 0, "high": 2*np.pi}
-        phi = self._rng.uniform(**kwargs)
+        u_phi_cwc = self._rng.uniform(**kwargs)
         
-        kwargs = {"low": 0, "high": 0.4*nn_distance}
-        R = self._rng.uniform(**kwargs)
+        kwargs = {"low": 0,
+                  "high": max(min(0.4*N*nn_distance, L-2, R-2, B-2, T-2)/N, 0)}
+        u_r_cwc = self._rng.uniform(**kwargs)
 
-        cropping_window_center = (q_x_c + R*np.cos(phi).item(),
-                                  q_y_c + R*np.sin(phi).item())
+        cropping_window_center = (q_x_c_box + u_r_cwc*np.cos(u_phi_cwc).item(),
+                                  q_y_c_box + u_r_cwc*np.sin(u_phi_cwc).item())
         
         return cropping_window_center
 
 
 
-    def _generate_q_x_c_and_q_y_c_of_principal_disk(self, cbed_pattern):
-        cbed_pattern_core_attrs = cbed_pattern.get_core_attrs(deep_copy=False)
-        
-        undistorted_disks = cbed_pattern_core_attrs["undistorted_disks"]
-        principal_disk_idx = self._principal_disk_idx
-        undistorted_disk = undistorted_disks[principal_disk_idx]
+    def _calc_approximate_bounding_boxes_of_disk_supports_in_pixels(
+            self, disk_supports):
+        rows_are_nonzero = disk_supports.any(dim=-1)+0.0
+        cols_are_nonzero = disk_supports.any(dim=-2)+0.0
 
-        distortion_model = cbed_pattern_core_attrs["distortion_model"]
+        L_set = cols_are_nonzero.argmax(dim=-1)
+        R_set = torch.flip(cols_are_nonzero, dims=(-1,)).argmax(dim=-1)
 
-        distortion_model_core_attrs = \
-            distortion_model.get_core_attrs(deep_copy=False)
-        coord_transform_params = \
-            distortion_model_core_attrs["coord_transform_params"]
-        
-        undistorted_disk_core_attrs = \
-            undistorted_disk.get_core_attrs(deep_copy=False)
-        u_x_c, u_y_c = \
-            undistorted_disk_core_attrs_core_attrs["center"]
+        T_set = rows_are_nonzero.argmax(dim=-1)
+        B_set = torch.flip(rows_are_nonzero, dims=(-1,)).argmax(dim=-1)
 
-        kwargs = {"u_x": torch.tensor(((u_x_c,),), device=self._device),
-                  "u_y": torch.tensor(((u_y_c,),), device=self._device),
-                  "coord_transform_params": coord_transform_params,
-                  "device": self._device,
-                  "skip_validation_and_conversion": True}
-        q_x, q_y = distoptica.apply_coord_transform(**kwargs)
+        kwargs = \
+            {"tensors": (L_set, R_set, B_set, T_set), "dim": 1}
+        approximate_bounding_boxes_of_disk_supports_in_pixels = \
+            torch.stack(**kwargs)
 
-        q_x_c_and_q_y_c_of_principal_disk = (q_x[0, 0].item(), q_y[0, 0].item())
-
-        return q_x_c_and_q_y_c_of_principal_disk
-
-
-
-    def _generate_q_x_and_q_y_of_cbed_pattern_signal(self):
-        size = self._num_pixels_across_each_cbed_pattern
-        scale = 1/size
-        offset = 0.5*scale
-
-        pair_of_1d_coord_arrays = \
-            (scale*torch.arange(size, device=self._device)+offset,
-             1 - (scale*torch.arange(size, device=self._device)+offset))
-
-        generate_q_x_and_q_y_of_cbed_pattern_signal = \
-            torch.meshgrid(*pair_of_1d_coord_arrays, indexing="xy")
-
-        return generate_q_x_and_q_y_of_cbed_pattern_signal
+        return approximate_bounding_boxes_of_disk_supports_in_pixels
 
 
 
@@ -813,10 +960,11 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
             kwargs = {"low": 4*d_q,"high": max(1/10, 4*d_q), "size": 4}
             bounding_box_buffer = self._rng.uniform(**kwargs)
 
-        quadruple_1 = np.array(max(bounding_box[0]-bounding_box_buffer[0], 0),
-                               max(1-bounding_box[1]-bounding_box_buffer[1], 0),
-                               max(bounding_box[2]-bounding_box_buffer[2], 0),
-                               max(1-bounding_box[3]-bounding_box_buffer[3], 0))
+        quadruple_1 = \
+            np.array((max(bounding_box[0]-bounding_box_buffer[0], 0),
+                      max(1-bounding_box[1]-bounding_box_buffer[1], 0),
+                      max(bounding_box[2]-bounding_box_buffer[2], 0),
+                      max(1-bounding_box[3]-bounding_box_buffer[3], 0)))
 
         if ml_model_task == "cbed/disk/localization":
             kwargs = {"low": 0/4, "high": 1/4, "size": 4}
@@ -838,6 +986,119 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
                   * trivial_mask_frame_is_not_to_be_generated)
 
         return mask_frame
+
+
+
+    def _check_contrast_of_principcal_disk(self, cropped_cbed_pattern):
+        cropped_cbed_pattern.get_signal(deep_copy=False)
+
+        kwargs = \
+            {"cropped_cbed_pattern": cropped_cbed_pattern,
+             "exclude_principal_disk": False}
+        partially_reconstructed_cropped_cbed_pattern_1 = \
+            self._partially_reconstruct_cropped_cbed_pattern(**kwargs)
+
+        kwargs = \
+            {"exclude_principal_disk": True}
+        partially_reconstructed_cropped_cbed_pattern_2 = \
+            self._partially_reconstruct_cropped_cbed_pattern(**kwargs)
+
+        kwargs = {"partially_reconstructed_cropped_cbed_pattern_1": \
+                  partially_reconstructed_cropped_cbed_pattern_1,
+                  "partially_reconstructed_cropped_cbed_pattern_2": \
+                  partially_reconstructed_cropped_cbed_pattern_2}
+        self._compare_partially_reconstructed_cropped_cbed_patterns(**kwargs)
+
+        return None
+
+
+
+    def _partially_reconstruct_cropped_cbed_pattern(self,
+                                                    cropped_cbed_pattern,
+                                                    exclude_principal_disk):
+        cropped_cbed_pattern_core_attrs = \
+            cropped_cbed_pattern.get_core_attrs(deep_copy=False)
+        cbed_pattern = \
+            cropped_cbed_pattern_core_attrs["cbed_pattern"]
+
+        cbed_pattern_core_attrs = cbed_pattern.get_core_attrs(deep_copy=False)
+
+        single_dim_slice = \
+            slice(exclude_principal_disk, None)
+        undistorted_disk_subset = \
+            cbed_pattern_core_attrs["undistorted_disks"][single_dim_slice]
+
+        cls_alias = fakecbed.discretized.CBEDPattern
+        kwargs = cbed_pattern_core_attrs.copy()
+        kwargs["undistorted_disks"] = undistorted_disk_subset
+        kwargs["apply_shot_noise"] = False
+        kwargs["gaussian_filter_std_dev"] = 0
+        kwargs["detector_partition_width_in_pixels"] = 0
+        kwargs["skip_validation_and_conversion"] = True
+        partially_reconstruct_cbed_pattern = cls_alias(**kwargs)
+
+        return partially_reconstructed_cropped_cbed_pattern
+
+
+
+    def _check_contrast_of_principcal_disk(self, cropped_cbed_pattern):
+        cropped_cbed_pattern_1 = cropped_cbed_pattern
+        cropped_cbed_pattern_1.get_signal(deep_copy=False)
+
+        cropped_cbed_pattern_1_core_attrs = \
+            cropped_cbed_pattern_1.get_core_attrs(deep_copy=False)
+        cbed_pattern_1 = \
+            cropped_cbed_pattern_1_core_attrs["cbed_pattern"]
+
+        cbed_pattern_1_core_attrs = \
+            cbed_pattern_1.get_core_attrs(deep_copy=False)
+
+        cls_alias = fakecbed.discretized.CBEDPattern
+        kwargs = cbed_pattern_1_core_attrs.copy()
+        kwargs["apply_shot_noise"] = False
+        kwargs["skip_validation_and_conversion"] = True
+        cbed_pattern_2 = cls_alias(**kwargs)
+
+        kwargs["undistorted_disks"] = kwargs["undistorted_disks"][1:]
+        cbed_pattern_3 = cls_alias(**kwargs)
+
+        cls_alias = fakecbed.discretized.CroppedCBEDPattern
+        kwargs = cropped_cbed_pattern_1_core_attrs.copy()
+        kwargs["cbed_pattern"] = cbed_pattern_2
+        kwargs["skip_validation_and_conversion"] = True
+        cropped_cbed_pattern_2 = cls_alias(**kwargs)
+
+        kwargs["cbed_pattern"] = cbed_pattern_3
+        cropped_cbed_pattern_3 = cls_alias(**kwargs)
+
+        disk_supports = \
+            cropped_cbed_pattern_1.get_disk_supports(deep_copy=False)
+        principal_disk_support = \
+            disk_supports[0].numpy(force=True)
+        
+        image_1 = cropped_cbed_pattern_2.get_image(deep_copy=False)
+        image_2 = cropped_cbed_pattern_3.get_image(deep_copy=False)
+
+        enhanced_image_1 = kornia.enhance.equalize(image_1).numpy(force=True)
+        enhanced_image_2 = kornia.enhance.equalize(image_2).numpy(force=True)
+
+        data_min = float("inf")
+        data_max = 0
+        for enhanced_image in (enhanced_image_1, enhanced_image_2):
+            pixel_selection = enhanced_image[principal_disk_support == True]
+            data_min = min(data_min, pixel_selection.min())
+            data_max = max(data_max, pixel_selection.max())
+
+        kwargs = {"im1": enhanced_image_1,
+                  "im2": enhanced_image_2,
+                  "win_size": 5,
+                  "data_range": data_max-data_min,
+                  "full": True}
+        _, ssim_map = skimage.metrics.structural_similarity(**kwargs)
+
+        print("mean_ssim =", ssim_map[principal_disk_support == True].mean())
+
+        return None
 
 
 
@@ -1140,8 +1401,8 @@ class _UnnormalizedMLDataInstanceGenerator(_cls_alias):
             cropped_cbed_pattern_signal.metadata.get_item(path_to_item)
 
         expected_disk_boundary_sample_size = \
-            self._expected_disk_boundary_sample_size = \
-
+            self._expected_disk_boundary_sample_size
+        
         if (disk_boundary_sample_size
             != expected_disk_boundary_sample_size):
             err_msg = _unnormalized_ml_data_instance_generator_err_msg_2
@@ -3195,7 +3456,7 @@ def _construct_signal_using_objs_extracted_from_ml_data_dict(
 
     _update_signal_axes(signal)
 
-    if ((principal_disk_bounding_box is not None):
+    if ((principal_disk_bounding_box is not None)
         and (bounding_box_marker_style_kwargs is not None)):
         kwargs = {"bounding_box": \
                   principal_disk_bounding_box,
@@ -3912,7 +4173,7 @@ class _BottleneckBlock(torch.nn.Module):
         mini_batch_norm = torch.nn.BatchNorm2d(**kwargs)
 
         kwargs = {"mini_batch_norm": mini_batch_norm}
-        self._initialize_mini_batch_norm_weights_and_biases(**kwargs):
+        self._initialize_mini_batch_norm_weights_and_biases(**kwargs)
 
         return mini_batch_norm
 
@@ -4368,7 +4629,7 @@ class _SegmentationNet(torch.nn.Module):
     
 
 
-    def _perform_mra_reconstruction(self, dwt_coeffs)
+    def _perform_mra_reconstruction(self, dwt_coeffs):
         rescaled_approximation_coeffs = dwt_coeffs[:2]
         j_set = range(self._j_vdash, self._j_dashv)
         num_cartesian_cmpnts = 2
@@ -4575,6 +4836,18 @@ _default_normalizable_elems_of_ml_inputs_are_normalized = \
     _module_alias._default_normalizable_elems_of_ml_inputs_are_normalized
 _default_unnormalize_normalizable_elems_of_ml_predictions = \
     _module_alias._default_unnormalize_normalizable_elems_of_ml_predictions
+_default_cropping_window_centers = \
+    None
+_default_auxiliary_distortion_estimation_model = \
+    None
+_default_auxiliary_localization_model = \
+    None
+_default_disk_fitting_alg_params = \
+    None
+_default_distortion_model_sampling_grid_dims_in_pixels = \
+    _default_sampling_grid_dims_in_pixels
+_default_distortion_model_least_squares_alg_params = \
+    _default_least_squares_alg_params
 
 
 

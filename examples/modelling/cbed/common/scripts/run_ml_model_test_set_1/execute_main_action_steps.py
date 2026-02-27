@@ -101,6 +101,8 @@ import torch
 
 # For testing ML models.
 import emicroml.modelling.cbed.distortion.estimation
+import emicroml.modelling.cbed.disk.localization
+import emicroml.modelling.cbed.disk.segmentation
 
 
 
@@ -109,7 +111,9 @@ import emicroml.modelling.cbed.distortion.estimation
 ##############################################
 
 def parse_and_convert_cmd_line_args():
-    accepted_ml_model_tasks = ("cbed/distortion/estimation",)
+    accepted_ml_model_tasks = ("cbed/distortion/estimation",
+                               "cbed/disk/localization",
+                               "cbed/disk/segmentation")
 
     current_func_name = "parse_and_convert_cmd_line_args"
 
@@ -125,8 +129,14 @@ def parse_and_convert_cmd_line_args():
         if ml_model_task not in accepted_ml_model_tasks:
             raise
     except:
+        num_placeholders = len(accepted_ml_model_tasks)
+        unformatted_partial_err_msg = (("``<{}>``, "*(num_placeholders-1))
+                                       + "or ``<{}>``")
+        args = accepted_ml_model_tasks
+        partial_err_msg = unformatted_partial_err_msg.format(*args)
+        
         unformatted_err_msg = globals()["_"+current_func_name+"_err_msg_1"]
-        err_msg = unformatted_err_msg.format(accepted_ml_model_tasks[0])
+        err_msg = unformatted_err_msg.format(partial_err_msg)
         raise SystemExit(err_msg)
 
     converted_cmd_line_args = {"ml_model_task": ml_model_task,
@@ -147,8 +157,8 @@ _parse_and_convert_cmd_line_args_err_msg_1 = \
      "--ml_model_task=<ml_model_task> "
      "--data_dir_1=<data_dir_1>\n"
      "\n"
-     "where ``<ml_model_task>`` must be set to {}; and ``<data_dir_1>`` must "
-     "be the absolute path to a valid directory.")
+     "where ``<ml_model_task>`` must be {}; and ``<data_dir_1>`` must be the "
+     "absolute path to a valid directory.")
 
 
 
@@ -165,8 +175,9 @@ path_to_data_dir_1 = converted_cmd_line_args["path_to_data_dir_1"]
 
 # Select the ``emicroml`` submodule required to generate a ML dataset that is
 # appropriate to the specified ML model task.
-if ml_model_task == "cbed/distortion/estimation":
-    ml_model_task_module = emicroml.modelling.cbed.distortion.estimation
+global_symbol_table = globals()
+module_name = "emicroml.modelling.{}".format(ml_model_task).replace("/", ".")
+ml_model_task_module = global_symbol_table[module_name]
 
 
 
@@ -198,13 +209,15 @@ ml_model_idx_set = tuple(int(name.split("_")[-1])
 
 
 # Search for ML datasets for testing.
+cbed_pattern_descriptor = "cropped_" * ("cbed/disk" in ml_model_task)
 sample_name = "MoS2_on_amorphous_C"
 
 unformatted_path = (path_to_data_dir_1
                     + "/ml_datasets"
                     + "/ml_datasets_for_ml_model_test_set_1"
-                    + "/ml_datasets_with_cbed_patterns_of_{}")
-path_to_ml_datasets = unformatted_path.format(sample_name)
+                    + "/ml_datasets_with_{}cbed_patterns_of_{}")
+path_to_ml_datasets = unformatted_path.format(cbed_pattern_descriptor,
+                                              sample_name)
 
 pattern = "ml_dataset_with_[a-z]*_sized_disks\.h5"
 disk_sizes = tuple(name.split("_")[-3]
@@ -218,9 +231,11 @@ for disk_size in disk_sizes:
     unformatted_path = (path_to_data_dir_1
                         + "/ml_datasets"
                         + "/ml_datasets_for_ml_model_test_set_1"
-                        + "/ml_datasets_with_cbed_patterns_of_{}"
+                        + "/ml_datasets_with_{}cbed_patterns_of_{}"
                         + "/ml_dataset_with_{}_sized_disks.h5")
-    path_to_ml_dataset = unformatted_path.format(sample_name, disk_size)
+    path_to_ml_dataset = unformatted_path.format(cbed_pattern_descriptor,
+                                                 sample_name,
+                                                 disk_size)
 
     kwargs = {"path_to_ml_dataset": path_to_ml_dataset,
               "entire_ml_dataset_is_to_be_cached": True,
@@ -239,8 +254,6 @@ for disk_size in disk_sizes:
     
     for ml_model_idx in ml_model_idx_set:
         # Load ML model to test.
-        architecture = "distoptica_net"
-
         unformatted_path = \
             (path_to_data_dir_1
              + "/ml_models/ml_model_{}")
@@ -267,11 +280,13 @@ for disk_size in disk_sizes:
         # Run ML model test.
         unformatted_path = (path_to_ml_model_state_dicts
                             + "/ml_model_test_set_1_results"
-                            + "/results_for_cbed_patterns_of_{}"
+                            + "/results_for_{}cbed_patterns_of_{}"
                             + "_with_{}_sized_disks")
-        output_dirname = unformatted_path.format(sample_name, disk_size)
+        output_dirname = unformatted_path.format(cbed_pattern_descriptor,
+                                                 sample_name,
+                                                 disk_size)
         
-        misc_model_testing_metadata = {"ml_model_architecture": architecture}
+        misc_model_testing_metadata = dict()
 
         kwargs = {"ml_dataset_manager": ml_dataset_manager,
                   "device_name": device_name,

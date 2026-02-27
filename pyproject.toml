@@ -42,7 +42,8 @@ dependencies = [
     "kornia",
     "h5pywrappers",
     "hyperspy>=2.0.0",
-    "PyWavelets"
+    "PyWavelets",
+    "pytorch-wavelets"
 ]
 requires-python = ">=3.9"
 

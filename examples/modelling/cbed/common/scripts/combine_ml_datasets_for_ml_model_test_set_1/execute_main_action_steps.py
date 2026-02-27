@@ -76,6 +76,8 @@ import shutil
 
 # For combining ML datasets.
 import emicroml.modelling.cbed.distortion.estimation
+import emicroml.modelling.cbed.disk.localization
+import emicroml.modelling.cbed.disk.segmentation
 
 
 
@@ -84,7 +86,9 @@ import emicroml.modelling.cbed.distortion.estimation
 ##############################################
 
 def parse_and_convert_cmd_line_args():
-    accepted_ml_model_tasks = ("cbed/distortion/estimation",)
+    accepted_ml_model_tasks = ("cbed/distortion/estimation",
+                               "cbed/disk/localization",
+                               "cbed/disk/segmentation")
 
     current_func_name = "parse_and_convert_cmd_line_args"
 
@@ -100,8 +104,14 @@ def parse_and_convert_cmd_line_args():
         if ml_model_task not in accepted_ml_model_tasks:
             raise
     except:
+        num_placeholders = len(accepted_ml_model_tasks)
+        unformatted_partial_err_msg = (("``<{}>``, "*(num_placeholders-1))
+                                       + "or ``<{}>``")
+        args = accepted_ml_model_tasks
+        partial_err_msg = unformatted_partial_err_msg.format(*args)
+        
         unformatted_err_msg = globals()["_"+current_func_name+"_err_msg_1"]
-        err_msg = unformatted_err_msg.format(accepted_ml_model_tasks[0])
+        err_msg = unformatted_err_msg.format(partial_err_msg)
         raise SystemExit(err_msg)
 
     converted_cmd_line_args = {"ml_model_task": ml_model_task,
@@ -122,8 +132,8 @@ _parse_and_convert_cmd_line_args_err_msg_1 = \
      "--ml_model_task=<ml_model_task> "
      "--data_dir_1=<data_dir_1>\n"
      "\n"
-     "where ``<ml_model_task>`` must be set to {}; and ``<data_dir_1>`` must "
-     "be the absolute path to a valid directory.")
+     "where ``<ml_model_task>`` must be {}; and ``<data_dir_1>`` must be the "
+     "absolute path to a valid directory.")
 
 
 
@@ -140,8 +150,9 @@ path_to_data_dir_1 = converted_cmd_line_args["path_to_data_dir_1"]
 
 # Select the ``emicroml`` submodule required to generate a ML dataset that is
 # appropriate to the specified ML model task.
-if ml_model_task == "cbed/distortion/estimation":
-    ml_model_task_module = emicroml.modelling.cbed.distortion.estimation
+global_symbol_table = globals()
+module_name = "emicroml.modelling.{}".format(ml_model_task).replace("/", ".")
+ml_model_task_module = global_symbol_table[module_name]
 
 
 
@@ -149,13 +160,15 @@ if ml_model_task == "cbed/distortion/estimation":
 # the ML datasets that will result from the combinations of ML datasets, and
 # combine the ML datasets. After successfully combining the ML datasets, remove
 # the directories containing the input ML dataset files.
+cbed_pattern_descriptor = "cropped_" * ("cbed/disk" in ml_model_task)
 sample_name = "MoS2_on_amorphous_C"
 
 unformatted_path = (path_to_data_dir_1
                     + "/ml_datasets"
                     + "/ml_datasets_for_ml_model_test_set_1"
-                    + "/ml_datasets_with_cbed_patterns_of_{}")
-path_to_input_ml_datasets = unformatted_path.format(sample_name)
+                    + "/ml_datasets_with_{}cbed_patterns_of_{}")
+path_to_input_ml_datasets = unformatted_path.format(cbed_pattern_descriptor,
+                                                    sample_name)
 
 pattern = "ml_datasets_with_[a-z]*_sized_disks"
 partial_path_set_1 = [path_to_input_ml_datasets + "/" + name

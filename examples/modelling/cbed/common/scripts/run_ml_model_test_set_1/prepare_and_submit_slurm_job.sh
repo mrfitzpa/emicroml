@@ -107,15 +107,21 @@ done
 sample_name=MoS2_on_amorphous_C
 
 partial_path_3=ml_datasets/ml_datasets_for_ml_model_test_set_1
-partial_path_4=${partial_path_3}/ml_datasets_with_cbed_patterns_of_
-partial_path_5=${partial_path_4}${sample_name}
+if [ "${ml_model_task}" == "cbed/distortion/estimation" ]
+then
+    partial_path_4=cbed_patterns
+else
+    partial_path_4=cropped_cbed_patterns
+fi
+partial_path_5=${partial_path_3}/ml_datasets_with_${partial_path_4}_of_
+partial_path_6=${partial_path_5}${sample_name}
 
-dirname_1=${path_to_data_dir_1}/${partial_path_5}
+dirname_1=${path_to_data_dir_1}/${partial_path_6}
 for filename_1 in ${dirname_1}/ml_dataset_with_*_sized_disks.h5
 do
     basename_1=$(basename "${filename_1}")
     basename_2=${basename_1}
-    dirname_2=${SLURM_TMPDIR}/${partial_path_5}
+    dirname_2=${SLURM_TMPDIR}/${partial_path_6}
     filename_2=${dirname_2}/${basename_2}
 
     mkdir -p ${dirname_2}
@@ -161,16 +167,16 @@ cd ${SLURM_TMPDIR}
 
 for partial_path_2 in ${partial_path_1}/ml_model_*
 do
-    partial_path_6=${partial_path_2}/ml_model_test_set_1_results
-    for partial_path_7 in ${partial_path_6}/results_for_cbed_patterns_of_*
+    partial_path_7=${partial_path_2}/ml_model_test_set_1_results
+    for partial_path_8 in ${partial_path_7}/results_for_${partial_path_4}_of_*
     do
-	dirname_1=${SLURM_TMPDIR}/${partial_path_7}
+	dirname_1=${SLURM_TMPDIR}/${partial_path_8}
 	filename_1=${dirname_1}/ml_model_testing_summary_output_data.h5
 
 	basename_1=$(basename "${filename_1}")
 	basename_2=${basename_1}
     
-	dirname_2=${path_to_data_dir_1}/${partial_path_7}
+	dirname_2=${path_to_data_dir_1}/${partial_path_8}
 	filename_2=${dirname_2}/${basename_2}
 
 	mkdir -p ${dirname_2}

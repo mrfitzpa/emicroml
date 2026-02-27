@@ -83,6 +83,8 @@ import torch
 import emicroml.modelling.optimizers
 import emicroml.modelling.lr.schedulers
 import emicroml.modelling.cbed.distortion.estimation
+import emicroml.modelling.cbed.disk.localization
+import emicroml.modelling.cbed.disk.segmentation
 
 
 
@@ -91,7 +93,9 @@ import emicroml.modelling.cbed.distortion.estimation
 ##############################################
 
 def parse_and_convert_cmd_line_args():
-    accepted_ml_model_tasks = ("cbed/distortion/estimation",)
+    accepted_ml_model_tasks = ("cbed/distortion/estimation",
+                               "cbed/disk/localization",
+                               "cbed/disk/segmentation")
 
     current_func_name = "parse_and_convert_cmd_line_args"
 
@@ -109,8 +113,14 @@ def parse_and_convert_cmd_line_args():
             or (ml_model_idx < 0)):
             raise
     except:
+        num_placeholders = len(accepted_ml_model_tasks)
+        unformatted_partial_err_msg = (("``<{}>``, "*(num_placeholders-1))
+                                       + "or ``<{}>``")
+        args = accepted_ml_model_tasks
+        partial_err_msg = unformatted_partial_err_msg.format(*args)
+        
         unformatted_err_msg = globals()["_"+current_func_name+"_err_msg_1"]
-        err_msg = unformatted_err_msg.format(accepted_ml_model_tasks[0])
+        err_msg = unformatted_err_msg.format(partial_err_msg)
         raise SystemExit(err_msg)
 
     converted_cmd_line_args = {"ml_model_task": ml_model_task,
@@ -133,9 +143,9 @@ _parse_and_convert_cmd_line_args_err_msg_1 = \
      "--ml_model_idx=<ml_model_idx> "
      "--data_dir_1=<data_dir_1>\n"
      "\n"
-     "where ``<ml_model_task>`` must be set to {}; ``<ml_model_idx>`` must be "
-     "a nonnegative integer; and ``<data_dir_1>`` must be the absolute path "
-     "to a valid directory.")
+     "where ``<ml_model_task>`` must be {}; ``<ml_model_idx>`` must be a "
+     "nonnegative integer; and ``<data_dir_1>`` must be the absolute path to a "
+     "valid directory.")
 
 
 
@@ -171,6 +181,42 @@ torch.backends.cudnn.benchmark = False
 if ml_model_task == "cbed/distortion/estimation":
     ml_model_task_module = emicroml.modelling.cbed.distortion.estimation
     architecture_set = ("distoptica_net",)
+
+    mini_batch_size_set = (64,)
+
+    num_epochs_during_warmup_set = (4,)
+    initial_lr_set = (1e-8,)
+    max_lr_set = (5e-3,)
+
+    weight_decay_set = (7.25e-4,)
+    momentum_factor_set = (0.9,)
+    
+    min_lr_in_first_annealing_cycle_set = (2e-5,)
+    num_lr_annealing_cycles_set = (1,)
+    num_epochs_in_first_lr_annealing_cycle_set = (16,)
+    multiplicative_decay_factor_set = (0.5,)
+elif ml_model_task == "cbed/disk/localization":
+    ml_model_task_module = emicroml.modelling.cbed.disk.localization
+    architecture_set = ("localization_net",)
+
+    mini_batch_size_set = (64,)
+
+    num_epochs_during_warmup_set = (4,)
+    initial_lr_set = (1e-8,)
+    max_lr_set = (5e-3,)
+
+    weight_decay_set = (7.25e-4,)
+    momentum_factor_set = (0.9,)
+    
+    min_lr_in_first_annealing_cycle_set = (2e-5,)
+    num_lr_annealing_cycles_set = (1,)
+    num_epochs_in_first_lr_annealing_cycle_set = (16,)
+    multiplicative_decay_factor_set = (0.5,)
+elif ml_model_task == "cbed/disk/segmentation":
+    ml_model_task_module = emicroml.modelling.cbed.disk.segmentation
+    architecture_set = ("segmentation_net",)
+    wavelet_name_set = ("db8",)
+    j_dashv_minus_j_epsilon_set = (0,)
 
     mini_batch_size_set = (64,)
 
@@ -328,18 +374,34 @@ ml_model_trainer = ml_model_task_module.MLModelTrainer(**kwargs)
 
 
 # Initialize the ML model.
+if ml_model_task == "cbed/disk/segmentation":
+    kwargs = {"single_dim_slice": slice(0, 1), "device_name": "cpu"}
+    ml_data_instances = ml_dataset.get_ml_data_instances(**kwargs)
+    
+    disk_boundary_sample_size = \
+        ml_data_instances["principal_disk_boundary_pt_sets"].shape[1]
+    j_dashv = \
+        round(np.log2(disk_boundary_sample_size))
+    j_epsilon = \
+        j_dashv-j_dashv_minus_j_epsilon_set[ml_model_idx%M]
+
 ml_model_ctor_params = {"num_pixels_across_each_cbed_pattern": \
                         ml_training_dataset.num_pixels_across_each_cbed_pattern,
                         "mini_batch_norm_eps": \
-                        1e-5}
-
+                        1e-5,
+                        "normalization_weights": \
+                        ml_training_dataset.normalization_weights,
+                        "normalization_biases": \
+                        ml_training_dataset.normalization_biases}
 if ml_model_task == "cbed/distortion/estimation":
-    ml_model_ctor_params = {"architecture": \
-                            architecture_set[ml_model_idx%M],
-                            "normalization_weights": \
-                            ml_training_dataset.normalization_weights,
-                            "normalization_biases": \
-                            ml_training_dataset.normalization_biases}
+    ml_model_ctor_params = {**ml_model_ctor_params,
+                            "architecture": \
+                            architecture_set[ml_model_idx%M]}
+elif ml_model_task == "cbed/disk/segmentation":
+    ml_model_ctor_params = {**ml_model_ctor_params,
+                            "wavelet_name": wavelet_name_set[ml_model_idx%M],
+                            "j_epsilon": j_epsilon,
+                            "j_dashv": j_dashv}
 
 kwargs = ml_model_ctor_params
 ml_model = ml_model_task_module.MLModel(**kwargs)

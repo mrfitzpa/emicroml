@@ -257,8 +257,7 @@ def parse_and_convert_cmd_line_args():
          "train_ml_model_set",
          "generate_ml_datasets_for_ml_model_test_set_1",
          "combine_ml_datasets_for_ml_model_test_set_1",
-         "run_ml_model_test_set_1",
-         "run_rgm_test_set_1")
+         "run_ml_model_test_set_1")
 
     current_func_name = "parse_and_convert_cmd_line_args"
 

@@ -78,6 +78,8 @@ import shutil
 
 # For combining ML datasets.
 import emicroml.modelling.cbed.distortion.estimation
+import emicroml.modelling.cbed.disk.localization
+import emicroml.modelling.cbed.disk.segmentation
 
 
 
@@ -86,7 +88,9 @@ import emicroml.modelling.cbed.distortion.estimation
 ##############################################
 
 def parse_and_convert_cmd_line_args():
-    accepted_ml_model_tasks = ("cbed/distortion/estimation",)
+    accepted_ml_model_tasks = ("cbed/distortion/estimation",
+                               "cbed/disk/localization",
+                               "cbed/disk/segmentation")
 
     current_func_name = "parse_and_convert_cmd_line_args"
 
@@ -102,8 +106,14 @@ def parse_and_convert_cmd_line_args():
         if ml_model_task not in accepted_ml_model_tasks:
             raise
     except:
+        num_placeholders = len(accepted_ml_model_tasks)
+        unformatted_partial_err_msg = (("``<{}>``, "*(num_placeholders-1))
+                                       + "or ``<{}>``")
+        args = accepted_ml_model_tasks
+        partial_err_msg = unformatted_partial_err_msg.format(*args)
+        
         unformatted_err_msg = globals()["_"+current_func_name+"_err_msg_1"]
-        err_msg = unformatted_err_msg.format(accepted_ml_model_tasks[0])
+        err_msg = unformatted_err_msg.format(partial_err_msg)
         raise SystemExit(err_msg)
 
     converted_cmd_line_args = {"ml_model_task": ml_model_task,
@@ -124,8 +134,8 @@ _parse_and_convert_cmd_line_args_err_msg_1 = \
      "--ml_model_task=<ml_model_task> "
      "--data_dir_1=<data_dir_1>\n"
      "\n"
-     "where ``<ml_model_task>`` must be set to {}; and ``<data_dir_1>`` must "
-     "be the absolute path to a valid directory.")
+     "where ``<ml_model_task>`` must be {}; and ``<data_dir_1>`` must be the "
+     "absolute path to a valid directory.")
 
 
 
@@ -142,8 +152,9 @@ path_to_data_dir_1 = converted_cmd_line_args["path_to_data_dir_1"]
 
 # Select the ``emicroml`` submodule required to generate a ML dataset that is
 # appropriate to the specified ML model task.
-if ml_model_task == "cbed/distortion/estimation":
-    ml_model_task_module = emicroml.modelling.cbed.distortion.estimation
+global_symbol_table = globals()
+module_name = "emicroml.modelling.{}".format(ml_model_task).replace("/", ".")
+ml_model_task_module = global_symbol_table[module_name]
 
 
 

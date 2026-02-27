@@ -1320,7 +1320,8 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         max_abs_amplitude_sums = []
 
         for undistorted_disk_support in undistorted_disk_supports:
-            kwargs = {"undistorted_disk_support": undistorted_disk_support,
+            kwargs = {"undistorted_disks": undistorted_disks,
+                      "undistorted_disk_support": undistorted_disk_support,
                       "undistorted_tds_model_1": undistorted_tds_model_1,
                       "undistorted_tds_model_2": undistorted_tds_model_2}
             intra_disk_shapes, max_abs_amplitude_sum = method_alias_1(**kwargs)
@@ -1373,18 +1374,6 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
         undistorted_disk_supports = tuple()
         for undistorted_disk_support_center in undistorted_disk_support_centers:
-            # if eccentricity == 0.0:
-            #     kwargs = {"radius": u_a_support}
-            #     support_cls = fakecbed.shapes.Circle
-            # else:
-            #     kwargs = {"semi_major_axis": u_a_support,
-            #               "eccentricity": eccentricity,
-            #               "rotation_angle": u_theta_support}
-            #     support_cls = fakecbed.shapes.Ellipse
-            # kwargs["center"] = undistorted_disk_support_center
-            # kwargs["intra_shape_val"] = 1
-            # kwargs["skip_validation_and_conversion"] = True
-            # undistorted_disk_support = support_cls(**kwargs)
             kwargs = {"semi_major_axis": u_a_support,
                       "eccentricity": eccentricity,
                       "rotation_angle": u_theta_support,
@@ -1766,13 +1755,15 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
     def _generate_intra_disk_shapes_and_max_abs_amplitude_sum(
             self,
+            undistorted_disks,
             undistorted_disk_support,
             undistorted_tds_model_1,
             undistorted_tds_model_2):
         method_alias = \
             self._generate_prescaled_intra_disk_shapes_and_amplitude_sums
         kwargs = \
-            {"undistorted_disk_support": undistorted_disk_support}
+            {"undistorted_disks": undistorted_disks,
+             "undistorted_disk_support": undistorted_disk_support}
         prescaled_intra_disk_shapes, prescaled_amplitude_sums = \
             method_alias(**kwargs)
 
@@ -1803,12 +1794,12 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
     def _generate_prescaled_intra_disk_shapes_and_amplitude_sums(
-            self, undistorted_disk_support):
+            self, undistorted_disks, undistorted_disk_support):
         intra_disk_shape_wishlist_keys = \
             self._generate_intra_disk_shape_wishlist_keys()
 
         intra_disk_shape_wishlist = \
-            self._generate_intra_disk_shape_wishlist()
+            self._generate_intra_disk_shape_wishlist(undistorted_disks)
         
         unformatted_method_name_1 = "_generate_{}"
         unformatted_method_name_2 = "_generate_prescaled_amplitude_set_of_{}"
@@ -1854,7 +1845,10 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
 
 
 
-    def _generate_intra_disk_shape_wishlist(self):
+    def _generate_intra_disk_shape_wishlist(self, undistorted_disks):
+        # This method is overridden elsewhere, wherein ``undistorted_disks`` is
+        # used.
+
         intra_disk_shape_wishlist = \
             {"uniform_disk_set": \
              self._rng.choice((True, False), p=(3/6, 1-3/6)).item(),

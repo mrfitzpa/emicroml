@@ -83,7 +83,12 @@ cd ${path_to_data_dir_1}
 sample_name=MoS2_on_amorphous_C
 
 partial_path_1=ml_datasets/ml_datasets_for_ml_model_test_set_1
-partial_path_2=${partial_path_1}/ml_datasets_with_cbed_patterns_of_
+if [ "${ml_model_task}" == "cbed/distortion/estimation" ]
+then
+    partial_path_2=${partial_path_1}/ml_datasets_with_cbed_patterns_of_
+else
+    partial_path_2=${partial_path_1}/ml_datasets_with_cropped_cbed_patterns_of_
+fi
 partial_path_3=${partial_path_2}${sample_name}
 
 for partial_path_4 in ${partial_path_3}/ml_datasets_with_*_sized_disks
