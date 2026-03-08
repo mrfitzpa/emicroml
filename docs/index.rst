@@ -57,7 +57,7 @@ Estimation of optical distortion in CBED patterns
 
 If you are using machine learning models constructed via our ``emicroml``
 library to estimate optical distortion in convergent beam electron diffraction
-(CBED) patterns, please cite Ref. Ref. [Fitzpatrick1]_.
+(CBED) patterns, please cite Ref. [Fitzpatrick1]_.
 
 
      
