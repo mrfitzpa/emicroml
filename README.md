@@ -31,7 +31,9 @@ repository](https://github.com/mrfitzpa/emicroml).
 - [Learning how to use `emicroml`](#learning-how-to-use-emicroml)
 - [Reproducing data of preprints and published
   papers](#reproducing-data-of-preprints-and-published-papers)
-  - [arXiv:2509.01075 (2025)](#arxiv250901075-2025)
+  - [Ultramicroscopy **283** (2026), 114347](#ultramicroscopy-283-2026-114347)
+- [How to cite `emicroml`](#how-to-cite-emicroml)
+  - [For estimation of optical distortion in CBED patterns](#for-estimation-of-optical-distortion-in-cbed-patterns)
 
 
 
@@ -163,10 +165,24 @@ understand what each line of code is doing.
 
 
 
-### arXiv:2509.01075 (2025)
+### Ultramicroscopy **283** (2026), 114347
 
 The majority of the data presented in
 Ref. [Fitzpatrick1](https://mrfitzpa.github.io/emicroml/literature.html#fitzpatrick1)
 can be reproduced by running all of the examples listed on the page [Examples of
 distortion estimation of CBED
 patterns](https://mrfitzpa.github.io/emicroml/examples/modelling/cbed/distortion/estimation.html#examples-modelling-cbed-distortion-estimation-sec).
+
+
+
+## How to cite `emicroml`
+
+
+
+### For estimation of optical distortion in CBED patterns
+
+If you are using machine learning models constructed via our `emicroml` library
+to estimate optical distortion in convergent beam electron diffraction (CBED)
+patterns, please cite
+Ref. [Fitzpatrick1](https://mrfitzpa.github.io/emicroml/literature.html#fitzpatrick1).
+

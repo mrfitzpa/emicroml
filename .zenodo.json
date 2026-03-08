@@ -31,14 +31,22 @@
     "license": {
 	"id": "GPL-3.0"
     },
-    "publication_date": "2026-01-19",
+    "publication_date": "2026-03-08",
     "title": "EMicroML",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "access_right": "open",
     "upload_type": "software",
     "language": "eng",
     "communities": [
         {"identifier": "tem"},
 	{"identifier": "4d-stem"}
+    ],
+    "related_identifiers": [
+        {
+            "scheme": "doi",
+            "identifier": "10.1016/j.ultramic.2026.114347",
+            "relation": "isSupplementTo",
+            "resource_type": "publication-article"
+        }
     ]
 }

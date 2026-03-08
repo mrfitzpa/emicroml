@@ -28,8 +28,8 @@ keywords:
   - deep learning
   - gpu
 license: GPL-3.0
-version: 0.0.6
-date-released: '2026-01-19'
+version: 0.0.7
+date-released: '2026-03-08'
 identifiers:
   - description: "This is the collection of archived snapshots of all versions."
     type: doi

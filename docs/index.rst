@@ -38,12 +38,26 @@ Reproducing data of preprints and published papers
 
 
 
-arXiv:2509.01075 (2025)
-~~~~~~~~~~~~~~~~~~~~~~~
+Ultramicroscopy **283** (2026), 114347
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The majority of the data presented in Ref. [Fitzpatrick1]_ can be reproduced by
 running all of the examples listed on the page
 :ref:`examples_modelling_cbed_distortion_estimation_sec`.
+
+
+
+How to cite ``emicroml``
+------------------------
+
+
+
+Estimation of optical distortion in CBED patterns
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you are using machine learning models constructed via our ``emicroml``
+library to estimate optical distortion in convergent beam electron diffraction
+(CBED) patterns, please cite Ref. Ref. [Fitzpatrick1]_.
 
 
      
