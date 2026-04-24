@@ -96,6 +96,7 @@ def parse_overriding_sbatch_options_file(path_to_repo_root):
 # Parse the command line arguments.
 parser = argparse.ArgumentParser()
 argument_names = ("ml_model_task",
+                  "ml_input_image_width",
                   "ml_dataset_idx",
                   "data_dir_1",
                   "repo_root",
@@ -104,6 +105,7 @@ for argument_name in argument_names:
     parser.add_argument("--"+argument_name)
 args = parser.parse_args()
 ml_model_task = args.ml_model_task
+ml_input_image_width_in_pixels = int(args.ml_input_image_width)
 ml_dataset_idx = int(args.ml_dataset_idx)
 path_to_data_dir_1 = args.data_dir_1
 path_to_repo_root = args.repo_root
@@ -133,6 +135,7 @@ if use_slurm == "yes":
                path_to_repo_root,
                path_to_data_dir_1,
                ml_model_task,
+               ml_input_image_width_in_pixels,
                ml_dataset_idx,
                overwrite_slurm_tmpdir))
     partial_cmd_str = "bash" if (shutil.which("sbatch") is None) else "sbatch"
@@ -143,10 +146,12 @@ else:
                                  + "/execute_main_action_steps.py")
     unformatted_cmd_str = ("python {} "
                            "--ml_model_task={} "
+                           "--ml_input_image_width={} "
                            "--ml_dataset_idx={} "
                            "--data_dir_1={}")
     cmd_str = unformatted_cmd_str.format(path_to_script_to_execute,
                                          ml_model_task,
+                                         ml_input_image_width_in_pixels,
                                          ml_dataset_idx,
                                          path_to_data_dir_1)
 

@@ -55,10 +55,11 @@ path_to_dir_containing_current_script=${1}
 path_to_repo_root=${2}
 path_to_data_dir_1=${3}
 ml_model_task=${4}
-disk_size_idx=${5}
-disk_size=${6}
-ml_dataset_idx=${7}
-overwrite_slurm_tmpdir=${8}
+ml_input_image_width_in_pixels=${5}
+disk_size_idx=${6}
+disk_size=${7}
+ml_dataset_idx=${8}
+overwrite_slurm_tmpdir=${9}
 
 
 
@@ -115,6 +116,7 @@ path_to_script_to_execute=${path_to_dir_containing_current_script}/${basename}
 
 python ${path_to_script_to_execute} \
        --ml_model_task=${ml_model_task} \
+       --ml_input_image_width=${ml_input_image_width_in_pixels} \
        --disk_size_idx=${disk_size_idx} \
        --disk_size=${disk_size} \
        --ml_dataset_idx=${ml_dataset_idx} \
@@ -135,18 +137,27 @@ fi
 # Move the non-temporary output data that is generated from the main steps to
 # their expected final destinations. Also delete/remove any remaining temporary
 # files or directories.
-partial_path_4=ml_datasets/ml_datasets_for_ml_model_test_set_1
+partial_path_4=ml_datasets
+if [[ "${ml_model_task}" == "cbed/disk/"* ]
+then       
+    N=${ml_input_image_width_in_pixels}
+    partial_path_5=${partial_path_4}/ml_datasets_with_${N}_pixel_wide
+    partial_path_6=${partial_path_5}_cropped_cbed_patterns
+else
+    partial_path_6=${partial_path_4}
+fi
+partial_path_7=${partial_path_6}/ml_datasets_for_ml_model_test_set_1    
 if [ "${ml_model_task}" == "cbed/distortion/estimation" ]
 then
-    partial_path_5=${partial_path_4}/ml_datasets_with_cbed_patterns_of_
+    partial_path_8=${partial_path_7}/ml_datasets_with_cbed_patterns_of_
 else
-    partial_path_5=${partial_path_4}/ml_datasets_with_cropped_cbed_patterns_of_
+    partial_path_8=${partial_path_7}/ml_datasets_with_cropped_cbed_patterns_of_
 fi
-partial_path_6=${partial_path_5}${sample_name}
-partial_path_7=${partial_path_6}/ml_datasets_with_${disk_size}_sized_disks
+partial_path_9=${partial_path_8}${sample_name}
+partial_path_10=${partial_path_9}/ml_datasets_with_${disk_size}_sized_disks
 
-dirname_1=${SLURM_TMPDIR}/${partial_path_7}
-dirname_2=${path_to_data_dir_1}/${partial_path_7}
+dirname_1=${SLURM_TMPDIR}/${partial_path_10}
+dirname_2=${path_to_data_dir_1}/${partial_path_10}
 basename_1=ml_dataset_${ml_dataset_idx}.h5
 basename_2=${basename_1}
 filename_1=${dirname_1}/${basename_1}

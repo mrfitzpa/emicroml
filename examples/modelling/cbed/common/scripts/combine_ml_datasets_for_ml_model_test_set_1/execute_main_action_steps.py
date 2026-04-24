@@ -72,6 +72,9 @@ import pathlib
 # For removing directories.
 import shutil
 
+# For accessing imported modules via their names stored as strings.
+import sys
+
 
 
 # For combining ML datasets.
@@ -150,9 +153,8 @@ path_to_data_dir_1 = converted_cmd_line_args["path_to_data_dir_1"]
 
 # Select the ``emicroml`` submodule required to generate a ML dataset that is
 # appropriate to the specified ML model task.
-global_symbol_table = globals()
 module_name = "emicroml.modelling.{}".format(ml_model_task).replace("/", ".")
-ml_model_task_module = global_symbol_table[module_name]
+ml_model_task_module = sys.modules[module_name]
 
 
 
@@ -160,35 +162,43 @@ ml_model_task_module = global_symbol_table[module_name]
 # the ML datasets that will result from the combinations of ML datasets, and
 # combine the ML datasets. After successfully combining the ML datasets, remove
 # the directories containing the input ML dataset files.
-cbed_pattern_descriptor = "cropped_" * ("cbed/disk" in ml_model_task)
-sample_name = "MoS2_on_amorphous_C"
-
-unformatted_path = (path_to_data_dir_1
-                    + "/ml_datasets"
-                    + "/ml_datasets_for_ml_model_test_set_1"
-                    + "/ml_datasets_with_{}cbed_patterns_of_{}")
-path_to_input_ml_datasets = unformatted_path.format(cbed_pattern_descriptor,
-                                                    sample_name)
-
-pattern = "ml_datasets_with_[a-z]*_sized_disks"
-partial_path_set_1 = [path_to_input_ml_datasets + "/" + name
-                      for name in os.listdir(path_to_input_ml_datasets)
+pattern = r"ml_datasets_with_([0-9]*)_pixel_wide_cropped_cbed_patterns"
+path_to_ml_datasets = path_to_data_dir_1 + "/ml_datasets"
+partial_path_set_1 = ["/" + name
+                      for name in os.listdir(path_to_ml_datasets)
                       if re.fullmatch(pattern, name)]
+partial_path_set_1 += [""]*(len(partial_path_set_1) == 0)
+
 for partial_path_1 in partial_path_set_1:
-    pattern = "ml_dataset_[0-9]*\.h5"
-    input_ml_dataset_filenames = [partial_path_1 + "/" + name
-                                  for name in os.listdir(partial_path_1)
-                                  if re.fullmatch(pattern, name)]
+    cbed_pattern_descriptor = "cropped_" * ("cbed/disk" in ml_model_task)
+    sample_name = "MoS2_on_amorphous_C"
 
-    output_ml_dataset_basename = \
-        pathlib.Path(partial_path_1).name.replace("datasets", "dataset")
-    output_ml_dataset_filename = \
-        path_to_input_ml_datasets + "/" + output_ml_dataset_basename + ".h5"
+    unformatted_path = (path_to_ml_datasets
+                        + partial_path_1
+                        + "/ml_datasets_for_ml_model_test_set_1"
+                        + "/ml_datasets_with_{}cbed_patterns_of_{}")
+    path_to_input_ml_datasets = unformatted_path.format(cbed_pattern_descriptor,
+                                                        sample_name)
 
-    kwargs = {"input_ml_dataset_filenames": input_ml_dataset_filenames,
-              "output_ml_dataset_filename": output_ml_dataset_filename,
-              "rm_input_ml_dataset_files": True,
-              "max_num_ml_data_instances_per_file_update": 240}
-    ml_model_task_module.combine_ml_dataset_files(**kwargs)
+    pattern = "ml_datasets_with_[a-z]*_sized_disks"
+    partial_path_set_2 = [path_to_input_ml_datasets + "/" + name
+                          for name in os.listdir(path_to_input_ml_datasets)
+                          if re.fullmatch(pattern, name)]
+    for partial_path_2 in partial_path_set_2:
+        pattern = r"ml_dataset_[0-9]*\.h5"
+        input_ml_dataset_filenames = [partial_path_2 + "/" + name
+                                      for name in os.listdir(partial_path_2)
+                                      if re.fullmatch(pattern, name)]
 
-    shutil.rmtree(partial_path_1)
+        output_ml_dataset_basename = \
+            pathlib.Path(partial_path_2).name.replace("datasets", "dataset")
+        output_ml_dataset_filename = \
+            path_to_input_ml_datasets + "/" + output_ml_dataset_basename + ".h5"
+
+        kwargs = {"input_ml_dataset_filenames": input_ml_dataset_filenames,
+                  "output_ml_dataset_filename": output_ml_dataset_filename,
+                  "rm_input_ml_dataset_files": True,
+                  "max_num_ml_data_instances_per_file_update": 240}
+        ml_model_task_module.combine_ml_dataset_files(**kwargs)
+
+        shutil.rmtree(partial_path_2)

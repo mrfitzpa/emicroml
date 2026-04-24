@@ -29,7 +29,7 @@ import time
 import copy
 
 # For creating path objects, checking whether certain directories exists, and
-# making directories.
+# making and removing directories.
 import pathlib
 
 # For checking for instances of the class ``collections.OrderedDict``.
@@ -2708,7 +2708,7 @@ def _update_and_flush_buffer_and_return_updated_ml_data_instance_idx(
         kwargs = \
             {"num_ml_data_instances": 1}
         ml_data_instances = \
-            unnormalized_ml_data_instance_generator._generate(**kwargs)
+                unnormalized_ml_data_instance_generator._generate(**kwargs)
 
         func_alias = \
             _store_ml_data_instances_in_respective_buffers

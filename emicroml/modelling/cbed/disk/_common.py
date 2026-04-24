@@ -25,6 +25,9 @@
 # For generating the alphabet.
 import string
 
+# For removing directories.
+import pathlib
+
 
 
 # For validating and converting objects. Also for getting fully qualified names
@@ -829,12 +832,10 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
 
                 self._check_contrast_of_principcal_disk(cropped_cbed_pattern)
                 
-                cropped_cbed_pattern.get_signal(deep_copy=False)
-
                 cropped_cbed_pattern_generation_has_not_been_completed = False
-            except Exception as error:
+            except:
                 generation_attempt_count += 1
-                
+
                 if generation_attempt_count == max_num_generation_attempts:
                     unformatted_err_msg = \
                         _default_cropped_cbed_pattern_generator_err_msg_2
@@ -992,21 +993,19 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
     def _check_contrast_of_principcal_disk(self, cropped_cbed_pattern):
         cropped_cbed_pattern.get_signal(deep_copy=False)
 
-        kwargs = \
-            {"cropped_cbed_pattern": cropped_cbed_pattern,
-             "exclude_principal_disk": False}
-        partially_reconstructed_cropped_cbed_pattern_1 = \
-            self._partially_reconstruct_cropped_cbed_pattern(**kwargs)
+        partially_reconstructed_cropped_cbed_patterns = \
+            tuple()
+        for exclude_principal_disk in (False, True):
+            kwargs = \
+                {"cropped_cbed_pattern": cropped_cbed_pattern,
+                 "exclude_principal_disk": exclude_principal_disk}
+            partially_reconstructed_cropped_cbed_pattern = \
+                self._partially_reconstruct_cropped_cbed_pattern(**kwargs)
+            partially_reconstructed_cropped_cbed_patterns += \
+                (partially_reconstructed_cropped_cbed_pattern,)
 
-        kwargs = \
-            {"exclude_principal_disk": True}
-        partially_reconstructed_cropped_cbed_pattern_2 = \
-            self._partially_reconstruct_cropped_cbed_pattern(**kwargs)
-
-        kwargs = {"partially_reconstructed_cropped_cbed_pattern_1": \
-                  partially_reconstructed_cropped_cbed_pattern_1,
-                  "partially_reconstructed_cropped_cbed_pattern_2": \
-                  partially_reconstructed_cropped_cbed_pattern_2}
+        kwargs = {"partially_reconstructed_cropped_cbed_patterns": \
+                  partially_reconstructed_cropped_cbed_patterns}
         self._compare_partially_reconstructed_cropped_cbed_patterns(**kwargs)
 
         return None
@@ -1035,68 +1034,56 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
         kwargs["gaussian_filter_std_dev"] = 0
         kwargs["detector_partition_width_in_pixels"] = 0
         kwargs["skip_validation_and_conversion"] = True
-        partially_reconstruct_cbed_pattern = cls_alias(**kwargs)
+        partially_reconstructed_cbed_pattern = cls_alias(**kwargs)
+
+        cls_alias = fakecbed.discretized.CroppedCBEDPattern
+        kwargs = cropped_cbed_pattern_core_attrs.copy()
+        kwargs["cbed_pattern"] = partially_reconstructed_cbed_pattern
+        kwargs["skip_validation_and_conversion"] = True
+        partially_reconstructed_cropped_cbed_pattern = cls_alias(**kwargs)
 
         return partially_reconstructed_cropped_cbed_pattern
 
 
 
-    def _check_contrast_of_principcal_disk(self, cropped_cbed_pattern):
-        cropped_cbed_pattern_1 = cropped_cbed_pattern
-        cropped_cbed_pattern_1.get_signal(deep_copy=False)
+    def _compare_partially_reconstructed_cropped_cbed_patterns(
+            self, partially_reconstructed_cropped_cbed_patterns):
+        pattern = partially_reconstructed_cropped_cbed_patterns[0]
+        disk_supports = pattern.get_disk_supports(deep_copy=False)
+        principal_disk_idx = self._principal_disk_idx
+        principal_disk_support = disk_supports[principal_disk_idx]
 
-        cropped_cbed_pattern_1_core_attrs = \
-            cropped_cbed_pattern_1.get_core_attrs(deep_copy=False)
-        cbed_pattern_1 = \
-            cropped_cbed_pattern_1_core_attrs["cbed_pattern"]
+        images = tuple()
+        for pattern in partially_reconstructed_cropped_cbed_patterns:
+            image = pattern.get_image(deep_copy=False)
 
-        cbed_pattern_1_core_attrs = \
-            cbed_pattern_1.get_core_attrs(deep_copy=False)
+            kwargs = {"input": image, "mask": ~principal_disk_support}
+            pixel_selection = torch.masked_select(**kwargs)
 
-        cls_alias = fakecbed.discretized.CBEDPattern
-        kwargs = cbed_pattern_1_core_attrs.copy()
-        kwargs["apply_shot_noise"] = False
-        kwargs["skip_validation_and_conversion"] = True
-        cbed_pattern_2 = cls_alias(**kwargs)
+            a = pixel_selection.max().item()
+            b = pixel_selection.min().item()
 
-        kwargs["undistorted_disks"] = kwargs["undistorted_disks"][1:]
-        cbed_pattern_3 = cls_alias(**kwargs)
+            image = (image-b) / (a-b)
+            images += (image,)
 
-        cls_alias = fakecbed.discretized.CroppedCBEDPattern
-        kwargs = cropped_cbed_pattern_1_core_attrs.copy()
-        kwargs["cbed_pattern"] = cbed_pattern_2
-        kwargs["skip_validation_and_conversion"] = True
-        cropped_cbed_pattern_2 = cls_alias(**kwargs)
+        a, b = (-float("inf"), float("inf"))
+        for image in images:
+            a = max(a, image.max().item())
+            b = min(b, image.min().item())
 
-        kwargs["cbed_pattern"] = cbed_pattern_3
-        cropped_cbed_pattern_3 = cls_alias(**kwargs)
+        for image in images:
+            gamma = 0.3
+            image[:, :] = (image[:, :]-b) / (a-b)
+            image[:, :] = image[:, :]**gamma
 
-        disk_supports = \
-            cropped_cbed_pattern_1.get_disk_supports(deep_copy=False)
-        principal_disk_support = \
-            disk_supports[0].numpy(force=True)
-        
-        image_1 = cropped_cbed_pattern_2.get_image(deep_copy=False)
-        image_2 = cropped_cbed_pattern_3.get_image(deep_copy=False)
+        kwargs = {"input": torch.abs(images[1]-images[0]),
+                  "mask": principal_disk_support}
+        mae = torch.masked_select(**kwargs).mean()
 
-        enhanced_image_1 = kornia.enhance.equalize(image_1).numpy(force=True)
-        enhanced_image_2 = kornia.enhance.equalize(image_2).numpy(force=True)
-
-        data_min = float("inf")
-        data_max = 0
-        for enhanced_image in (enhanced_image_1, enhanced_image_2):
-            pixel_selection = enhanced_image[principal_disk_support == True]
-            data_min = min(data_min, pixel_selection.min())
-            data_max = max(data_max, pixel_selection.max())
-
-        kwargs = {"im1": enhanced_image_1,
-                  "im2": enhanced_image_2,
-                  "win_size": 5,
-                  "data_range": data_max-data_min,
-                  "full": True}
-        _, ssim_map = skimage.metrics.structural_similarity(**kwargs)
-
-        print("mean_ssim =", ssim_map[principal_disk_support == True].mean())
+        tol = 0.06
+        if mae < tol:
+            err_msg = _default_cropped_cbed_pattern_generator_err_msg_3
+            raise ValueError(err_msg)
 
         return None
 
@@ -1252,10 +1239,16 @@ def _generate_cropped_cbed_pattern_signal(cropped_cbed_pattern_generator):
 
 
 def _check_cropped_cbed_pattern_signal(cropped_cbed_pattern_signal):
+    path_to_item = \
+        "FakeCBED.principal_disk_is_overlapping"
     principal_disk_is_overlapping = \
-        cropped_cbed_pattern.principal_disk_is_overlapping
+        cropped_cbed_pattern_signal.metadata.get_item(path_to_item)
+
+    path_to_item = \
+        "FakeCBED.principal_disk_is_clipped"
     principal_disk_is_clipped = \
-        cropped_cbed_pattern.principal_disk_is_clipped
+        cropped_cbed_pattern_signal.metadata.get_item(path_to_item)
+
     cropped_cbed_pattern_dims_in_pixels = \
         cropped_cbed_pattern_signal.axes_manager.signal_shape
                 
@@ -1272,9 +1265,10 @@ def _check_cropped_cbed_pattern_signal(cropped_cbed_pattern_signal):
 
     try:
         params = {"num_pixels_across_each_cropping_window": \
-                  cropped_cbed_pattern_dims_in_pixels}
+                  cropped_cbed_pattern_dims_in_pixels[0]}
         _ = _check_and_convert_num_pixels_across_each_cropping_window(params)
     except:
+        divisor = _generate_divisor_2()
         unformatted_err_msg = globals()[current_func_name+"_err_msg_3"]
         err_msg = unformatted_err_msg.format(divisor)
         raise ValueError(err_msg)
@@ -1319,7 +1313,7 @@ def _extract_ml_data_dict_from_cropped_cbed_pattern_signal(
         j_vdash = _get_j_vdash_from_wavelet_name(wavelet_name)
         ml_data_dict[key] = np.zeros((2**j_vdash, 2))
     for key in ml_data_dict:
-        ml_data_dict[key] = np.expand_dim(ml_data_dict[key], axis=0)
+        ml_data_dict[key] = np.expand_dims(ml_data_dict[key], axis=0)
 
     # For each key ``key`` in
     # ``keys_related_to_mra+("principal_disk_boundary_pt_sets",)``,
@@ -1630,7 +1624,7 @@ def _reinterpolate_boundary_pt_set(interpolated_boundary_pt_set,
     rolled_s = np.roll(**kwargs)
 
     independent_data = ((rolled_s-s[max_horizontal_coord_idx])/s[-1])%1
-    independent_data = np.append(independent_data, 1)
+    independent_data[-1] = 1
 
     for cartesian_cmpnt_idx in range(num_cartesian_cmpnts):
         kwargs = {"a": interpolated_boundary_pt_set[:, cartesian_cmpnt_idx],
@@ -1643,7 +1637,7 @@ def _reinterpolate_boundary_pt_set(interpolated_boundary_pt_set,
         kwargs = \
             {"x": data_on_which_to_eval_interpolant,
              "xp": independent_data,
-             "yp": dependent_data}
+             "fp": dependent_data}
         reinterpolated_boundary_pt_set[:, cartesian_cmpnt_idx] = \
             np.interp(**kwargs)
 
@@ -1678,7 +1672,7 @@ def _perform_mra_of_principal_disk_boundary_pt_sets(
             for cartesian_cmpnt_idx in range(num_cartesian_cmpnts):
                 kwargs = \
                     {"data": \
-                     principal_disk_boundary_pt_set[cartesian_cmpnt_idx],
+                     principal_disk_boundary_pt_set[:, cartesian_cmpnt_idx],
                      "wavelet": \
                      wavelet,
                      "mode": \
@@ -1713,13 +1707,6 @@ _module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLDataNormalizer
 class _MLDataNormalizer(_cls_alias):
     def __init__(self, max_num_ml_data_instances_per_file_update):
-        self._ml_data_dict_key_subset_1 = \
-            ("principal_disk_boundary_pt_sets",)
-        self._ml_data_dict_key_subset_2 = \
-            _generate_keys_related_to_mra()
-        self._ml_data_dict_key_subset_3 = \
-            self._ml_data_dict_key_subset_1 + self._ml_data_dict_key_subset_2
-
         module_alias = emicroml.modelling._common
         cls_alias = module_alias._MLDataNormalizer
         kwargs = {"keys_of_unnormalizable_ml_data_dict_elems": \
@@ -1733,6 +1720,13 @@ class _MLDataNormalizer(_cls_alias):
                   "max_num_ml_data_instances_per_file_update": \
                   max_num_ml_data_instances_per_file_update}
         cls_alias.__init__(self, **kwargs)
+
+        self._ml_data_dict_key_subset_1 = \
+            ("principal_disk_boundary_pt_sets",)
+        self._ml_data_dict_key_subset_2 = \
+            _generate_keys_related_to_mra()
+        self._ml_data_dict_key_subset_3 = \
+            self._ml_data_dict_key_subset_1 + self._ml_data_dict_key_subset_2
 
         return None
 
@@ -1774,8 +1768,12 @@ class _MLDataNormalizer(_cls_alias):
 
 
     def _normalize_ml_dataset_file(self, path_to_ml_dataset, print_msgs):
+        for key in self._ml_data_dict_key_subset_3:
+            self._extrema_cache[key] = {"min": float("inf"),
+                                        "max": -float("inf")}
+
         kwargs = {"path_to_ml_dataset": path_to_ml_dataset}
-        self._perform_mra_of_ml_dataset_file(**kwargs)
+        self._perform_mra_of_ml_dataset_file_and_save_to_said_file(**kwargs)
 
         kwargs["print_msgs"] = print_msgs
         super()._normalize_ml_dataset_file(**kwargs)
@@ -1818,11 +1816,6 @@ class _MLDataNormalizer(_cls_alias):
             method_alias(**kwargs)
 
         file_obj = hdf5_dataset.file
-        
-        for key in self._ml_data_dict_key_subset_3:
-            hdf5_dataset_path = key
-            self._extrema_cache[key]["min"] = file_obj[hdf5_dataset_path].min()
-            self._extrema_cache[key]["max"] = file_obj[hdf5_dataset_path].max()
         del file_obj[hdf5_dataset.name]
 
         self._update_normalization_weights_and_biases()
@@ -1843,9 +1836,9 @@ class _MLDataNormalizer(_cls_alias):
         hdf5_dataset_A = self._get_hdf5_dataset(**kwargs)
 
         hdf5_dataset_A_shape = hdf5_dataset_A.shape
-        hdf5_dataset_B_shape = (hdf5_dataset_A_shape[0], self._j_dashv, 2)
+        hdf5_dataset_B_shape = (hdf5_dataset_A_shape[0], 2**self._j_dashv, 2)
 
-        file_obj = hdf5_dataset.file
+        file_obj = hdf5_dataset_A.file
 
         kwargs = {"name": hdf5_dataset_B_path,
                   "shape": hdf5_dataset_B_shape,
@@ -1857,8 +1850,9 @@ class _MLDataNormalizer(_cls_alias):
             attr = hdf5_dataset_A.attrs[attr_name]
             hdf5_dataset_B.attrs[attr_name] = attr
 
+        key = hdf5_dataset_A_path
         if key in self._ml_data_dict_key_subset_1:
-            kwargs = {"source": hdf5_dataset_A,
+            kwargs = {"source": hdf5_dataset_A_path,
                       "dest": hdf5_dataset_A_path + "_copy"}
             file_obj.copy(**kwargs)
 
@@ -1873,10 +1867,7 @@ class _MLDataNormalizer(_cls_alias):
 
 
     def _perform_mra_of_ml_data_instance_chunk_and_save_to_output_file(
-            self,
-            chunk_idx,
-            max_num_ml_data_instances_per_chunk,
-            hdf5_dataset):
+            self, chunk_idx, max_num_ml_data_instances_per_chunk, hdf5_dataset):
         kwargs = \
             {"chunk_idx": \
              chunk_idx,
@@ -1898,33 +1889,45 @@ class _MLDataNormalizer(_cls_alias):
         kwargs = \
             {"principal_disk_boundary_pt_sets": \
              reinterpolated_principal_disk_boundary_pt_sets_from_chunk}
-        mra_results_of_principal_disk_boundary_pt_sets_from_chunk = \
+        unnormalized_output_data_chunks = \
             _perform_mra_of_principal_disk_boundary_pt_sets(**kwargs)
 
         kwargs = {"chunk_idx": \
                   chunk_idx,
+                  "max_num_ml_data_instances_per_chunk": \
+                  max_num_ml_data_instances_per_chunk,
                   "unnormalized_output_data_chunks": \
-                  mra_results_of_principal_disk_boundary_pt_sets_from_chunk,
+                  unnormalized_output_data_chunks,
                   "file_obj": \
                   hdf5_dataset.file}
         self._save_unnormalized_output_data_chunks(**kwargs)
+
+        for key in self._ml_data_dict_key_subset_3:
+            self._extrema_cache[key]["min"] = \
+                min(unnormalized_output_data_chunks[key].min(),
+                    self._extrema_cache[key]["min"])
+            self._extrema_cache[key]["max"] = \
+                max(unnormalized_output_data_chunks[key].max(),
+                    self._extrema_cache[key]["max"])
 
         return None
 
 
 
-    def _save_unnormalized_output_data_chunks(self,
-                                              chunk_idx,
-                                              unnormalized_output_data_chunks,
-                                              file_obj):
+    def _save_unnormalized_output_data_chunks(
+            self,
+            chunk_idx,
+            max_num_ml_data_instances_per_chunk,
+            unnormalized_output_data_chunks,
+            file_obj):
         for key in unnormalized_output_data_chunks:
             output_hdf5_path = key
             kwargs = {"starting_idx_offset": \
-                      self._ml_data_instance_idx_offset,
+                      0,
                       "chunk_idx": \
                       chunk_idx,
                       "max_num_ml_data_instances_per_chunk": \
-                      self._max_num_ml_data_instances_per_chunk,
+                      max_num_ml_data_instances_per_chunk,
                       "data_chunk": \
                       unnormalized_output_data_chunks[key],
                       "output_hdf5_dataset": \
@@ -2122,16 +2125,6 @@ class _MLDataRenormalizer(_cls_alias):
     def __init__(self,
                  input_ml_dataset_filenames,
                  max_num_ml_data_instances_per_file_update):
-        self._ml_data_dict_key_subset_1 = \
-            ("principal_disk_boundary_pt_sets",)
-        self._ml_data_dict_key_subset_2 = \
-            _generate_keys_related_to_mra()
-        self._ml_data_dict_key_subset_3 = \
-            self._ml_data_dict_key_subset_1 + self._ml_data_dict_key_subset_2
-        self._ml_data_dict_key_subset_4 = \
-            tuple(set(self._ml_data_dict_keys)
-                  - set(self._ml_data_dict_key_subset_3))
-
         kwargs = \
             {"max_num_ml_data_instances_per_file_update": \
              max_num_ml_data_instances_per_file_update}
@@ -2148,6 +2141,15 @@ class _MLDataRenormalizer(_cls_alias):
                   ml_data_normalization_weights_and_biases_loader}
         cls_alias.__init__(self, **kwargs)
 
+        for subset_idx in range(1, 4):
+            attr_name = "_ml_data_dict_key_subset_{}".format(subset_idx)
+            attr = getattr(self._ml_data_normalizer, attr_name)
+            setattr(self, attr_name, attr)
+
+        self._ml_data_dict_key_subset_4 = \
+            tuple(set(self._ml_data_dict_keys)
+                  - set(self._ml_data_dict_key_subset_3))
+
         return None
 
 
@@ -2156,7 +2158,7 @@ class _MLDataRenormalizer(_cls_alias):
             self,
             output_ml_dataset_filename,
             rm_input_ml_dataset_files):
-        copy_of_ml_data_dict_keys = self._ml_data_dict_keys.copy()
+        copy_of_ml_data_dict_keys = tuple(self._ml_data_dict_keys)
         self._ml_data_dict_keys = self._ml_data_dict_key_subset_4
 
         copy_and_renormalize_input_data_subset_4_and_save_to_output_file = \
@@ -2224,17 +2226,7 @@ class _MLDataRenormalizer(_cls_alias):
             self._ml_data_instance_idx_offset += \
                 self._ml_data_instance_counts_of_input_ml_datasets[key]
 
-        output_file_obj = h5py.File(output_ml_dataset_filename, "r")
-
-        extrema_cache = self._ml_data_normalizer._extrema_cache
-        for key in self._ml_data_dict_key_subset_3:
-            hdf5_dataset_path = key
-            extrema_cache[key]["min"] = output_file_obj[hdf5_dataset_path].min()
-            extrema_cache[key]["max"] = output_file_obj[hdf5_dataset_path].max()
-
         self._ml_data_normalizer._update_normalization_weights_and_biases()
-
-        output_file_obj.close()
 
         return None
 
@@ -2303,7 +2295,7 @@ class _MLDataRenormalizer(_cls_alias):
         kwargs = \
             {"principal_disk_boundary_pt_sets": \
              reinterpolated_principal_disk_boundary_pt_sets_from_chunk}
-        mra_results_of_principal_disk_boundary_pt_sets_from_chunk = \
+        unnormalized_output_data_chunks = \
             (_perform_mra_of_principal_disk_boundary_pt_sets(**kwargs)
              if reinterpolation_is_required
              else unnormalized_input_data_chunks.copy())
@@ -2311,10 +2303,18 @@ class _MLDataRenormalizer(_cls_alias):
         kwargs = {"chunk_idx": \
                   chunk_idx,
                   "unnormalized_output_data_chunks": \
-                  mra_results_of_principal_disk_boundary_pt_sets_from_chunk,
+                  unnormalized_output_data_chunks,
                   "output_file_obj": \
                   output_file_obj}
         self._save_unnormalized_output_data_chunks(**kwargs)
+
+        for key in self._ml_data_dict_key_subset_3:
+            self._ml_data_normalizer._extrema_cache[key]["min"] = \
+                min(unnormalized_output_data_chunks[key].min(),
+                    self._ml_data_normalizer._extrema_cache[key]["min"])
+            self._ml_data_normalizer._extrema_cache[key]["max"] = \
+                max(unnormalized_output_data_chunks[key].max(),
+                    self._ml_data_normalizer._extrema_cache[key]["max"])
 
         return None
 
@@ -2346,7 +2346,7 @@ class _MLDataRenormalizer(_cls_alias):
 
         kwargs = {"input_hdf5_dataset": input_hdf5_dataset,
                   "input_data_chunk": normalized_input_data_chunk}
-        self._check_values_of_input_data_chunk(**kwargs)
+        self._check_values_of_data_chunk(**kwargs)
 
         input_normalization_weight = \
             input_hdf5_dataset.attrs["normalization_weight"]
@@ -2440,7 +2440,13 @@ class _MLDataShapeAnalyzer(_cls_alias):
         hdf5_dataset_path_to_shape_map = \
             method_alias(**kwargs)
 
-        hdf5_dataset_path_to_shape_map[popping_key] = 2**self._j_dashv
+        total_num_ml_data_instances = \
+            hdf5_dataset_path_to_shape_map["cropped_cbed_pattern_images"][0]
+
+        hdf5_dataset_path_to_shape_map[popping_key] = \
+            (total_num_ml_data_instances,
+             2**self._j_dashv,
+             2)
 
         map_alias[popping_key] = popped_map_alias_elem
 
@@ -2493,7 +2499,7 @@ class _MLDataShapeAnalyzer(_cls_alias):
             j_dashv_candidate_lower_limit = \
                 _calc_j_dashv_candidate_lower_limit()
 
-            j = np.log2(hdf5_dataset.shape[1])
+            j = np.log2(hdf5_dataset_shape[1])
             j = (np.round(j)
                  if (np.isclose(j, round(j)))
                  else np.ceil(j)).item()
@@ -3111,7 +3117,7 @@ def _generate_bounding_box_marker(bounding_box,
     q_x_c_box = (R_box+L_box)/2.0
     q_y_c_box = (B_box+T_box)/2.0
 
-    kwargs = {"offsets": (q_x_c_box, q_y_c_box),
+    kwargs = {"offsets": np.array((q_x_c_box, q_y_c_box)),
               "widths": (R_box-L_box),
               "heights": (B_box-T_box),
               **bounding_box_marker_style_kwargs}
@@ -3147,8 +3153,7 @@ def _check_and_convert_boundary_pt_marker_style_kwargs(params):
                         "plot_on_signal",
                         "name",
                         "ScalarMappable_array",
-                        "offsets",
-                        "sizes")
+                        "offsets")
 
         if any(key in obj for key in invalid_keys):
             err_msg = globals()[current_func_name+"_err_msg_1"]
@@ -3250,7 +3255,7 @@ def _ml_data_dict_to_signals(ml_data_dict,
     principal_disk_bounding_boxes = \
         _get_principal_disk_bounding_boxes_from_ml_data_dict(**kwargs)
     principal_disk_boundary_pt_sets = \
-        _generate_principal_disk_boundary_pt_sets_from_ml_data_dict(**kwargs)
+        _get_principal_disk_boundary_pt_sets_from_ml_data_dict(**kwargs)
 
     signals = tuple()
     global_symbol_table = globals()
@@ -3458,23 +3463,23 @@ def _construct_signal_using_objs_extracted_from_ml_data_dict(
 
     if ((principal_disk_bounding_box is not None)
         and (bounding_box_marker_style_kwargs is not None)):
-        kwargs = {"bounding_box": \
+        kwargs = {"principal_disk_bounding_box": \
                   principal_disk_bounding_box,
                   "bounding_box_marker_style_kwargs": \
-                  bounding_box_marker_style_kwargs}
-        bounding_box_marker = _generate_bounding_box_marker(**kwargs)
-        
-        signal.add_marker(bounding_box_marker, permanent=True)
+                  bounding_box_marker_style_kwargs,
+                  "signal": \
+                  signal}
+        _generate_bounding_box_marker_and_add_to_signal(**kwargs)
 
     if ((principal_disk_boundary_pt_set is not None)
-        and (boundary_pt_marker_style_kwargs)):
-        kwargs = {"boundary_pt_set": \
+        and (boundary_pt_marker_style_kwargs is not None)):
+        kwargs = {"principal_disk_boundary_pt_set": \
                   principal_disk_boundary_pt_set,
                   "boundary_pt_marker_style_kwargs": \
-                  boundary_pt_marker_style_kwargs}
-        boundary_pt_marker_set = _generate_boundary_pt_marker_set(**kwargs)
-
-        signal.add_marker(boundary_pt_marker_set, permanent=True)
+                  boundary_pt_marker_style_kwargs,
+                  "signal": \
+                  signal}
+        _generate_boundary_pt_marker_set_and_add_to_signal(**kwargs)
 
     return signal
 
@@ -3482,11 +3487,9 @@ def _construct_signal_using_objs_extracted_from_ml_data_dict(
 
 def _infer_illumination_support(cropped_cbed_pattern_image,
                                 cropped_disk_overlap_map):
-    inferred_illumination_support = \
-        (cropped_cbed_pattern_image != 0).numpy(force=True)
+    inferred_illumination_support = (cropped_cbed_pattern_image != 0)
     if cropped_disk_overlap_map is not None:
-        inferred_illumination_support += \
-            (cropped_disk_overlap_map > 0)
+        inferred_illumination_support += (cropped_disk_overlap_map > 0)
 
     return inferred_illumination_support
 
@@ -3519,6 +3522,46 @@ def _update_signal_axes(signal):
         axis = hyperspy.axes.UniformDataAxis(**kwargs)
         signal.axes_manager[axis_idx].update_from(axis)
         signal.axes_manager[axis_idx].name = axis.name
+
+    return None
+
+
+
+def _generate_bounding_box_marker_and_add_to_signal(
+        principal_disk_bounding_box,
+        bounding_box_marker_style_kwargs,
+        signal):
+    kwargs = {"bounding_box": \
+              principal_disk_bounding_box,
+              "bounding_box_marker_style_kwargs": \
+              bounding_box_marker_style_kwargs}
+    bounding_box_marker = _generate_bounding_box_marker(**kwargs)
+
+    kwargs = {"marker": bounding_box_marker,
+              "permanent": True,
+              "plot_signal": False,
+              "plot_marker": False}
+    signal.add_marker(**kwargs)
+
+    return None
+
+
+
+def _generate_boundary_pt_marker_set_and_add_to_signal(
+        principal_disk_boundary_pt_set,
+        boundary_pt_marker_style_kwargs,
+        signal):
+    kwargs = {"boundary_pt_set": \
+              principal_disk_boundary_pt_set,
+              "boundary_pt_marker_style_kwargs": \
+              boundary_pt_marker_style_kwargs}
+    boundary_pt_marker_set = _generate_boundary_pt_marker_set(**kwargs)
+
+    kwargs = {"marker": boundary_pt_marker_set,
+              "permanent": True,
+              "plot_signal": False,
+              "plot_marker": False}
+    signal.add_marker(**kwargs)
 
     return None
 
@@ -3760,7 +3803,6 @@ class _MLDataset(_cls_alias):
             * ``"name"``
             * ``"ScalarMappable_array"``
             * ``"offsets"``
-            * ``"sizes"``
 
             The default value of each valid dictionary item listed immediately
             above is that of the corresponding keyword argument for the
@@ -3942,6 +3984,30 @@ def _pre_serialize_ml_dataset_manager(ml_dataset_manager):
 
 
 
+def _clip_image_stack_from_below_to_second_smallest_image_vals(image_stack):
+    minima_over_last_two_dims = image_stack.amin(dim=(-2, -1))
+
+    multi_dim_slice = (slice(None),)*(image_stack.ndim-2) + (None,)*2
+
+    kwargs = {"condition": \
+              (image_stack == minima_over_last_two_dims[multi_dim_slice]),
+              "input": \
+              torch.tensor(float("inf")).to(image_stack.device),
+              "other": \
+              image_stack}
+    image_stack_with_added_hot_pixels = torch.where(**kwargs)
+
+    second_minima_over_last_two_dims = \
+        image_stack_with_added_hot_pixels.amin(dim=(-2, -1))
+
+    kwargs = {"input": image_stack,
+              "other": second_minima_over_last_two_dims[multi_dim_slice]}
+    clipped_image_stack = torch.maximum(**kwargs)
+
+    return clipped_image_stack
+
+
+
 _building_block_counts_in_stages_of_localization_net = \
     (3, 5, 2)
 
@@ -3949,12 +4015,12 @@ _building_block_counts_in_stages_of_localization_net = \
 
 class _LocalizationNet(torch.nn.Module):
     def __init__(self,
-                 num_pixels_across_each_cbed_pattern,
+                 num_pixels_across_each_cropped_cbed_pattern,
                  mini_batch_norm_eps):
         super().__init__()
 
-        self._num_pixels_across_each_cbed_pattern = \
-            num_pixels_across_each_cbed_pattern
+        self._num_pixels_across_each_cropped_cbed_pattern = \
+            num_pixels_across_each_cropped_cbed_pattern
         self._mini_batch_norm_eps = \
             mini_batch_norm_eps
         
@@ -3986,9 +4052,9 @@ class _LocalizationNet(torch.nn.Module):
                   "building_block_counts_in_stages": \
                   building_block_counts_in_stages,
                   "height_of_input_tensor_in_pixels": \
-                  self._num_pixels_across_each_cbed_pattern,
+                  self._num_pixels_across_each_cropped_cbed_pattern,
                   "width_of_input_tensor_in_pixels": \
-                  self._num_pixels_across_each_cbed_pattern,
+                  self._num_pixels_across_each_cropped_cbed_pattern,
                   "num_nodes_in_second_last_layer": \
                   num_nodes_in_second_last_layer,
                   "num_nodes_in_last_layer": \
@@ -4018,6 +4084,11 @@ class _LocalizationNet(torch.nn.Module):
     def _get_and_enhance_cropped_cbed_pattern_images(self, ml_inputs):
         kwargs = \
             {"image_stack": ml_inputs["cropped_cbed_pattern_images"]}
+        enhanced_cropped_cbed_pattern_images = \
+            _clip_image_stack_from_below_to_second_smallest_image_vals(**kwargs)
+
+        kwargs = \
+            {"image_stack": enhanced_cropped_cbed_pattern_images}
         enhanced_cropped_cbed_pattern_images = \
             _min_max_normalize_image_stack(**kwargs)
 
@@ -4081,7 +4152,7 @@ def _initialize_layer_weights_according_to_activation_func(activation_func,
 
 class _BottleneckBlock(torch.nn.Module):
     def __init__(self,
-                 num_pixels_across_each_cbed_pattern,
+                 num_pixels_across_each_cropped_cbed_pattern,
                  num_input_channels,
                  num_filters_per_conv_layer,
                  j_vdash,
@@ -4090,8 +4161,8 @@ class _BottleneckBlock(torch.nn.Module):
                  mini_batch_norm_eps):
         super().__init__()
 
-        self._num_pixels_across_each_cbed_pattern = \
-            num_pixels_across_each_cbed_pattern
+        self._num_pixels_across_each_cropped_cbed_pattern = \
+            num_pixels_across_each_cropped_cbed_pattern
         self._num_input_channels = \
             num_input_channels
         self._num_filters_per_conv_layer = \
@@ -4188,7 +4259,7 @@ class _BottleneckBlock(torch.nn.Module):
 
 
     def _generate_fc_layer(self):
-        N = self._num_pixels_across_each_cbed_pattern
+        N = self._num_pixels_across_each_cropped_cbed_pattern
         C = (self._num_filters_per_conv_layer
              if (j > j_vdash)
              else self._num_input_channels)
@@ -4385,7 +4456,7 @@ class _SegmentationNet(torch.nn.Module):
                  wavelet_name,
                  j_epsilon,
                  j_dashv,
-                 num_pixels_across_each_cbed_pattern,
+                 num_pixels_across_each_cropped_cbed_pattern,
                  num_filters_in_first_conv_layer,
                  num_resnet_building_blocks_per_stage,
                  num_filters_per_bottleneck_conv_layer,
@@ -4398,8 +4469,8 @@ class _SegmentationNet(torch.nn.Module):
             j_epsilon
         self._j_dashv = \
             j_dashv
-        self._num_pixels_across_each_cbed_pattern = \
-            num_pixels_across_each_cbed_pattern
+        self._num_pixels_across_each_cropped_cbed_pattern = \
+            num_pixels_across_each_cropped_cbed_pattern
         self._num_filters_in_first_conv_layer = \
             num_filters_in_first_conv_layer
         self._num_resnet_building_blocks_per_stage = \
@@ -4483,8 +4554,8 @@ class _SegmentationNet(torch.nn.Module):
             resnet_stage_idx = -1 - (j-j_set[0])
             resnet_stage = self._resnet_stages[resnet_stage_idx]
 
-            kwargs = {"num_pixels_across_each_cbed_pattern": \
-                      self._num_pixels_across_each_cbed_pattern,
+            kwargs = {"num_pixels_across_each_cropped_cbed_pattern": \
+                      self._num_pixels_across_each_cropped_cbed_pattern,
                       "num_input_channels": \
                       resnet_stage._num_ouput_channels,
                       "num_filters_per_conv_layer": \
@@ -4600,6 +4671,11 @@ class _SegmentationNet(torch.nn.Module):
     def _get_and_enhance_cropped_cbed_pattern_images(self, ml_inputs):
         kwargs = \
             {"image_stack": ml_inputs["cropped_cbed_pattern_images"]}
+        enhanced_cropped_cbed_pattern_images = \
+            _clip_image_stack_from_below_to_second_smallest_image_vals(**kwargs)
+
+        kwargs = \
+            {"image_stack": enhanced_cropped_cbed_pattern_images}
         enhanced_cropped_cbed_pattern_images = \
             _min_max_normalize_image_stack(**kwargs)
 
@@ -4903,7 +4979,7 @@ class _MLModel(_cls_alias):
     def _get_base_cls_ctor_params(self, current_cls_ctor_params):
         base_cls_ctor_params = current_cls_ctor_params.copy()
 
-        ml_model_task = base_cls_ctor_params.pop(ml_model_task)
+        ml_model_task = base_cls_ctor_params.pop("ml_model_task")
 
         if "localization" in ml_model_task:
             del base_cls_ctor_params["wavelet_name"]
@@ -5318,6 +5394,9 @@ _default_cropped_cbed_pattern_generator_err_msg_2 = \
     ("The cropped CBED pattern generator{} has exceeded its programmed maximum "
      "number of attempts{} to generate a valid cropped CBED pattern: see "
      "traceback for details.")
+_default_cropped_cbed_pattern_generator_err_msg_3 = \
+    ("The contrast of the principal CBED disk of the cropped CBED pattern is "
+     "too low.")
 
 _generate_cropped_cbed_pattern_signal_err_msg_1 = \
     _default_cropped_cbed_pattern_generator_err_msg_2
@@ -5380,9 +5459,9 @@ _check_and_convert_boundary_pt_marker_style_kwargs_err_msg_1 = \
      "properties of markers represented by the aforementioned class, i.e. "
      "keyword arguments other than ``'offset_transform'``, ``'transform'``, "
      "``'shift'``, ``'plot_on_signal'``, ``'name'``, "
-     "``'ScalarMappable_array'``, ``'offsets'``, and ``'sizes'``. "
-     "Additionally, the dictionary can contain a `slice` object stored in a "
-     "dictionary item with the key ``'single_dim_slice'``.")
+     "``'ScalarMappable_array'``, and ``'offsets'``. Additionally, the "
+     "dictionary can contain a `slice` object stored in a dictionary item with "
+     "the key ``'single_dim_slice'``.")
 
 _check_and_convert_cropped_cbed_pattern_images_err_msg_1 = \
     ("The object ``{}`` must be an array of three dimensions.")

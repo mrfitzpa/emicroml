@@ -72,6 +72,9 @@ that you consult the documentation of these packages as well.
 # For parsing command line arguments.
 import argparse
 
+# For accessing imported modules via their names stored as strings.
+import sys
+
 
 
 # For general array handling.
@@ -214,12 +217,10 @@ class CBEDPatternGenerator():
     def _get_ml_model_task_module(self):
         ml_model_task = self._ml_model_task
 
-        global_symbol_table = \
-            globals()
         module_name = \
             "emicroml.modelling.{}".format(ml_model_task).replace("/", ".")
         ml_model_task_module = \
-            global_symbol_table[module_name]
+            sys.modules[module_name]
 
         return ml_model_task_module
 
@@ -772,17 +773,23 @@ class CroppedCBEDPatternGenerator():
                  rng_seed,
                  device_name,
                  path_to_stem_multislice_sim_params,
-                 path_to_ml_training_dataset):
-        self._path_to_ml_training_dataset = \
-            path_to_ml_training_dataset
-
+                 path_to_ml_training_dataset,
+                 num_pixels_across_each_cropping_window):
         kwargs = {key: val
                   for key, val in locals().items()
                   if (key not in ("self", "__class__"))}
+        del kwargs["path_to_ml_training_dataset"]
+        del kwargs["num_pixels_across_each_cropping_window"]
         self._cbed_pattern_generator = CBEDPatternGenerator(**kwargs)
 
-        self._principal_disk_idx_candidates = \
-            self._generate_principal_disk_idx_candidates()
+        self._path_to_ml_training_dataset = \
+            path_to_ml_training_dataset
+
+        self._num_pixels_across_each_cropping_window = \
+            num_pixels_across_each_cropping_window
+
+        self._principal_disk_candidate_registry = \
+            self._generate_principal_disk_candidate_registry()
 
         self._rng = self._cbed_pattern_generator._rng
 
@@ -792,22 +799,21 @@ class CroppedCBEDPatternGenerator():
 
 
 
-    def _generate_principal_disk_idx_candidates(self):
+    def _generate_principal_disk_candidate_registry(self):
         undistorted_disk_centers = self._get_undistorted_disk_centers()
 
         ref_pt = np.array((0.5, 0.5))
-        distances = np.linalg.norm(undistorted_disk_centers-ref_pt)
+        distances = np.linalg.norm(undistorted_disk_centers-ref_pt, axis=1)
         disk_idx = distances.argmin().item()
-
+        
         ref_pt = undistorted_disk_centers[disk_idx]
-        distances = np.linalg.norm(undistorted_disk_centers-ref_pt)
+        distances = np.linalg.norm(undistorted_disk_centers-ref_pt, axis=1)
         nn_distance = np.sort(distances)[1].item()
         nnn_distance = (np.sqrt(3)*nn_distance).item()
 
-        principal_disk_idx_candidates = \
-            tuple(np.where(distances <= 1.05*nnn_distance)[0].tolist())
+        principal_disk_candidate_registry = (distances <= 1.05*nnn_distance)
 
-        return principal_disk_idx_candidates
+        return principal_disk_candidate_registry
 
 
 
@@ -820,7 +826,7 @@ class CroppedCBEDPatternGenerator():
             kwargs = \
                 {"undistorted_disk": undistorted_disk}
             undistorted_disk_center = \
-                _get_undistorted_disk_center(**kwargs)
+                self._get_undistorted_disk_center(**kwargs)
             undistorted_disk_centers += \
                 (undistorted_disk_center,)
         undistorted_disk_centers = \
@@ -851,9 +857,6 @@ class CroppedCBEDPatternGenerator():
         ml_model_task_module = \
             self._cbed_pattern_generator._ml_model_task_module
 
-        cropping_window_dims_in_pixels = \
-            2*(num_pixels_across_each_uncropped_pattern//4,)
-
         kwargs = {"path_to_ml_dataset": self._path_to_ml_training_dataset,
                   "entire_ml_dataset_is_to_be_cached": False,
                   "ml_data_values_are_to_be_checked": False,
@@ -865,7 +868,7 @@ class CroppedCBEDPatternGenerator():
 
         self._cropped_cbed_pattern_params = \
             {"cropping_window_dims_in_pixels": \
-             2*(num_pixels_across_each_uncropped_pattern//4,),
+             2*(self._num_pixels_across_each_cropping_window,),
              "disk_boundary_sample_size": \
              ml_data_instances["principal_disk_boundary_pt_sets"].shape[1],
              "mask_frame": \
@@ -884,8 +887,8 @@ class CroppedCBEDPatternGenerator():
         
         while cropped_cbed_pattern_generation_has_not_been_completed:
             try:
-                param_name_subset = ("principal_disk_idx",
-                                     "cbed_pattern",
+                param_name_subset = ("cbed_pattern",
+                                     "principal_disk_idx",
                                      "cropping_window_center")
                 for param_name in param_name_subset:
                     method_name = "_generate_{}".format(param_name)
@@ -925,18 +928,32 @@ class CroppedCBEDPatternGenerator():
 
 
 
-    def _generate_principal_disk_idx(self):
-        kwargs = {"a": self._principal_disk_idx_candidates}
-        principal_disk_idx = self._rng.choice(**kwargs).item()
-
-        return principal_disk_idx
-
-
-
     def _generate_cbed_pattern(self):
         cbed_pattern = self._cbed_pattern_generator.generate()
 
         return cbed_pattern
+
+
+
+    def _generate_principal_disk_idx(self):
+        cropped_cbed_pattern_params = self._cropped_cbed_pattern_params
+        cbed_pattern = cropped_cbed_pattern_params["cbed_pattern"]
+
+        disk_clipping_registry = \
+            cbed_pattern.get_disk_clipping_registry(deep_copy=False)
+        disk_clipping_registry = \
+            disk_clipping_registry.numpy(force=True)
+        
+        principal_disk_candidate_registry = \
+            self._principal_disk_candidate_registry
+
+        disk_idx_subset = np.where((~disk_clipping_registry)
+                                   * principal_disk_candidate_registry)[0]
+
+        kwargs = {"a": disk_idx_subset}
+        principal_disk_idx = self._rng.choice(**kwargs).item()
+
+        return principal_disk_idx
 
 
 
@@ -950,7 +967,7 @@ class CroppedCBEDPatternGenerator():
         kwargs = \
             {"cbed_pattern": cbed_pattern,
              "principal_disk_idx": principal_disk_idx}
-        q_x_c_and_q_y_c = \
+        q_x_c, q_y_c = \
             self._generate_q_x_c_and_q_y_c_of_principal_disk(**kwargs)
 
         disk_supports = cbed_pattern.get_disk_supports(deep_copy=False)
@@ -960,12 +977,16 @@ class CroppedCBEDPatternGenerator():
         disk_support_COMs = torch.zeros(disk_support_COMs_shape,
                                         device=device)
 
+        disk_support_areas = disk_supports.sum(dim=(1, 2))
+
         disk_support_COMs[:, 0] = \
-            ((q_x[None, :, :]*disk_supports).sum(dim=(1, 2))
-             / disk_supports.sum(dim=(1, 2)))
+            (((q_x[None, :, :]*disk_supports).sum(dim=(1, 2))
+              / (disk_support_areas + (disk_support_areas == 0)))
+             + (disk_support_areas == 0)*1e6)
         disk_support_COMs[:, 1] = \
-            ((q_y[None, :, :]*disk_supports).sum(dim=(1, 2))
-             / disk_supports.sum(dim=(1, 2)))
+            (((q_y[None, :, :]*disk_supports).sum(dim=(1, 2))
+              / (disk_support_areas + (disk_support_areas == 0)))
+             + (disk_support_areas == 0)*1e6)
 
         displacements = (disk_support_COMs
                          - disk_support_COMs[principal_disk_idx])
@@ -1002,13 +1023,18 @@ class CroppedCBEDPatternGenerator():
         
         undistorted_disk_core_attrs = \
             undistorted_disk.get_core_attrs(deep_copy=False)
+        undistorted_disk_support = \
+            undistorted_disk_core_attrs["support"]
+        
+        undistorted_disk_support_core_attrs = \
+            undistorted_disk_support.get_core_attrs(deep_copy=False)
         u_x_c, u_y_c = \
-            undistorted_disk_core_attrs_core_attrs["center"]
+            undistorted_disk_support_core_attrs["center"]
 
         device = cbed_pattern.device
 
-        kwargs = {"u_x": torch.tensor(((u_x_c,),), device=device),
-                  "u_y": torch.tensor(((u_y_c,),), device=device),
+        kwargs = {"u_x": torch.tensor(((u_x_c.item(),),), device=device),
+                  "u_y": torch.tensor(((u_y_c.item(),),), device=device),
                   "coord_transform_params": coord_transform_params,
                   "device": device,
                   "skip_validation_and_conversion": True}
@@ -1021,7 +1047,10 @@ class CroppedCBEDPatternGenerator():
 
 
     def _generate_q_x_and_q_y_of_cbed_pattern_signal(self, device):
-        size = self._num_pixels_across_each_cbed_pattern
+        num_pixels_across_each_cbed_pattern = \
+            self._cbed_pattern_generator._sampling_grid_dims_in_pixels[0]
+
+        size = num_pixels_across_each_cbed_pattern
         scale = 1/size
         offset = 0.5*scale
 
@@ -1070,10 +1099,11 @@ class CroppedCBEDPatternGenerator():
             kwargs = {"low": 4*d_q,"high": max(1/10, 4*d_q), "size": 4}
             bounding_box_buffer = self._rng.uniform(**kwargs)
 
-        quadruple_1 = np.array(max(bounding_box[0]-bounding_box_buffer[0], 0),
-                               max(1-bounding_box[1]-bounding_box_buffer[1], 0),
-                               max(bounding_box[2]-bounding_box_buffer[2], 0),
-                               max(1-bounding_box[3]-bounding_box_buffer[3], 0))
+        quadruple_1 = \
+            np.array((max(bounding_box[0]-bounding_box_buffer[0], 0),
+                      max(1-bounding_box[1]-bounding_box_buffer[1], 0),
+                      max(bounding_box[2]-bounding_box_buffer[2], 0),
+                      max(1-bounding_box[3]-bounding_box_buffer[3], 0)))
 
         if ml_model_task == "cbed/disk/localization":
             kwargs = {"low": 0/4, "high": 1/4, "size": 4}
@@ -1098,6 +1128,19 @@ class CroppedCBEDPatternGenerator():
 
 
 
+def _generate_argument_names():
+    argument_names = ("ml_model_task",
+                      "ml_input_image_width",
+                      "disk_size_idx",
+                      "disk_size",
+                      "ml_dataset_idx",
+                      "data_dir_1",
+                      "data_dir_2")
+
+    return argument_names
+
+
+
 def parse_and_convert_cmd_line_args():
     accepted_ml_model_tasks = ("cbed/distortion/estimation",
                                "cbed/disk/localization",
@@ -1107,16 +1150,12 @@ def parse_and_convert_cmd_line_args():
 
     try:
         parser = argparse.ArgumentParser()
-        argument_names = ("ml_model_task",
-                          "disk_size_idx",
-                          "disk_size",
-                          "ml_dataset_idx",
-                          "data_dir_1",
-                          "data_dir_2")
+        argument_names = _generate_argument_names()
         for argument_name in argument_names:
             parser.add_argument("--"+argument_name)
         args = parser.parse_args()
         ml_model_task = args.ml_model_task
+        ml_input_image_width_in_pixels = int(args.ml_input_image_width)
         disk_size_idx = int(args.disk_size_idx)
         disk_size = args.disk_size
         ml_dataset_idx = int(args.ml_dataset_idx)
@@ -1138,12 +1177,14 @@ def parse_and_convert_cmd_line_args():
         err_msg = unformatted_err_msg.format(partial_err_msg)
         raise SystemExit(err_msg)
 
-    converted_cmd_line_args = {"ml_model_task": ml_model_task,
-                               "disk_size_idx": disk_size_idx,
-                               "disk_size": disk_size,
-                               "ml_dataset_idx": ml_dataset_idx,
-                               "path_to_data_dir_1": path_to_data_dir_1,
-                               "path_to_data_dir_2": path_to_data_dir_2}
+    converted_cmd_line_args = \
+        {"ml_model_task": ml_model_task,
+         "ml_input_image_width_in_pixels": ml_input_image_width_in_pixels,
+         "disk_size_idx": disk_size_idx,
+         "disk_size": disk_size,
+         "ml_dataset_idx": ml_dataset_idx,
+         "path_to_data_dir_1": path_to_data_dir_1,
+         "path_to_data_dir_2": path_to_data_dir_2}
     
     return converted_cmd_line_args
 
@@ -1173,18 +1214,20 @@ _parse_and_convert_cmd_line_args_err_msg_1 = \
      "\n"
      "    python execute_main_action_steps.py "
      "--ml_model_task=<ml_model_task> "
+     "--ml_input_image_width=<ml_input_image_width> "
      "--disk_size_idx=<disk_size_idx> "
      "--disk_size=<disk_size> "
      "--ml_dataset_idx=<ml_dataset_idx> "
      "--data_dir_1=<data_dir_1> "
      "--data_dir_2=<data_dir_2>\n"
      "\n"
-     "where ``<ml_model_task>`` must be {}; ``<disk_size_idx>`` must be a "
-     "nonnegative integer; ``<disk_size>`` must be ``small``, ``medium``, or "
-     "``large``; ``<ml_dataset_idx>`` must be a nonnegative integer; "
-     "``<data_dir_1>`` must be a valid absolute path to a valid existing "
-     "directory or one to be created; and ``<data_dir_2>`` must be the "
-     "absolute path to a valid directory.")
+     "where ``<ml_model_task>`` must be {}; ``<ml_input_image_width>`` must be "
+     "a nonnegative integer; ``<disk_size_idx>`` must be a nonnegative "
+     "integer; ``<disk_size>`` must be ``small``, ``medium``, or ``large``; "
+     "``<ml_dataset_idx>`` must be a nonnegative integer; ``<data_dir_1>`` "
+     "must be a valid absolute path to a valid existing directory or one to be "
+     "created; and ``<data_dir_2>`` must be the absolute path to a valid "
+     "directory.")
 
 
 
@@ -1193,22 +1236,30 @@ _parse_and_convert_cmd_line_args_err_msg_1 = \
 #########################
 
 # Parse the command line arguments.
-converted_cmd_line_args = parse_and_convert_cmd_line_args()
-ml_model_task = converted_cmd_line_args["ml_model_task"]
-disk_size_idx = converted_cmd_line_args["disk_size_idx"]
-disk_size = converted_cmd_line_args["disk_size"]
-ml_dataset_idx = converted_cmd_line_args["ml_dataset_idx"]
-path_to_data_dir_1 = converted_cmd_line_args["path_to_data_dir_1"]
-path_to_data_dir_2 = converted_cmd_line_args["path_to_data_dir_2"]
+converted_cmd_line_args = \
+    parse_and_convert_cmd_line_args()
+ml_model_task = \
+    converted_cmd_line_args["ml_model_task"]
+ml_input_image_width_in_pixels = \
+    converted_cmd_line_args["ml_input_image_width_in_pixels"]
+disk_size_idx = \
+    converted_cmd_line_args["disk_size_idx"]
+disk_size = \
+    converted_cmd_line_args["disk_size"]
+ml_dataset_idx = \
+    converted_cmd_line_args["ml_dataset_idx"]
+path_to_data_dir_1 = \
+    converted_cmd_line_args["path_to_data_dir_1"]
+path_to_data_dir_2 = \
+    converted_cmd_line_args["path_to_data_dir_2"]
 
 
 
 # Select the ``emicroml`` submodule required to generate a ML dataset that is
 # appropriate to the specified ML model task. Also, select the RNG seed
 # according to the specified ML dataset index and disk size index.
-global_symbol_table = globals()
 module_name = "emicroml.modelling.{}".format(ml_model_task).replace("/", ".")
-ml_model_task_module = global_symbol_table[module_name]
+ml_model_task_module = sys.modules[module_name]
 
 rng_seed = disk_size_idx + ml_dataset_idx + 100000
 
@@ -1232,29 +1283,39 @@ if ml_model_task == "cbed/distortion/estimation":
 else:
     kwargs = {**kwargs,
               "path_to_ml_training_dataset": \
-              path_to_data_dir_1+"/ml_datasets/ml_dataset_for_training.h5"}
+              path_to_data_dir_1+"/ml_datasets/ml_dataset_for_training.h5",
+              "num_pixels_across_each_cropping_window": \
+              ml_input_image_width_in_pixels}
     cls_name = "CroppedCBEDPatternGenerator"
-cls_alias = global_symbol_table[cls_name]
+cls_alias = globals()[cls_name]
 pattern_generator = cls_alias(**kwargs)
 
 
 
 # Generate and save the ML dataset.
+unformatted_partial_path = ("/ml_datasets_with"
+                            "_{}_pixel_wide_cropped_cbed_patterns")
+partial_path = (unformatted_partial_path.format(ml_input_image_width_in_pixels)
+                * (ml_model_task != "cbed/distortion/estimation"))
+
 cbed_pattern_descriptor = "cropped_" * ("cbed/disk" in ml_model_task)
 sample_name = "MoS2_on_amorphous_C"
 
 unformatted_output_filename = (path_to_data_dir_1
                                + "/ml_datasets"
+                               + "{}"
                                + "/ml_datasets_for_ml_model_test_set_1"
                                + "/ml_datasets_with_{}cbed_patterns_of_{}"
                                + "/ml_datasets_with_{}_sized_disks"
                                + "/ml_dataset_{}.h5")
 output_filename = unformatted_output_filename.format(cbed_pattern_descriptor,
+                                                     partial_path,
                                                      sample_name,
                                                      disk_size,
                                                      ml_dataset_idx)
 
-num_patterns = 2880
+# num_patterns = 2880
+num_patterns = 10
 
 kwargs = {"output_filename": output_filename,
           "max_num_ml_data_instances_per_file_update": 288}

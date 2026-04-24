@@ -56,8 +56,9 @@ path_to_dir_containing_current_script=${1}
 path_to_repo_root=${2}
 path_to_data_dir_1=${3}
 ml_model_task=${4}
-ml_dataset_idx=${5}
-overwrite_slurm_tmpdir=${6}
+ml_input_image_width_in_pixels=${5}
+ml_dataset_idx=${6}
+overwrite_slurm_tmpdir=${7}
 
 
 
@@ -85,6 +86,7 @@ path_to_script_to_execute=${path_to_dir_containing_current_script}/${basename}
 
 python ${path_to_script_to_execute} \
        --ml_model_task=${ml_model_task} \
+       --ml_input_image_width=${ml_input_image_width_in_pixels} \
        --ml_dataset_idx=${ml_dataset_idx} \
        --data_dir_1=${SLURM_TMPDIR}
 python_script_exit_code=$?
@@ -103,10 +105,18 @@ fi
 # their expected final destinations. Also delete/remove any remaining temporary
 # files or directories.
 partial_path_1=ml_datasets
-partial_path_2=${partial_path_1}/ml_datasets_for_training_and_validation
+if [[ "${ml_model_task}" == "cbed/disk/"* ]
+then       
+    N=${ml_input_image_width_in_pixels}
+    partial_path_2=${partial_path_1}/ml_datasets_with_${N}_pixel_wide
+    partial_path_3=${partial_path_2}_cropped_cbed_patterns
+else
+    partial_path_3=${partial_path_1}
+fi
+partial_path_4=${partial_path_3}/ml_datasets_for_training_and_validation
 
-dirname_1=${SLURM_TMPDIR}/${partial_path_2}
-dirname_2=${path_to_data_dir_1}/${partial_path_2}
+dirname_1=${SLURM_TMPDIR}/${partial_path_4}
+dirname_2=${path_to_data_dir_1}/${partial_path_4}
 basename_1=ml_dataset_${ml_dataset_idx}.h5
 basename_2=${basename_1}
 filename_1=${dirname_1}/${basename_1}

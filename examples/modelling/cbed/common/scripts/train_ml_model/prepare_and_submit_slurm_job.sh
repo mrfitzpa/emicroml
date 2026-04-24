@@ -54,9 +54,10 @@
 path_to_dir_containing_current_script=${1}
 path_to_repo_root=${2}
 path_to_data_dir_1=${3}
-ml_model_task=${4}
-ml_model_idx=${5}
-overwrite_slurm_tmpdir=${6}
+path_to_ml_training_dataset=${4}
+ml_model_task=${5}
+ml_model_idx=${6}
+overwrite_slurm_tmpdir=${7}
 
 
 
@@ -80,14 +81,20 @@ source ${path_to_repo_root}/${basename} ${SLURM_TMPDIR}/tempenv false
 
 # Copy the input data to the temporary directories.
 partial_path_1=ml_datasets
-partial_path_2=${partial_path_1}/ml_datasets_for_training_and_validation
+partial_path_2=$(basename "$(dirname "${path_to_ml_training_dataset}")")
+if [ "${partial_path_1}" == "${partial_path_2}" ]
+then
+    partial_path_3=${partial_path_1}
+else
+    partial_path_3=${partial_path_1}/${partial_path_2}
+fi
 
 ml_dataset_types=(training validation)
 
 for ml_dataset_type in "${ml_dataset_types[@]}"
 do
-    dirname_1=${path_to_data_dir_1}/${partial_path_1}
-    dirname_2=${SLURM_TMPDIR}/${partial_path_1}
+    dirname_1=${path_to_data_dir_1}/${partial_path_3}
+    dirname_2=${SLURM_TMPDIR}/${partial_path_3}
     basename_1=ml_dataset_for_${ml_dataset_type}.h5
     basename_2=${basename_1}
     filename_1=${dirname_1}/${basename_1}
@@ -115,7 +122,8 @@ path_to_script_to_execute=${path_to_dir_containing_current_script}/${basename}
 python ${path_to_script_to_execute} \
        --ml_model_task=${ml_model_task} \
        --ml_model_idx=${ml_model_idx} \
-       --data_dir_1=${SLURM_TMPDIR}
+       --data_dir_1=${SLURM_TMPDIR} \
+       --path_to_ml_training_dataset=${path_to_ml_training_dataset}
 python_script_exit_code=$?
 
 if [ "${python_script_exit_code}" != 0 ];
@@ -131,9 +139,16 @@ fi
 # Move the non-temporary output data that is generated from the main steps to
 # their expected final destinations. Also delete/remove any remaining temporary
 # files or directories.
-partial_path_3=ml_models/ml_model_${ml_model_idx}
-dirname_1=${SLURM_TMPDIR}/${partial_path_3}
-dirname_2=${path_to_data_dir_1}/${partial_path_3}
+if [ "${partial_path_1}" == "${partial_path_2}" ]
+then
+    partial_path_4=ml_models
+else
+    partial_path_4=ml_models/"${partial_path_2/ml_datasets_with/ml_models_for}"
+fi
+
+partial_path_5=${partial_path_4}/ml_model_${ml_model_idx}
+dirname_1=${SLURM_TMPDIR}/${partial_path_5}
+dirname_2=${path_to_data_dir_1}/${partial_path_5}
 
 cd ${SLURM_TMPDIR}
 mkdir -p ${dirname_2}

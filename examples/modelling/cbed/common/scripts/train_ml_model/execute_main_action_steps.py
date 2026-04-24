@@ -68,6 +68,9 @@ import argparse
 # For setting Python's seed.
 import random
 
+# For creating path objects.
+import pathlib
+
 
 
 # For avoiding errors related to the ``mkl-service`` package. Note that
@@ -101,13 +104,17 @@ def parse_and_convert_cmd_line_args():
 
     try:
         parser = argparse.ArgumentParser()
-        argument_names = ("ml_model_task", "ml_model_idx", "data_dir_1")
+        argument_names = ("ml_model_task",
+                          "ml_model_idx",
+                          "data_dir_1",
+                          "ml_training_dataset")
         for argument_name in argument_names:
             parser.add_argument("--"+argument_name)
         args = parser.parse_args()
         ml_model_task = args.ml_model_task
         ml_model_idx = int(args.ml_model_idx)
         path_to_data_dir_1 = args.data_dir_1
+        path_to_ml_training_dataset = args.ml_training_dataset
 
         if ((ml_model_task not in accepted_ml_model_tasks)
             or (ml_model_idx < 0)):
@@ -123,9 +130,11 @@ def parse_and_convert_cmd_line_args():
         err_msg = unformatted_err_msg.format(partial_err_msg)
         raise SystemExit(err_msg)
 
-    converted_cmd_line_args = {"ml_model_task": ml_model_task,
-                               "ml_model_idx": ml_model_idx,
-                               "path_to_data_dir_1": path_to_data_dir_1}
+    converted_cmd_line_args = \
+        {"ml_model_task": ml_model_task,
+         "ml_model_idx": ml_model_idx,
+         "path_to_data_dir_1": path_to_data_dir_1,
+         "path_to_ml_training_dataset": path_to_ml_training_dataset}
     
     return converted_cmd_line_args
 
@@ -141,11 +150,13 @@ _parse_and_convert_cmd_line_args_err_msg_1 = \
      "    python execute_main_action_steps.py "
      "--ml_model_task=<ml_model_task> "
      "--ml_model_idx=<ml_model_idx> "
-     "--data_dir_1=<data_dir_1>\n"
+     "--data_dir_1=<data_dir_1> "
+     "--ml_training_dataset=<ml_training_dataset>\n"
      "\n"
      "where ``<ml_model_task>`` must be {}; ``<ml_model_idx>`` must be a "
-     "nonnegative integer; and ``<data_dir_1>`` must be the absolute path to a "
-     "valid directory.")
+     "nonnegative integer; ``<data_dir_1>`` must be the absolute path to a "
+     "valid directory; and ``<ml_training_dataset>`` must be the absolute path "
+     "to a valid directory.")
 
 
 
@@ -154,10 +165,16 @@ _parse_and_convert_cmd_line_args_err_msg_1 = \
 #########################
 
 # Parse the command line arguments.
-converted_cmd_line_args = parse_and_convert_cmd_line_args()
-ml_model_task = converted_cmd_line_args["ml_model_task"]
-ml_model_idx = converted_cmd_line_args["ml_model_idx"]
-path_to_data_dir_1 = converted_cmd_line_args["path_to_data_dir_1"]
+converted_cmd_line_args = \
+    parse_and_convert_cmd_line_args()
+ml_model_task = \
+    converted_cmd_line_args["ml_model_task"]
+ml_model_idx = \
+    converted_cmd_line_args["ml_model_idx"]
+path_to_data_dir_1 = \
+    converted_cmd_line_args["path_to_data_dir_1"]
+path_to_ml_training_dataset = \
+    converted_cmd_line_args["path_to_ml_training_dataset"]
 
 
 
@@ -174,6 +191,26 @@ torch.backends.cudnn.benchmark = False
 
 
 
+# Load the training and validation ML datasets.
+ml_dataset_types = ("training", "validation")
+unformatted_path = (str(pathlib.Path(path_to_ml_training_dataset).parent)
+                    + "/ml_dataset_for_{}.h5")
+for ml_dataset_type in ml_dataset_types:
+    path_to_ml_dataset = unformatted_path.format(ml_dataset_type)
+
+    kwargs = {"path_to_ml_dataset": path_to_ml_dataset,
+              "entire_ml_dataset_is_to_be_cached": False,
+              "ml_data_values_are_to_be_checked": True,
+              "max_num_ml_data_instances_per_chunk": 32}
+    ml_dataset = ml_model_task_module.MLDataset(**kwargs)
+
+    if ml_dataset_type == "training":
+        ml_training_dataset = ml_dataset
+    else:
+        ml_validation_dataset = ml_dataset
+
+
+
 # Select the ``emicroml`` submodule required to train a ML model that is
 # appropriate to the specified ML model task. Also, select various ML model
 # training parameters according to the specified ML model index and ML model
@@ -181,6 +218,10 @@ torch.backends.cudnn.benchmark = False
 if ml_model_task == "cbed/distortion/estimation":
     ml_model_task_module = emicroml.modelling.cbed.distortion.estimation
     architecture_set = ("distoptica_net",)
+
+    attr_name = "num_pixels_across_each_cbed_pattern"
+    num_pixels_across_each_cbed_pattern = getattr(ml_training_dataset,
+                                                  attr_name)
 
     mini_batch_size_set = (64,)
 
@@ -199,6 +240,10 @@ elif ml_model_task == "cbed/disk/localization":
     ml_model_task_module = emicroml.modelling.cbed.disk.localization
     architecture_set = ("localization_net",)
 
+    attr_name = "num_pixels_across_each_cropped_cbed_pattern"
+    num_pixels_across_each_cropped_cbed_pattern = getattr(ml_training_dataset,
+                                                          attr_name)
+
     mini_batch_size_set = (64,)
 
     num_epochs_during_warmup_set = (4,)
@@ -210,11 +255,17 @@ elif ml_model_task == "cbed/disk/localization":
     
     min_lr_in_first_annealing_cycle_set = (2e-5,)
     num_lr_annealing_cycles_set = (1,)
-    num_epochs_in_first_lr_annealing_cycle_set = (16,)
+    # num_epochs_in_first_lr_annealing_cycle_set = (16,)
+    num_epochs_in_first_lr_annealing_cycle_set = (2,)
     multiplicative_decay_factor_set = (0.5,)
 elif ml_model_task == "cbed/disk/segmentation":
     ml_model_task_module = emicroml.modelling.cbed.disk.segmentation
     architecture_set = ("segmentation_net",)
+
+    attr_name = "num_pixels_across_each_cropped_cbed_pattern"
+    num_pixels_across_each_cropped_cbed_pattern = getattr(ml_training_dataset,
+                                                          attr_name)
+
     wavelet_name_set = ("db8",)
     j_dashv_minus_j_epsilon_set = (0,)
 
@@ -229,27 +280,9 @@ elif ml_model_task == "cbed/disk/segmentation":
     
     min_lr_in_first_annealing_cycle_set = (2e-5,)
     num_lr_annealing_cycles_set = (1,)
-    num_epochs_in_first_lr_annealing_cycle_set = (16,)
+    # num_epochs_in_first_lr_annealing_cycle_set = (16,)
+    num_epochs_in_first_lr_annealing_cycle_set = (2,)
     multiplicative_decay_factor_set = (0.5,)
-
-
-
-# Load the training and validation ML datasets.
-ml_dataset_types = ("training", "validation")
-for ml_dataset_type in ml_dataset_types:
-    unformatted_path = path_to_data_dir_1 + "/ml_datasets/ml_dataset_for_{}.h5"
-    path_to_ml_dataset = unformatted_path.format(ml_dataset_type)
-
-    kwargs = {"path_to_ml_dataset": path_to_ml_dataset,
-              "entire_ml_dataset_is_to_be_cached": False,
-              "ml_data_values_are_to_be_checked": True,
-              "max_num_ml_data_instances_per_chunk": 32}
-    ml_dataset = ml_model_task_module.MLDataset(**kwargs)
-
-    if ml_dataset_type == "training":
-        ml_training_dataset = ml_dataset
-    else:
-        ml_validation_dataset = ml_dataset
 
 
 
@@ -355,7 +388,14 @@ lr_scheduler_manager = emicroml.modelling.lr.LRSchedulerManager(**kwargs)
 
 
 # Construct the ML model trainer.
-unformatted_path = path_to_data_dir_1 + "/ml_models/ml_model_{}"
+partial_path_1 = pathlib.Path(path_to_ml_training_dataset).parent.name
+partial_path_2 = (partial_path_1.replace("ml_datasets_with", "/ml_models_for")
+                  if ("ml_datasets_with" in partial_path_1)
+                  else "")
+unformatted_path = (path_to_data_dir_1
+                    + "/ml_models"
+                    + partial_path_2
+                    + "/ml_model_{}")
 output_dirname = unformatted_path.format(ml_model_idx)
 
 misc_model_training_metadata = {"ml_model_architecture": \
@@ -385,23 +425,36 @@ if ml_model_task == "cbed/disk/segmentation":
     j_epsilon = \
         j_dashv-j_dashv_minus_j_epsilon_set[ml_model_idx%M]
 
-ml_model_ctor_params = {"num_pixels_across_each_cbed_pattern": \
-                        ml_training_dataset.num_pixels_across_each_cbed_pattern,
-                        "mini_batch_norm_eps": \
-                        1e-5,
-                        "normalization_weights": \
-                        ml_training_dataset.normalization_weights,
-                        "normalization_biases": \
-                        ml_training_dataset.normalization_biases}
+ml_model_ctor_params = \
+    {"mini_batch_norm_eps": \
+     1e-5,
+     "normalization_weights": \
+     ml_training_dataset.normalization_weights,
+     "normalization_biases": \
+     ml_training_dataset.normalization_biases}
 if ml_model_task == "cbed/distortion/estimation":
-    ml_model_ctor_params = {**ml_model_ctor_params,
-                            "architecture": \
-                            architecture_set[ml_model_idx%M]}
+    ml_model_ctor_params = \
+        {**ml_model_ctor_params,
+         "num_pixels_across_each_cbed_pattern": \
+         num_pixels_across_each_cbed_pattern,
+         "architecture": \
+         architecture_set[ml_model_idx%M]}
+elif ml_model_task == "cbed/disk/localization":
+    ml_model_ctor_params = \
+        {**ml_model_ctor_params,
+         "num_pixels_across_each_cropped_cbed_pattern": \
+         num_pixels_across_each_cropped_cbed_pattern}
 elif ml_model_task == "cbed/disk/segmentation":
-    ml_model_ctor_params = {**ml_model_ctor_params,
-                            "wavelet_name": wavelet_name_set[ml_model_idx%M],
-                            "j_epsilon": j_epsilon,
-                            "j_dashv": j_dashv}
+    ml_model_ctor_params = \
+        {**ml_model_ctor_params,
+         "num_pixels_across_each_cropped_cbed_pattern": \
+         num_pixels_across_each_cropped_cbed_pattern,
+         "wavelet_name": \
+         wavelet_name_set[ml_model_idx%M],
+         "j_epsilon": \
+         j_epsilon,
+         "j_dashv": \
+         j_dashv}
 
 kwargs = ml_model_ctor_params
 ml_model = ml_model_task_module.MLModel(**kwargs)

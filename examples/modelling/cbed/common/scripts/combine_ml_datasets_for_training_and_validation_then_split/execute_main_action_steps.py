@@ -74,6 +74,9 @@ import re
 # For removing directories.
 import shutil
 
+# For accessing imported modules via their names stored as strings.
+import sys
+
 
 
 # For combining ML datasets.
@@ -152,82 +155,97 @@ path_to_data_dir_1 = converted_cmd_line_args["path_to_data_dir_1"]
 
 # Select the ``emicroml`` submodule required to generate a ML dataset that is
 # appropriate to the specified ML model task.
-global_symbol_table = globals()
 module_name = "emicroml.modelling.{}".format(ml_model_task).replace("/", ".")
-ml_model_task_module = global_symbol_table[module_name]
+ml_model_task_module = sys.modules[module_name]
 
 
 
 # Get the paths to ML datasets that are to be combined.
-pattern = r"ml_dataset_[0-9]*\.h5"
-path_to_input_ml_datasets = (path_to_data_dir_1
-                             + "/ml_datasets"
-                             + "/ml_datasets_for_training_and_validation")
-input_ml_dataset_filenames = [path_to_input_ml_datasets + "/" + name
-                              for name in os.listdir(path_to_input_ml_datasets)
-                              if re.fullmatch(pattern, name)]
-input_ml_dataset_filenames.sort()
+pattern = r"ml_datasets_with_([0-9]*)_pixel_wide_cropped_cbed_patterns"
+path_to_ml_datasets = path_to_data_dir_1 + "/ml_datasets"
+partial_path_set = ["/" + name
+                    for name in os.listdir(path_to_ml_datasets)
+                    if re.fullmatch(pattern, name)]
+partial_path_set += [""]*(len(partial_path_set) == 0)
+
+for partial_path in partial_path_set:
+    pattern = \
+        r"ml_dataset_[0-9]*\.h5"
+    path_to_input_ml_datasets = \
+        (path_to_ml_datasets
+         + partial_path
+         + "/ml_datasets_for_training_and_validation")
+    input_ml_dataset_filenames = \
+        [path_to_input_ml_datasets + "/" + name
+         for name in os.listdir(path_to_input_ml_datasets)
+         if re.fullmatch(pattern, name)]
+    _ = \
+        input_ml_dataset_filenames.sort()
 
 
 
-# Specify the filename of the ML dataset that will result from the combination
-# of ML datasets.
-output_ml_dataset_filename = (path_to_data_dir_1
-                              + "/ml_datasets"
-                              + "/ml_dataset_for_training_and_validation.h5")
+    # Specify the filename of the ML dataset that will result from the
+    # combination of ML datasets.
+    output_ml_dataset_filename = \
+        (path_to_ml_datasets
+         + partial_path
+         + "/ml_dataset_for_training_and_validation.h5")
 
 
 
-# Combine the input ML dataset files and then remove the directory containing
-# said input ML dataset files.
-max_num_ml_data_instances_per_file_update = 23040
+    # Combine the input ML dataset files and then remove the directory
+    # containing said input ML dataset files.
+    max_num_ml_data_instances_per_file_update = 23040
+    
+    kwargs = {"input_ml_dataset_filenames": \
+              input_ml_dataset_filenames,
+              "output_ml_dataset_filename": \
+              output_ml_dataset_filename,
+              "rm_input_ml_dataset_files": \
+              True,
+              "max_num_ml_data_instances_per_file_update": \
+              max_num_ml_data_instances_per_file_update}
+    ml_model_task_module.combine_ml_dataset_files(**kwargs)
 
-kwargs = {"input_ml_dataset_filenames": \
-          input_ml_dataset_filenames,
-          "output_ml_dataset_filename": \
-          output_ml_dataset_filename,
-          "rm_input_ml_dataset_files": \
-          True,
-          "max_num_ml_data_instances_per_file_update": \
-          max_num_ml_data_instances_per_file_update}
-ml_model_task_module.combine_ml_dataset_files(**kwargs)
-
-shutil.rmtree(path_to_input_ml_datasets)
-
-
-
-# Specify the filename of the ML dataset to split.
-input_ml_dataset_filename = output_ml_dataset_filename
+    shutil.rmtree(path_to_input_ml_datasets)
 
 
 
-# Specify the filenames of the ML datasets that will result from the split.
-output_ml_dataset_filename_1 = (path_to_data_dir_1
-                                + "/ml_datasets/ml_dataset_for_training.h5")
-output_ml_dataset_filename_2 = (path_to_data_dir_1
-                                + "/ml_datasets/ml_dataset_for_validation.h5")
-output_ml_dataset_filename_3 = (path_to_data_dir_1
-                                + "/ml_datasets/ml_dataset_for_testing.h5")
+    # Specify the filename of the ML dataset to split.
+    input_ml_dataset_filename = output_ml_dataset_filename
 
 
 
-# Perform the ML dataset split.
-kwargs = {"input_ml_dataset_filename": \
-          input_ml_dataset_filename,
-          "output_ml_dataset_filename_1": \
-          output_ml_dataset_filename_1,
-          "output_ml_dataset_filename_2": \
-          output_ml_dataset_filename_2,
-          "output_ml_dataset_filename_3": \
-          output_ml_dataset_filename_3,
-          "split_ratio": \
-          (80, 20, 0),
-          "enable_shuffling": \
-          False,
-          "rng_seed": \
-          1100,
-          "rm_input_ml_dataset_file": \
-          True,
-          "max_num_ml_data_instances_per_file_update": \
-          max_num_ml_data_instances_per_file_update}
-ml_model_task_module.split_ml_dataset_file(**kwargs)
+    # Specify the filenames of the ML datasets that will result from the split.
+    output_ml_dataset_filename_1 = (path_to_ml_datasets
+                                    + partial_path
+                                    + "/ml_dataset_for_training.h5")
+    output_ml_dataset_filename_2 = (path_to_ml_datasets
+                                    + partial_path
+                                    + "/ml_dataset_for_validation.h5")
+    output_ml_dataset_filename_3 = (path_to_ml_datasets
+                                    + partial_path
+                                    + "/ml_dataset_for_testing.h5")
+
+
+
+    # Perform the ML dataset split.
+    kwargs = {"input_ml_dataset_filename": \
+              input_ml_dataset_filename,
+              "output_ml_dataset_filename_1": \
+              output_ml_dataset_filename_1,
+              "output_ml_dataset_filename_2": \
+              output_ml_dataset_filename_2,
+              "output_ml_dataset_filename_3": \
+              output_ml_dataset_filename_3,
+              "split_ratio": \
+              (80, 20, 0),
+              "enable_shuffling": \
+              False,
+              "rng_seed": \
+              1100,
+              "rm_input_ml_dataset_file": \
+              True,
+              "max_num_ml_data_instances_per_file_update": \
+              max_num_ml_data_instances_per_file_update}
+    ml_model_task_module.split_ml_dataset_file(**kwargs)

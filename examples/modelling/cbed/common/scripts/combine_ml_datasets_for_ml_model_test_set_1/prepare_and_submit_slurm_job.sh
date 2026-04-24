@@ -82,33 +82,52 @@ cd ${path_to_data_dir_1}
 
 sample_name=MoS2_on_amorphous_C
 
-partial_path_1=ml_datasets/ml_datasets_for_ml_model_test_set_1
+partial_path_1=ml_datasets
+path_to_ml_datasets=${path_to_data_dir_1}/${partial_path_1}
+
+partial_path_set_1=( "${path_to_ml_datasets}"/*_pixel_* )
+partial_path_set_2=( "${partial_path_set_1[@]##*/}" )
+if [ ${#partial_path_set_2[@]} -eq 0 ]
+then
+    partial_path_set_3=( "" )
+else
+    partial_path_set_3=( "${partial_path_set_2[@]/#//}" )
+fi
+
+partial_path_2=ml_datasets_for_ml_model_test_set_1
+
 if [ "${ml_model_task}" == "cbed/distortion/estimation" ]
 then
-    partial_path_2=${partial_path_1}/ml_datasets_with_cbed_patterns_of_
+    partial_path_3=ml_datasets_with_cbed_patterns_of_${sample_name}
 else
-    partial_path_2=${partial_path_1}/ml_datasets_with_cropped_cbed_patterns_of_
+    partial_path_3=ml_datasets_with_cropped_cbed_patterns_of_${sample_name}
 fi
-partial_path_3=${partial_path_2}${sample_name}
 
-for partial_path_4 in ${partial_path_3}/ml_datasets_with_*_sized_disks
+for partial_path_4 in "${partial_path_set_3[@]}"
 do
-    dirname_1=${path_to_data_dir_1}/${partial_path_4}
-    for filename_1 in ${dirname_1}/ml_dataset_*.h5
-    do
-	basename_1=$(basename "${filename_1}")
-	basename_2=${basename_1}
-	dirname_2=${SLURM_TMPDIR}/${partial_path_4}
-	filename_2=${dirname_2}/${basename_2}
+    partial_path_5=${partial_path_4}/${partial_path_2}/${partial_path_3}
+    partial_path_6=${partial_path_1}${partial_path_5}
 
-	mkdir -p ${dirname_2}
-	if [ "${filename_1}" != "${filename_2}" ]
-	then
-	    cp ${filename_1} ${filename_2}
-	    msg="Copied file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
-	    echo ${msg}
-	    echo ""
-	fi
+    for partial_path_7 in ${partial_path_6}/ml_datasets_with_*_sized_disks
+    do
+	dirname_1=${path_to_data_dir_1}/${partial_path_7}
+	for filename_1 in ${dirname_1}/ml_dataset_*.h5
+	do
+	    basename_1=$(basename "${filename_1}")
+	    basename_2=${basename_1}
+	    dirname_2=${SLURM_TMPDIR}/${partial_path_7}
+	    filename_2=${dirname_2}/${basename_2}
+
+	    mkdir -p ${dirname_2}
+	    if [ "${filename_1}" != "${filename_2}" ]
+	    then
+		cp ${filename_1} ${filename_2}
+		msg="Copied file at ``'"${filename_1}"'`` to "
+		msg=${msg}"``'"${filename_2}"'``."
+		echo ${msg}
+		echo ""
+	    fi
+	done
     done
 done
 
@@ -141,34 +160,40 @@ fi
 # Move the non-temporary output data that is generated from the main steps to
 # their expected final destinations. Also delete/remove any remaining temporary
 # files or directories.
-cd ${SLURM_TMPDIR}
-
-for partial_path_5 in ${partial_path_3}/ml_dataset_with_*_sized_disks.h5
+for partial_path_4 in "${partial_path_set_3[@]}"
 do
-    dirname_1=${SLURM_TMPDIR}/${partial_path_3}
-    filename_1=${SLURM_TMPDIR}/${partial_path_5}
+    cd ${SLURM_TMPDIR}
 
-    basename_1=$(basename "${filename_1}")
-    basename_2=${basename_1}
+    partial_path_5=${partial_path_4}/${partial_path_2}/${partial_path_3}
+    partial_path_6=${partial_path_1}${partial_path_5}
     
-    dirname_2=${path_to_data_dir_1}/${partial_path_3}
-    filename_2=${dirname_2}/${basename_2}
+    for partial_path_8 in ${partial_path_6}/ml_dataset_with_*_sized_disks.h5
+    do
+	dirname_1=${SLURM_TMPDIR}/${partial_path_6}
+	filename_1=${SLURM_TMPDIR}/${partial_path_8}
 
-    mkdir -p ${dirname_2}
-    if [ "${filename_1}" != "${filename_2}" ]
-    then
-	mv ${filename_1} ${filename_2}
-	msg="Moved file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
-	echo ${msg}
-	echo ""
-    fi
-done
+	basename_1=$(basename "${filename_1}")
+	basename_2=${basename_1}
+    
+	dirname_2=${path_to_data_dir_1}/${partial_path_6}
+	filename_2=${dirname_2}/${basename_2}
 
-cd ${path_to_data_dir_1}
+	mkdir -p ${dirname_2}
+	if [ "${filename_1}" != "${filename_2}" ]
+	then
+	    mv ${filename_1} ${filename_2}
+	    msg="Moved file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
+	    echo ${msg}
+	    echo ""
+	fi
+    done
 
-for partial_path_4 in ${partial_path_3}/ml_datasets_with_*_sized_disks
-do
-    rm -rf ${path_to_data_dir_1}/${partial_path_4}
+    cd ${path_to_data_dir_1}
+
+    for partial_path_7 in ${partial_path_6}/ml_datasets_with_*_sized_disks
+    do
+	rm -rf ${path_to_data_dir_1}/${partial_path_7}
+    done
 done
 
 if [ "${overwrite_slurm_tmpdir}" = true ]

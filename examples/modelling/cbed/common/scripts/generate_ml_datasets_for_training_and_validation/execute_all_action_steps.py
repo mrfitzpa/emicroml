@@ -85,20 +85,26 @@ path_to_script_to_execute = \
 
 # Execute the script at ``path_to_script_to_execute`` multiple times to generate
 # multiple ML datasets.
-num_ml_datasets = 1
-# num_ml_datasets = 55
-for ml_dataset_idx in range(num_ml_datasets):
-    unformatted_cmd_str = ("python {} "
-                           "--ml_model_task={} "
-                           "--ml_dataset_idx={} "
-                           "--data_dir_1={} "
-                           "--repo_root={} "
-                           "--use_slurm={}")
-    cmd_str = unformatted_cmd_str.format(path_to_script_to_execute,
-                                         ml_model_task,
-                                         ml_dataset_idx,
-                                         path_to_data_dir_1,
-                                         path_to_repo_root,
-                                         use_slurm)
-    os.system(cmd_str)
-    print("\n\n\n")
+ml_input_image_widths_in_pixels = ((512,)
+                                   if ("distortion" in ml_model_task)
+                                   else (64, 128))
+for ml_input_image_width_in_pixels in ml_input_image_widths_in_pixels:
+    num_ml_datasets = 2
+    # num_ml_datasets = 55
+    for ml_dataset_idx in range(num_ml_datasets):
+        unformatted_cmd_str = ("python {} "
+                               "--ml_model_task={} "
+                               "--ml_input_image_width={} "
+                               "--ml_dataset_idx={} "
+                               "--data_dir_1={} "
+                               "--repo_root={} "
+                               "--use_slurm={}")
+        cmd_str = unformatted_cmd_str.format(path_to_script_to_execute,
+                                             ml_model_task,
+                                             ml_input_image_width_in_pixels,
+                                             ml_dataset_idx,
+                                             path_to_data_dir_1,
+                                             path_to_repo_root,
+                                             use_slurm)
+        os.system(cmd_str)
+        print("\n\n\n")

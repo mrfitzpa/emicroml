@@ -81,24 +81,39 @@ source ${path_to_repo_root}/${basename} ${SLURM_TMPDIR}/tempenv false
 
 # Copy the input data to temporary directories.
 partial_path_1=ml_datasets
-partial_path_2=${partial_path_1}/ml_datasets_for_training_and_validation
+path_to_ml_datasets=${path_to_data_dir_1}/${partial_path_1}
 
-dirname_1=${path_to_data_dir_1}/${partial_path_2}
-for filename_1 in ${dirname_1}/ml_dataset_*.h5
+partial_path_set_1=( "${path_to_ml_datasets}"/*_pixel_* )
+partial_path_set_2=( "${partial_path_set_1[@]##*/}" )
+if [ ${#partial_path_set_2[@]} -eq 0 ]
+then
+    partial_path_set_3=( "" )
+else
+    partial_path_set_3=( "${partial_path_set_2[@]/#//}" )
+fi
+
+partial_path_2=ml_datasets_for_training_and_validation
+
+for partial_path_3 in "${partial_path_set_3[@]}"
 do
-    basename_1=$(basename "${filename_1}")
-    basename_2=${basename_1}
-    dirname_2=${SLURM_TMPDIR}/${partial_path_2}
-    filename_2=${dirname_2}/${basename_2}
+    partial_path_4=${partial_path_3}/${partial_path_2}
+    dirname_1=${path_to_ml_datasets}${partial_path_4}
+    for filename_1 in ${dirname_1}/ml_dataset_*.h5
+    do
+	basename_1=$(basename "${filename_1}")
+	basename_2=${basename_1}
+	dirname_2=${SLURM_TMPDIR}/${partial_path_1}${partial_path_4}
+	filename_2=${dirname_2}/${basename_2}
 
-    mkdir -p ${dirname_2}
-    if [ "${filename_1}" != "${filename_2}" ]
-    then
-	cp ${filename_1} ${filename_2}
-	msg="Copied file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
-	echo ${msg}
-	echo ""
-    fi
+	mkdir -p ${dirname_2}
+	if [ "${filename_1}" != "${filename_2}" ]
+	then
+	    cp ${filename_1} ${filename_2}
+	    msg="Copied file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
+	    echo ${msg}
+	    echo ""
+	fi
+    done
 done
 
 echo ""
@@ -130,28 +145,31 @@ fi
 # files or directories.
 cd ${SLURM_TMPDIR}
 
-ml_dataset_types=(training validation)
-
-for ml_dataset_type in "${ml_dataset_types[@]}"
+for partial_path_3 in "${partial_path_set_3[@]}"
 do
-    dirname_1=${SLURM_TMPDIR}/${partial_path_1}
-    dirname_2=${path_to_data_dir_1}/${partial_path_1}
-    basename_1=ml_dataset_for_${ml_dataset_type}.h5
-    basename_2=${basename_1}
-    filename_1=${dirname_1}/${basename_1}
-    filename_2=${dirname_2}/${basename_2}
+    partial_path_4=${partial_path_3}/${partial_path_2}
+    partial_path_5=${partial_path_1}${partial_path_3}
+    ml_dataset_types=(training validation)
+    for ml_dataset_type in "${ml_dataset_types[@]}"
+    do
+	dirname_1=${SLURM_TMPDIR}/${partial_path_5}
+	dirname_2=${path_to_data_dir_1}/${partial_path_5}
+	basename_1=ml_dataset_for_${ml_dataset_type}.h5
+	basename_2=${basename_1}
+	filename_1=${dirname_1}/${basename_1}
+	filename_2=${dirname_2}/${basename_2}
 
-    mkdir -p ${dirname_2}
-    if [ "${filename_1}" != "${filename_2}" ]
-    then
-	mv ${filename_1} ${filename_2}
-	msg="Moved file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
-	echo ${msg}
-	echo ""
-    fi
+	mkdir -p ${dirname_2}
+	if [ "${filename_1}" != "${filename_2}" ]
+	then
+	    mv ${filename_1} ${filename_2}
+	    msg="Moved file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
+	    echo ${msg}
+	    echo ""
+	fi
+    done
+    rm -rf ${path_to_ml_datasets}${partial_path_4}
 done
-
-rm -rf ${path_to_data_dir_1}/${partial_path_2}
 
 if [ "${overwrite_slurm_tmpdir}" = true ]
 then

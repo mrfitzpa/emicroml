@@ -75,21 +75,41 @@ path_to_script_to_execute = (str(path_to_current_script.parents[1])
 
 
 
+# Get the paths to the ML training datasets that are to be used to train the ML
+# models.
+pattern = r"ml_datasets_with_([0-9]*)_pixel_wide_cropped_cbed_patterns"
+path_to_ml_datasets = path_to_data_dir_1 + "/ml_datasets"
+partial_path_set = ["/" + name
+                    for name in os.listdir(path_to_ml_datasets)
+                    if re.fullmatch(pattern, name)]
+partial_path_set += [""]*(len(partial_path_set) == 0)
+
+paths_to_ml_training_datasets = \
+    [path_to_ml_datasets + partial_path + "/ml_dataset_for_training.h5"
+     for partial_path
+     in partial_path_set]
+
+
+
 # Execute the script at ``path_to_script_to_execute`` multiple times to train
 # multiple ML models.
-num_ml_models_to_train = 10
-for ml_model_idx in range(num_ml_models_to_train):
-    unformatted_cmd_str = ("python {} "
-                           "--ml_model_task={} "
-                           "--ml_model_idx={} "
-                           "--data_dir_1={} "
-                           "--repo_root={} "
-                           "--use_slurm={}")
-    cmd_str = unformatted_cmd_str.format(path_to_script_to_execute,
-                                         ml_model_task,
-                                         ml_model_idx,
-                                         path_to_data_dir_1,
-                                         path_to_repo_root,
-                                         use_slurm)
-    os.system(cmd_str)
-    print("\n\n\n")
+for path_to_ml_training_dataset in paths_to_ml_training_datasets:
+    # num_ml_models_to_train = 10
+    num_ml_models_to_train = 1
+    for ml_model_idx in range(num_ml_models_to_train):
+        unformatted_cmd_str = ("python {} "
+                               "--ml_model_task={} "
+                               "--ml_model_idx={} "
+                               "--data_dir_1={} "
+                               "--ml_training_dataset={} "
+                               "--repo_root={} "
+                               "--use_slurm={}")
+        cmd_str = unformatted_cmd_str.format(path_to_script_to_execute,
+                                             ml_model_task,
+                                             ml_model_idx,
+                                             path_to_data_dir_1,
+                                             path_to_ml_training_dataset,
+                                             path_to_repo_root,
+                                             use_slurm)
+        os.system(cmd_str)
+        print("\n\n\n")

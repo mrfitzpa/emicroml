@@ -96,6 +96,7 @@ def parse_overriding_sbatch_options_file(path_to_repo_root):
 # Parse the command line arguments.
 parser = argparse.ArgumentParser()
 argument_names = ("ml_model_task",
+                  "ml_input_image_width",
                   "disk_size_idx",
                   "disk_size",
                   "ml_dataset_idx",
@@ -106,6 +107,7 @@ for argument_name in argument_names:
     parser.add_argument("--"+argument_name)
 args = parser.parse_args()
 ml_model_task = args.ml_model_task
+ml_input_image_width_in_pixels = int(args.ml_input_image_width)
 disk_size_idx = int(args.disk_size_idx)
 disk_size = args.disk_size
 ml_dataset_idx = int(args.ml_dataset_idx)
@@ -137,6 +139,7 @@ if use_slurm == "yes":
                path_to_repo_root,
                path_to_data_dir_1,
                ml_model_task,
+               ml_input_image_width_in_pixels,
                disk_size_idx,
                disk_size,
                ml_dataset_idx,
@@ -156,6 +159,7 @@ else:
                                  + "/execute_main_action_steps.py")
     unformatted_cmd_str = ("python {} "
                            "--ml_model_task={} "
+                           "--ml_input_image_width={} "
                            "--disk_size_idx={} "
                            "--disk_size={} "
                            "--ml_dataset_idx={} "
@@ -163,6 +167,7 @@ else:
                            "--data_dir_2={}")
     cmd_str = unformatted_cmd_str.format(path_to_script_to_execute,
                                          ml_model_task,
+                                         ml_input_image_width_in_pixels,
                                          disk_size_idx,
                                          disk_size,
                                          ml_dataset_idx,

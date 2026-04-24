@@ -82,15 +82,65 @@ source ${path_to_repo_root}/${basename} ${SLURM_TMPDIR}/tempenv false
 cd ${path_to_data_dir_1}
 
 partial_path_1=ml_models
+path_to_ml_models=${path_to_data_dir_1}/${partial_path_1}
 
-for partial_path_2 in ${partial_path_1}/ml_model_*
+partial_path_set_1=( "${path_to_ml_models}"/*_pixel_* )
+partial_path_set_2=( "${partial_path_set_1[@]##*/}" )
+if [ ${#partial_path_set_2[@]} -eq 0 ]
+then
+    partial_path_set_3=( "" )
+else
+    partial_path_set_3=( "${partial_path_set_2[@]/#//}" )
+fi
+
+partial_path_2=ml_datasets
+
+for partial_path_3 in "${partial_path_set_3[@]}"
 do
-    dirname_1=${path_to_data_dir_1}/${partial_path_2}
-    for filename_1 in ${dirname_1}/ml_model_at_lr_step_*.pth
+    partial_path_4="${partial_path_3/ml_models_for/ml_datasets_with}"
+    partial_path_5=${partial_path_1}${partial_path_3}
+    partial_path_6=${partial_path_2}${partial_path_4}
+
+    for partial_path_7 in ${partial_path_5}/ml_model_*
+    do
+	dirname_1=${path_to_data_dir_1}/${partial_path_7}
+	for filename_1 in ${dirname_1}/ml_model_at_lr_step_*.pth
+	do
+	    basename_1=$(basename "${filename_1}")
+	    basename_2=${basename_1}
+	    dirname_2=${SLURM_TMPDIR}/${partial_path_7}
+	    filename_2=${dirname_2}/${basename_2}
+
+	    mkdir -p ${dirname_2}
+	    if [ "${filename_1}" != "${filename_2}" ]
+	    then
+		cp ${filename_1} ${filename_2}
+		msg="Copied file at ``'"${filename_1}"'`` "
+		msg=${msg}"to ``'"${filename_2}"'``."
+		echo ${msg}
+		echo ""
+	    fi
+	done
+    done
+
+    sample_name=MoS2_on_amorphous_C
+
+    partial_path_8=${partial_path_6}/ml_datasets_for_ml_model_test_set_1
+    if [ "${ml_model_task}" == "cbed/distortion/estimation" ]
+    then
+	partial_path_9=cbed_patterns
+    else
+	partial_path_9=cropped_cbed_patterns
+    fi
+    partial_path_10=${partial_path_8}/ml_datasets_with_${partial_path_9}_of_
+    partial_path_11=${partial_path_10}${sample_name}
+
+    dirname_1=${path_to_data_dir_1}/${partial_path_11}
+    for filename_1 in ${dirname_1}/ml_dataset_with_*_sized_disks.h5
     do
 	basename_1=$(basename "${filename_1}")
 	basename_2=${basename_1}
-	dirname_2=${SLURM_TMPDIR}/${partial_path_2}
+	dirname_2=${SLURM_TMPDIR}/${partial_path_11}
 	filename_2=${dirname_2}/${basename_2}
 
 	mkdir -p ${dirname_2}
@@ -102,36 +152,6 @@ do
 	    echo ""
 	fi
     done
-done
-
-sample_name=MoS2_on_amorphous_C
-
-partial_path_3=ml_datasets/ml_datasets_for_ml_model_test_set_1
-if [ "${ml_model_task}" == "cbed/distortion/estimation" ]
-then
-    partial_path_4=cbed_patterns
-else
-    partial_path_4=cropped_cbed_patterns
-fi
-partial_path_5=${partial_path_3}/ml_datasets_with_${partial_path_4}_of_
-partial_path_6=${partial_path_5}${sample_name}
-
-dirname_1=${path_to_data_dir_1}/${partial_path_6}
-for filename_1 in ${dirname_1}/ml_dataset_with_*_sized_disks.h5
-do
-    basename_1=$(basename "${filename_1}")
-    basename_2=${basename_1}
-    dirname_2=${SLURM_TMPDIR}/${partial_path_6}
-    filename_2=${dirname_2}/${basename_2}
-
-    mkdir -p ${dirname_2}
-    if [ "${filename_1}" != "${filename_2}" ]
-    then
-	cp ${filename_1} ${filename_2}
-	msg="Copied file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
-	echo ${msg}
-	echo ""
-    fi
 done
 
 echo ""
@@ -165,28 +185,34 @@ fi
 # files or directories.
 cd ${SLURM_TMPDIR}
 
-for partial_path_2 in ${partial_path_1}/ml_model_*
+for partial_path_3 in "${partial_path_set_3[@]}"
 do
-    partial_path_7=${partial_path_2}/ml_model_test_set_1_results
-    for partial_path_8 in ${partial_path_7}/results_for_${partial_path_4}_of_*
+    partial_path_5=${partial_path_1}${partial_path_3}
+    for partial_path_7 in ${partial_path_5}/ml_model_*
     do
-	dirname_1=${SLURM_TMPDIR}/${partial_path_8}
-	filename_1=${dirname_1}/ml_model_testing_summary_output_data.h5
+	partial_path_12=${partial_path_7}/ml_model_test_set_1_results
+	partial_path_13=${partial_path_12}/results_for
+	for partial_path_14 in ${partial_path_13}_${partial_path_9}_of_*
+	do
+	    dirname_1=${SLURM_TMPDIR}/${partial_path_14}
+	    filename_1=${dirname_1}/ml_model_testing_summary_output_data.h5
 
-	basename_1=$(basename "${filename_1}")
-	basename_2=${basename_1}
+	    basename_1=$(basename "${filename_1}")
+	    basename_2=${basename_1}
     
-	dirname_2=${path_to_data_dir_1}/${partial_path_8}
-	filename_2=${dirname_2}/${basename_2}
+	    dirname_2=${path_to_data_dir_1}/${partial_path_14}
+	    filename_2=${dirname_2}/${basename_2}
 
-	mkdir -p ${dirname_2}
-	if [ "${filename_1}" != "${filename_2}" ]
-	then
-	    mv ${filename_1} ${filename_2}
-	    msg="Moved file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
-	    echo ${msg}
-	    echo ""
-	fi
+	    mkdir -p ${dirname_2}
+	    if [ "${filename_1}" != "${filename_2}" ]
+	    then
+		mv ${filename_1} ${filename_2}
+		msg="Moved file at ``'"${filename_1}"'`` "
+		msg=${msg}"to ``'"${filename_2}"'``."
+		echo ${msg}
+		echo ""
+	    fi
+	done
     done
 done
 

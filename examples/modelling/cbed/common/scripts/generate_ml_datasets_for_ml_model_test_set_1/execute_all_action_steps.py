@@ -83,12 +83,17 @@ path_to_script_to_execute = (str(path_to_current_script.parents[1])
 
 # Execute the script at ``path_to_script_to_execute`` multiple times to generate
 # multiple ML datasets.
-disk_sizes = ("small", "medium", "large")
+ml_input_image_widths_in_pixels = ((512,)
+                                   if ("distortion" in ml_model_task)
+                                   else (64, 128))
+disk_sizes = ("small", "medium")
 num_ml_datasets = 1
-for disk_size_idx, disk_size in enumerate(disk_sizes):
-    for ml_dataset_idx in range(num_ml_datasets):
+for ml_input_image_width_in_pixels in ml_input_image_widths_in_pixels:
+    for disk_size_idx, disk_size in enumerate(disk_sizes):
+        for ml_dataset_idx in range(num_ml_datasets):
         unformatted_cmd_str = ("python {} "
                                "--ml_model_task={} "
+                               "--ml_input_image_width={} "
                                "--disk_size_idx={} "
                                "--disk_size={} "
                                "--ml_dataset_idx={} "
@@ -97,6 +102,7 @@ for disk_size_idx, disk_size in enumerate(disk_sizes):
                                "--use_slurm={}")
         cmd_str = unformatted_cmd_str.format(path_to_script_to_execute,
                                              ml_model_task,
+                                             ml_input_image_width_in_pixels,
                                              disk_size_idx,
                                              disk_size,
                                              ml_dataset_idx,

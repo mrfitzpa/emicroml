@@ -97,6 +97,7 @@ parser = argparse.ArgumentParser()
 argument_names = ("ml_model_task",
                   "ml_model_idx",
                   "data_dir_1",
+                  "ml_training_dataset",
                   "repo_root",
                   "use_slurm")
 for argument_name in argument_names:
@@ -105,6 +106,7 @@ args = parser.parse_args()
 ml_model_task = args.ml_model_task
 ml_model_idx = int(args.ml_model_idx)
 path_to_data_dir_1 = args.data_dir_1
+path_to_ml_training_dataset = args.ml_training_dataset
 path_to_repo_root = args.repo_root
 use_slurm = args.use_slurm
 
@@ -131,6 +133,7 @@ if use_slurm == "yes":
                path_to_dir_containing_current_script,
                path_to_repo_root,
                path_to_data_dir_1,
+               path_to_ml_training_dataset,
                ml_model_task,
                ml_model_idx,
                overwrite_slurm_tmpdir))
@@ -143,9 +146,11 @@ else:
     unformatted_cmd_str = ("python {} "
                            "--ml_model_task={} "
                            "--ml_model_idx={} "
-                           "--data_dir_1={}")
+                           "--data_dir_1={} "
+                           "--ml_training_dataset={}")
     cmd_str = unformatted_cmd_str.format(path_to_script_to_execute,
                                          ml_model_task,
                                          ml_model_idx,
-                                         path_to_data_dir_1)
+                                         path_to_data_dir_1,
+                                         path_to_ml_training_dataset)
 os.system(cmd_str)

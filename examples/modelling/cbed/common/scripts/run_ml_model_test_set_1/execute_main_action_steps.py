@@ -199,99 +199,118 @@ device_name = None
 
 
 
-# Search for ML models.
+# Interate over ML model subsets.
+pattern = r"ml_models_for_([0-9]*)_pixel_wide_cropped_cbed_patterns"
 path_to_ml_models = path_to_data_dir_1 + "/ml_models"
-pattern = "ml_model_[0-9]*"
-ml_model_idx_set = tuple(int(name.split("_")[-1])
-                         for name in os.listdir(path_to_ml_models)
-                         if re.fullmatch(pattern, name))
+partial_path_set_1 = ["/" + name
+                      for name in os.listdir(path_to_ml_models)
+                      if re.fullmatch(pattern, name)]
+partial_path_set_1 += [""]*(len(partial_path_set_1) == 0)
+
+for partial_path_1 in partial_path_set_1:
+    # Search for ML models within current subset.
+    path_to_ml_datasets = path_to_data_dir_1 + "/ml_datasets"
+
+    partial_path_2 = partial_path_2.replace("models_for", "datasets_with")
+    
+    partial_path_3 = path_to_ml_models + partial_path_1
+
+    pattern = "ml_model_[0-9]*"
+    ml_model_idx_set = tuple(int(name.split("_")[-1])
+                             for name in os.listdir(partial_path_3)
+                             if re.fullmatch(pattern, name))
 
 
 
-# Search for ML datasets for testing.
-cbed_pattern_descriptor = "cropped_" * ("cbed/disk" in ml_model_task)
-sample_name = "MoS2_on_amorphous_C"
+    # Search for ML datasets for testing.
+    cbed_pattern_descriptor = "cropped_" * ("cbed/disk" in ml_model_task)
+    sample_name = "MoS2_on_amorphous_C"
 
-unformatted_path = (path_to_data_dir_1
-                    + "/ml_datasets"
-                    + "/ml_datasets_for_ml_model_test_set_1"
-                    + "/ml_datasets_with_{}cbed_patterns_of_{}")
-path_to_ml_datasets = unformatted_path.format(cbed_pattern_descriptor,
-                                              sample_name)
-
-pattern = "ml_dataset_with_[a-z]*_sized_disks\.h5"
-disk_sizes = tuple(name.split("_")[-3]
-                   for name in os.listdir(path_to_ml_datasets)
-                   if re.fullmatch(pattern, name))
-
-
-
-for disk_size in disk_sizes:
-    # Load ML dataset.
-    unformatted_path = (path_to_data_dir_1
-                        + "/ml_datasets"
+    unformatted_path = (path_to_ml_datasets
+                        + partial_path_2
                         + "/ml_datasets_for_ml_model_test_set_1"
-                        + "/ml_datasets_with_{}cbed_patterns_of_{}"
-                        + "/ml_dataset_with_{}_sized_disks.h5")
-    path_to_ml_dataset = unformatted_path.format(cbed_pattern_descriptor,
-                                                 sample_name,
-                                                 disk_size)
+                        + "/ml_datasets_with_{}cbed_patterns_of_{}")
+    partial_path_4 = unformatted_path.format(cbed_pattern_descriptor,
+                                             sample_name)
 
-    kwargs = {"path_to_ml_dataset": path_to_ml_dataset,
-              "entire_ml_dataset_is_to_be_cached": True,
-              "ml_data_values_are_to_be_checked": True,
-              "max_num_ml_data_instances_per_chunk": 32}
-    ml_testing_dataset = ml_model_task_module.MLDataset(**kwargs)
+    pattern = "ml_dataset_with_[a-z]*_sized_disks\.h5"
+    disk_sizes = tuple(name.split("_")[-3]
+                       for name in os.listdir(partial_path_4)
+                       if re.fullmatch(pattern, name))
 
-    kwargs = {"ml_training_dataset": None,
-              "ml_validation_dataset": None,
-              "ml_testing_dataset": ml_testing_dataset,
-              "mini_batch_size": 64,
-              "rng_seed": rng_seed}
-    ml_dataset_manager = ml_model_task_module.MLDatasetManager(**kwargs)
+
+
+    for disk_size in disk_sizes:
+        # Load ML dataset.
+        unformatted_path = (path_to_ml_datasets
+                            + partial_path_2
+                            + "/ml_datasets_for_ml_model_test_set_1"
+                            + "/ml_datasets_with_{}cbed_patterns_of_{}"
+                            + "/ml_dataset_with_{}_sized_disks.h5")
+        path_to_ml_dataset = unformatted_path.format(cbed_pattern_descriptor,
+                                                     sample_name,
+                                                     disk_size)
+
+        kwargs = {"path_to_ml_dataset": path_to_ml_dataset,
+                  "entire_ml_dataset_is_to_be_cached": True,
+                  "ml_data_values_are_to_be_checked": True,
+                  "max_num_ml_data_instances_per_chunk": 32}
+        ml_testing_dataset = ml_model_task_module.MLDataset(**kwargs)
+
+        kwargs = {"ml_training_dataset": None,
+                  "ml_validation_dataset": None,
+                  "ml_testing_dataset": ml_testing_dataset,
+                  "mini_batch_size": 64,
+                  "rng_seed": rng_seed}
+        ml_dataset_manager = ml_model_task_module.MLDatasetManager(**kwargs)
 
 
     
-    for ml_model_idx in ml_model_idx_set:
-        # Load ML model to test.
-        unformatted_path = \
-            (path_to_data_dir_1
-             + "/ml_models/ml_model_{}")
-        path_to_ml_model_state_dicts = \
-            unformatted_path.format(ml_model_idx)
-        pattern = \
-            "ml_model_at_lr_step_[0-9]*\.pth"
-        largest_lr_step_idx = \
-            max([name.split("_")[-1].split(".")[0]
-                 for name in os.listdir(path_to_ml_model_state_dicts)
-                 if re.fullmatch(pattern, name)])
+        for ml_model_idx in ml_model_idx_set:
+            # Load ML model to test.
+            unformatted_path = \
+                (path_to_ml_models + partial_path_1 + "/ml_model_{}")
+            path_to_ml_model_state_dicts = \
+                unformatted_path.format(ml_model_idx)
+            pattern = \
+                "ml_model_at_lr_step_[0-9]*\.pth"
+            largest_lr_step_idx = \
+                max([name.split("_")[-1].split(".")[0]
+                     for name in os.listdir(path_to_ml_model_state_dicts)
+                     if re.fullmatch(pattern, name)])
 
-        unformatted_filename = \
-            (path_to_ml_model_state_dicts + "/ml_model_at_lr_step_{}.pth")
-        ml_model_state_dict_filename = \
-            unformatted_filename.format(largest_lr_step_idx)
+            unformatted_filename = \
+                (path_to_ml_model_state_dicts + "/ml_model_at_lr_step_{}.pth")
+            ml_model_state_dict_filename = \
+                unformatted_filename.format(largest_lr_step_idx)
 
-        kwargs = {"ml_model_state_dict_filename": ml_model_state_dict_filename,
-                  "device_name": device_name}
-        ml_model = ml_model_task_module.load_ml_model_from_file(**kwargs)
+            kwargs = {"ml_model_state_dict_filename": \
+                      ml_model_state_dict_filename,
+                      "device_name": \
+                      device_name}
+            ml_model = ml_model_task_module.load_ml_model_from_file(**kwargs)
 
         
 
-        # Run ML model test.
-        unformatted_path = (path_to_ml_model_state_dicts
-                            + "/ml_model_test_set_1_results"
-                            + "/results_for_{}cbed_patterns_of_{}"
-                            + "_with_{}_sized_disks")
-        output_dirname = unformatted_path.format(cbed_pattern_descriptor,
-                                                 sample_name,
-                                                 disk_size)
+            # Run ML model test.
+            unformatted_path = (path_to_ml_model_state_dicts
+                                + "/ml_model_test_set_1_results"
+                                + "/results_for_{}cbed_patterns_of_{}"
+                                + "_with_{}_sized_disks")
+            output_dirname = unformatted_path.format(cbed_pattern_descriptor,
+                                                     sample_name,
+                                                     disk_size)
         
-        misc_model_testing_metadata = dict()
+            misc_model_testing_metadata = dict()
 
-        kwargs = {"ml_dataset_manager": ml_dataset_manager,
-                  "device_name": device_name,
-                  "output_dirname": output_dirname,
-                  "misc_model_testing_metadata": misc_model_testing_metadata}
-        ml_model_tester = ml_model_task_module.MLModelTester(**kwargs)
+            kwargs = {"ml_dataset_manager": \
+                      ml_dataset_manager,
+                      "device_name": \
+                      device_name,
+                      "output_dirname": \
+                      output_dirname,
+                      "misc_model_testing_metadata": \
+                      misc_model_testing_metadata}
+            ml_model_tester = ml_model_task_module.MLModelTester(**kwargs)
 
-        ml_model_tester.test_ml_model(ml_model)
+            ml_model_tester.test_ml_model(ml_model)
