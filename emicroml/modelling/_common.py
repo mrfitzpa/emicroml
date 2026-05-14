@@ -167,14 +167,14 @@ class _UnnormalizedMLDataInstanceGenerator():
 
 def _calc_normalization_weight_and_bias_candidates_from_minimum_and_maximum(
         minimum, maximum):
-    abs_extrema_diff = (0.0
-                        if np.isnan(abs(maximum-minimum))
-                        else abs(maximum-minimum))
-
     tol = _tol_for_comparing_floats
+    
+    abs_extrema_diff = (-1.0
+                        if np.isnan(abs(maximum-minimum))
+                        else max(abs(maximum-minimum), tol))
 
     normalization_weight_candidate = \
-        1 / (abs_extrema_diff, -1)[bool(abs_extrema_diff <= tol)]
+        1 / abs_extrema_diff
     
     normalization_bias_candidate = \
         (-normalization_weight_candidate
@@ -6177,15 +6177,6 @@ class _FCResidualBlock(torch.nn.Module):
         self._fc_layers = self._generate_fc_layers()
         self._mini_batch_norms = self._generate_mini_batch_norms()
 
-        kwargs = {"in_features": num_input_channels,
-                  "out_features": num_input_channels}
-        self._fc_1 = torch.nn.Linear(**kwargs)
-        self._fc_2 = torch.nn.Linear(**kwargs)
-
-        kwargs = {"num_input_channels": num_input_channels}
-        self._mini_batch_norm_1 = self._generate_mini_batch_norm(**kwargs)
-        self._mini_batch_norm_2 = self._generate_mini_batch_norm(**kwargs)
-
         return None
 
 
@@ -6193,7 +6184,7 @@ class _FCResidualBlock(torch.nn.Module):
     def _generate_fc_layers(self):
         num_fc_layers = self._num_fc_layers
 
-        fc_layers = tuple(self._generate_fc_layer()
+        fc_layers = tuple(self._generate_fc_layer(fc_layer_idx)
                           for fc_layer_idx
                           in range(num_fc_layers))
 
@@ -6203,7 +6194,7 @@ class _FCResidualBlock(torch.nn.Module):
 
 
 
-    def _generate_fc_layer(self):
+    def _generate_fc_layer(self, fc_layer_idx):
         kwargs = {"in_features": self._num_input_channels,
                   "out_features": self._num_output_channels,
                   "bias": False}

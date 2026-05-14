@@ -68,7 +68,6 @@ import skimage.metrics
 
 # For performing multi-resolution analysis.
 import pywt
-import pytorch_wavelets
 
 
 
@@ -476,6 +475,23 @@ class _DefaultCBEDPatternGenerator(_cls_alias):
 
 
 
+    def _generate_u_a_support(self):
+        self_core_attrs = \
+            self.get_core_attrs(deep_copy=False)
+        num_pixels_across_each_cbed_pattern = \
+            self_core_attrs["num_pixels_across_each_cbed_pattern"]
+        num_pixels_across_each_expected_cropping_window = \
+            self_core_attrs["num_pixels_across_each_expected_cropping_window"]
+
+        width_ratio = (num_pixels_across_each_expected_cropping_window
+                       / num_pixels_across_each_cbed_pattern)
+
+        u_a_support = super()._generate_u_a_support() * min(1, 4*width_ratio)
+
+        return u_a_support
+
+
+
     def _generate_e_support(self):
         e_support = abs(rng.uniform(low=0.0, high=0.4))
 
@@ -801,7 +817,7 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
 
         """
         generation_attempt_count = 0
-        max_num_generation_attempts = 10
+        max_num_generation_attempts = 40
         cropped_cbed_pattern_generation_has_not_been_completed = True
         
         while cropped_cbed_pattern_generation_has_not_been_completed:
@@ -955,11 +971,11 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
         method_alias = getattr(cropped_cbed_pattern, method_name)
         bounding_box = method_alias(deep_copy=False)
 
-        if ml_model_task == "cbed/disk/localization":
-            bounding_box_buffer = 4*d_q*np.ones((4,))
-        else:
+        if ml_model_task == "cbed/disk/segmentation":
             kwargs = {"low": 4*d_q,"high": max(1/10, 4*d_q), "size": 4}
             bounding_box_buffer = self._rng.uniform(**kwargs)
+        else:
+            bounding_box_buffer = 4*d_q*np.ones((4,))
 
         quadruple_1 = \
             np.array((max(bounding_box[0]-bounding_box_buffer[0], 0),
@@ -967,13 +983,13 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
                       max(bounding_box[2]-bounding_box_buffer[2], 0),
                       max(1-bounding_box[3]-bounding_box_buffer[3], 0)))
 
-        if ml_model_task == "cbed/disk/localization":
+        if ml_model_task == "cbed/disk/segmentation":
+            quadruple_2 = quadruple_1
+            p = (1, 0)
+        else:
             kwargs = {"low": 0/4, "high": 1/4, "size": 4}
             quadruple_2 = self._rng.uniform(**kwargs)
             p = (1/2, 1-1/2)
-        else:
-            quadruple_2 = quadruple_1
-            p = (1, 0)
 
         kwargs = \
             {"a": (True, False), "p": p}
@@ -1080,7 +1096,7 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
                   "mask": principal_disk_support}
         mae = torch.masked_select(**kwargs).mean()
 
-        tol = 0.06
+        tol = 0.15
         if mae < tol:
             err_msg = _default_cropped_cbed_pattern_generator_err_msg_3
             raise ValueError(err_msg)
@@ -1706,7 +1722,9 @@ def _save_data_chunk(starting_idx_offset,
 _module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLDataNormalizer
 class _MLDataNormalizer(_cls_alias):
-    def __init__(self, max_num_ml_data_instances_per_file_update):
+    def __init__(self,
+                 max_num_ml_data_instances_per_file_update,
+                 resolution_level_of_disk_boundary_sample_size):
         module_alias = emicroml.modelling._common
         cls_alias = module_alias._MLDataNormalizer
         kwargs = {"keys_of_unnormalizable_ml_data_dict_elems": \
@@ -1720,6 +1738,10 @@ class _MLDataNormalizer(_cls_alias):
                   "max_num_ml_data_instances_per_file_update": \
                   max_num_ml_data_instances_per_file_update}
         cls_alias.__init__(self, **kwargs)
+
+        self._j_dashv = \
+            resolution_level_of_disk_boundary_sample_size
+        self._an_overriding_j_dashv_has_not_been_given = (self._j_dashv is None)
 
         self._ml_data_dict_key_subset_1 = \
             ("principal_disk_boundary_pt_sets",)
@@ -1738,7 +1760,12 @@ class _MLDataNormalizer(_cls_alias):
                   if (key not in ("self", "__class__"))}
         super()._update_extrema_cache(**kwargs)
 
-        self._j_dashv = self._calc_j_dashv(**kwargs)
+        an_overriding_j_dashv_has_not_been_given = \
+            self._an_overriding_j_dashv_has_not_been_given
+
+        self._j_dashv = (self._calc_j_dashv(**kwargs)
+                         if an_overriding_j_dashv_has_not_been_given
+                         else self._j_dashv)
         self._N_dot = 2**self._j_dashv
 
         return None
@@ -1957,12 +1984,16 @@ _module_alias = \
     emicroml.modelling.cbed._common
 _default_max_num_ml_data_instances_per_file_update = \
     _module_alias._default_max_num_ml_data_instances_per_file_update
+_default_resolution_level_of_disk_boundary_sample_size = \
+    None
 
 
 
 def _generate_default_ml_data_normalizer():
     kwargs = {"max_num_ml_data_instances_per_file_update": \
-              _default_max_num_ml_data_instances_per_file_update}
+              _default_max_num_ml_data_instances_per_file_update,
+              "resolution_level_of_disk_boundary_sample_size": \
+              _default_resolution_level_of_disk_boundary_sample_size}
     ml_data_normalizer = _MLDataNormalizer(**kwargs)
 
     return ml_data_normalizer
@@ -2094,8 +2125,14 @@ _module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._MLDataNormalizationWeightsAndBiasesLoader
 class _MLDataNormalizationWeightsAndBiasesLoader(_cls_alias):
     def __init__(self, max_num_ml_data_instances_per_file_update):
+        kwargs = \
+            {"max_num_ml_data_instances_per_file_update": \
+             max_num_ml_data_instances_per_file_update,
+             "resolution_level_of_disk_boundary_sample_size": \
+             _default_resolution_level_of_disk_boundary_sample_size}
         ml_data_normalizer = \
-            _MLDataNormalizer(max_num_ml_data_instances_per_file_update)
+            _MLDataNormalizer(**kwargs)
+        
         ml_data_value_validator = \
             _MLDataValueValidator()
 
@@ -2591,7 +2628,8 @@ def _check_and_convert_generate_and_save_ml_dataset_params(params):
         func_alias(params)
 
     param_name_subset = ("num_cropped_cbed_patterns",
-                         "cropped_cbed_pattern_generator")
+                         "cropped_cbed_pattern_generator",
+                         "resolution_level_of_disk_boundary_sample_size")
 
     global_symbol_table = globals()
     for param_name in param_name_subset:
@@ -2642,6 +2680,33 @@ def _check_and_convert_cropped_cbed_pattern_generator(params):
 
 
 
+def _check_and_convert_resolution_level_of_disk_boundary_sample_size(params):
+    obj_name = "resolution_level_of_disk_boundary_sample_size"
+    obj = params[obj_name]
+
+    current_func_name = \
+        "_check_and_convert_resolution_level_of_disk_boundary_sample_size"
+    err_msg = \
+        globals()[current_func_name+"_err_msg_1"]
+
+    try:
+        func_alias = czekitout.convert.to_positive_int
+        kwargs = {"obj": obj, "obj_name": obj_name}
+        resolution_level_disk_boundary_sample_size = (func_alias(**kwargs)
+                                                      if (obj is not None)
+                                                      else obj)
+        if ((resolution_level_disk_boundary_sample_size is not None)
+            and (resolution_level_disk_boundary_sample_size < 7)):
+            raise ValueError
+    except ValueError:
+        raise ValueError(err_msg)
+    except:
+        raise TypeError(err_msg)
+
+    return resolution_level_disk_boundary_sample_size
+
+
+
 _module_alias = emicroml.modelling.cbed._common
 _default_cropped_cbed_pattern_generator = None
 _default_num_cropped_cbed_patterns = _module_alias._default_num_cbed_patterns
@@ -2649,18 +2714,22 @@ _default_output_filename = _module_alias._default_output_filename
 
 
 
-def _generate_and_save_ml_dataset(cropped_cbed_pattern_generator,
-                                  max_num_ml_data_instances_per_file_update,
-                                  num_cropped_cbed_patterns,
-                                  output_filename,
-                                  start_time):
+def _generate_and_save_ml_dataset(
+        cropped_cbed_pattern_generator,
+        max_num_ml_data_instances_per_file_update,
+        num_cropped_cbed_patterns,
+        resolution_level_of_disk_boundary_sample_size,
+        output_filename,
+        start_time):
     kwargs = \
         {"cropped_cbed_pattern_generator": cropped_cbed_pattern_generator}
     unnormalized_ml_data_instance_generator = \
         _UnnormalizedMLDataInstanceGenerator(**kwargs)
 
     kwargs = {"max_num_ml_data_instances_per_file_update": \
-              max_num_ml_data_instances_per_file_update}
+              max_num_ml_data_instances_per_file_update,
+              "resolution_level_of_disk_boundary_sample_size": \
+              resolution_level_of_disk_boundary_sample_size}
     ml_data_normalizer = _MLDataNormalizer(**kwargs)
 
     num_ml_data_instances = num_cropped_cbed_patterns
@@ -3984,30 +4053,6 @@ def _pre_serialize_ml_dataset_manager(ml_dataset_manager):
 
 
 
-def _clip_image_stack_from_below_to_second_smallest_image_vals(image_stack):
-    minima_over_last_two_dims = image_stack.amin(dim=(-2, -1))
-
-    multi_dim_slice = (slice(None),)*(image_stack.ndim-2) + (None,)*2
-
-    kwargs = {"condition": \
-              (image_stack == minima_over_last_two_dims[multi_dim_slice]),
-              "input": \
-              torch.tensor(float("inf")).to(image_stack.device),
-              "other": \
-              image_stack}
-    image_stack_with_added_hot_pixels = torch.where(**kwargs)
-
-    second_minima_over_last_two_dims = \
-        image_stack_with_added_hot_pixels.amin(dim=(-2, -1))
-
-    kwargs = {"input": image_stack,
-              "other": second_minima_over_last_two_dims[multi_dim_slice]}
-    clipped_image_stack = torch.maximum(**kwargs)
-
-    return clipped_image_stack
-
-
-
 _building_block_counts_in_stages_of_localization_net = \
     (3, 5, 2)
 
@@ -4085,11 +4130,6 @@ class _LocalizationNet(torch.nn.Module):
         kwargs = \
             {"image_stack": ml_inputs["cropped_cbed_pattern_images"]}
         enhanced_cropped_cbed_pattern_images = \
-            _clip_image_stack_from_below_to_second_smallest_image_vals(**kwargs)
-
-        kwargs = \
-            {"image_stack": enhanced_cropped_cbed_pattern_images}
-        enhanced_cropped_cbed_pattern_images = \
             _min_max_normalize_image_stack(**kwargs)
 
         gamma = 0.3
@@ -4132,7 +4172,8 @@ class _BasicResNetStage(_cls_alias):
         
         module_alias = emicroml.modelling._common
         cls_alias = module_alias._BasicResNetStage
-        cls_alias.__init__(self, ctor_params)
+        kwargs = ctor_params
+        cls_alias.__init__(self, **kwargs)
 
         return None
 
@@ -4259,17 +4300,18 @@ class _BottleneckBlock(torch.nn.Module):
 
 
     def _generate_fc_layer(self):
-        N = self._num_pixels_across_each_cropped_cbed_pattern
-        C = (self._num_filters_per_conv_layer
-             if (j > j_vdash)
+        N_1 = (self._num_pixels_across_each_cropped_cbed_pattern
+               // 2**(self._j_dashv-self._j))
+        C_1 = (self._num_filters_per_conv_layer
+             if (self._j > self._j_vdash)
              else self._num_input_channels)
 
-        kwargs = {"in_features": N*N*C,
+        kwargs = {"in_features": N_1*N_1*C_1,
                   "out_features": self._num_output_channels,
                   "bias": True}
         fc_layer = torch.nn.Linear(**kwargs)
 
-        self._initialize_fc_layer_weights(self, fc_layer)
+        self._initialize_fc_layer_weights(fc_layer)
 
         return fc_layer
 
@@ -4304,24 +4346,59 @@ class _BottleneckBlock(torch.nn.Module):
 
 
 
-class IDWTBlock(torch.nn.Module):
-    def __init__(self, j_vdash):
+class _IDWTBlock(torch.nn.Module):
+    # This class is based on the class
+    # ``pytorch_wavelets.dwt.transform1d.DWT1DInverse``.
+
+    def __init__(self, j_vdash, dtype):
         super().__init__()
 
         wavelet_name = _get_wavelet_name_from_j_vdash(j_vdash)
-        kwargs = {"wave": wavelet_name, "mode": "periodization"}
-        self._idwt = pytorch_wavelets.dwt.transform1d.DWT1DInverse(**kwargs)
+        wavelet = pywt.Wavelet(name=wavelet_name)
+
+        abbreviation_map = {"lo": "low", "hi": "high"}
+        for abbreviation in abbreviation_map:
+            full_word = abbreviation_map[abbreviation]
+            attr_name = "rec_{}".format(abbreviation)
+            
+            filter_coeffs_subset = \
+                getattr(wavelet, attr_name)
+            filter_coeffs_subset = \
+                np.array(filter_coeffs_subset).ravel()
+            filter_coeffs_subset = \
+                torch.from_numpy(filter_coeffs_subset).to(dtype=dtype)
+            filter_coeffs_subset = \
+                filter_coeffs_subset.reshape(1, 1, 1, -1)
+
+            buffer_name = "_{}_pass_reconstruction_filters".format(full_word)
+            self.register_buffer(buffer_name, filter_coeffs_subset)
 
         return None
 
 
 
     def forward(self, a_j, d_j):
-        a_j = torch.unsqueeze(a_j, 1)
-        d_j = torch.unsqueeze(d_j, 1)
-        
-        a_jP1 = self._idwt((a_j, (d_j,)))
-        a_jP1 = torch.squeeze(a_jP1, 1)
+        N_1 = 2*a_j.shape[-1]
+        N_2 = self._low_pass_reconstruction_filters.shape[-1]
+        N_3 = 1-N_2//2
+
+        conv_transpose_2d = torch.nn.functional.conv_transpose2d
+
+        kwargs = {"input": a_j[:, None, None, :],
+                  "weight": self._low_pass_reconstruction_filters,
+                  "stride": (1, 2)}
+        conv_transpose_2d_result_1 = conv_transpose_2d(**kwargs)
+
+        kwargs["input"] = d_j[:, None, None, :]
+        kwargs["weight"] = self._high_pass_reconstruction_filters
+        conv_transpose_2d_result_2 = conv_transpose_2d(**kwargs)
+
+        a_jP1 = conv_transpose_2d_result_1 + conv_transpose_2d_result_2
+        a_jP1[:, :, :, :N_2-2] = (a_jP1[:, :, :, :N_2-2]
+                                  + a_jP1[:, :, :, N_1:N_1+N_2-2])
+        a_jP1 = a_jP1[:, :, :, :N_1]
+        a_jP1 = torch.cat((a_jP1[:, :, :, -N_3:], a_jP1[:, :, :, :-N_3]), dim=3)
+        a_jP1 = torch.squeeze(a_jP1[:, :, 0], 1)
 
         return a_jP1
 
@@ -4340,7 +4417,8 @@ class _FCResidualBlock(_cls_alias):
         
         module_alias = emicroml.modelling._common
         cls_alias = module_alias._FCResidualBlock
-        cls_alias.__init__(self, ctor_params)
+        kwargs = ctor_params
+        cls_alias.__init__(self, **kwargs)
 
         return None
 
@@ -4374,7 +4452,7 @@ class _PredictionBlock(torch.nn.Module):
         kwargs = {"num_input_channels": self._num_input_channels,
                   "final_activation_func": torch.nn.ReLU(),
                   "mini_batch_norm_eps": self._mini_batch_norm_eps}
-        fc_residual_block = self._generate_fc_residual_block()
+        fc_residual_block = _FCResidualBlock(**kwargs)
 
         return fc_residual_block
 
@@ -4394,7 +4472,7 @@ class _PredictionBlock(torch.nn.Module):
 
 
     def _initialize_fc_layer_weights(self, fc_layer):
-        kwargs = {"activation_func": torch.nn.Identity, "layer": fc_layer}
+        kwargs = {"activation_func": torch.nn.Identity(), "layer": fc_layer}
         _initialize_layer_weights_according_to_activation_func(**kwargs)
 
         return None
@@ -4408,6 +4486,7 @@ class _PredictionBlock(torch.nn.Module):
         return Y
 
 
+    
 _module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._BasicResNetBuildingBlock
 class _BasicResNetBuildingBlock(_cls_alias):
@@ -4424,28 +4503,8 @@ class _BasicResNetBuildingBlock(_cls_alias):
         
         module_alias = emicroml.modelling._common
         cls_alias = module_alias._BasicResNetBuildingBlock
-        cls_alias.__init__(self, ctor_params)
-
-        return None
-
-
-
-_module_alias = emicroml.modelling._common
-_cls_alias = _module_alias._BasicResNetStage
-class _BasicResNetStage(_cls_alias):
-    def __init__(self,
-                 num_input_channels,
-                 max_kernel_size,
-                 num_building_blocks,
-                 final_activation_func,
-                 mini_batch_norm_eps):
-        ctor_params = {key: val
-                       for key, val in locals().items()
-                       if (key not in ("self", "__class__"))}
-        
-        module_alias = emicroml.modelling._common
-        cls_alias = module_alias._BasicResNetStage
-        cls_alias.__init__(self, ctor_params)
+        kwargs = ctor_params
+        cls_alias.__init__(self, **kwargs)
 
         return None
 
@@ -4458,6 +4517,7 @@ class _SegmentationNet(torch.nn.Module):
                  j_dashv,
                  num_pixels_across_each_cropped_cbed_pattern,
                  num_filters_in_first_conv_layer,
+                 kernel_size_of_first_conv_layer,
                  num_resnet_building_blocks_per_stage,
                  num_filters_per_bottleneck_conv_layer,
                  mini_batch_norm_eps):
@@ -4473,6 +4533,8 @@ class _SegmentationNet(torch.nn.Module):
             num_pixels_across_each_cropped_cbed_pattern
         self._num_filters_in_first_conv_layer = \
             num_filters_in_first_conv_layer
+        self._kernel_size_of_first_conv_layer = \
+            kernel_size_of_first_conv_layer
         self._num_resnet_building_blocks_per_stage = \
             num_resnet_building_blocks_per_stage
         self._num_filters_per_bottleneck_conv_layer = \
@@ -4484,13 +4546,39 @@ class _SegmentationNet(torch.nn.Module):
         self._j_vdash = j_vdash
         
         self._num_downsamplings = j_dashv-j_vdash+1
-        self._idwt_block = _IDWTBlock(j_vdash)
 
+        self._first_conv_layer = self._generate_first_conv_layer()
         self._resnet_stages = self._generate_resnet_stages()
         self._downsampling_blocks = self._generate_downsampling_blocks()
         self._bottleneck_blocks = self._generate_bottleneck_blocks()
         self._prediction_blocks = self._generate_prediction_blocks()
+        self._idwt_block = self._generate_idwt_block()
         
+        return None
+
+
+
+    def _generate_first_conv_layer(self):
+        kwargs = {"in_channels": 1,
+                  "out_channels": self._num_filters_in_first_conv_layer,
+                  "kernel_size": self._kernel_size_of_first_conv_layer,
+                  "stride": 1,
+                  "padding": (self._kernel_size_of_first_conv_layer-1)//2,
+                  "padding_mode": "zeros",
+                  "bias": False}
+        conv_layer = torch.nn.Conv2d(**kwargs)
+
+        kwargs = {"conv_layer": conv_layer}
+        self._initialize_first_conv_layer_weights(**kwargs)
+
+        return conv_layer
+
+
+
+    def _initialize_first_conv_layer_weights(self, conv_layer):
+        kwargs = {"activation_func": torch.nn.ReLU(), "layer": conv_layer}
+        _initialize_layer_weights_according_to_activation_func(**kwargs)
+
         return None
 
 
@@ -4557,7 +4645,7 @@ class _SegmentationNet(torch.nn.Module):
             kwargs = {"num_pixels_across_each_cropped_cbed_pattern": \
                       self._num_pixels_across_each_cropped_cbed_pattern,
                       "num_input_channels": \
-                      resnet_stage._num_ouput_channels,
+                      resnet_stage._num_output_channels,
                       "num_filters_per_conv_layer": \
                       self._num_filters_per_bottleneck_conv_layer,
                       "j_vdash": \
@@ -4597,6 +4685,15 @@ class _SegmentationNet(torch.nn.Module):
 
 
 
+    def _generate_idwt_block(self):
+        kwargs = {"j_vdash": self._j_vdash,
+                  "dtype": self._first_conv_layer.weight.dtype}
+        idwt_block = _IDWTBlock(**kwargs)
+
+        return idwt_block
+
+
+
     def forward(self, ml_inputs):
         dwt_coeffs = \
             self._predict_dwt_coeffs(ml_inputs)
@@ -4623,29 +4720,30 @@ class _SegmentationNet(torch.nn.Module):
         prediction_block_count = 0
 
         Y_1 = self._get_and_enhance_cropped_cbed_pattern_images(ml_inputs)
+        Y_2 = self._first_conv_layer(Y_1)
 
         resnet_stage_idx = 0
         resnet_stage = self._resnet_stages[resnet_stage_idx]
-        Y_2 = resnet_stage(Y_1)
+        Y_3 = resnet_stage(Y_2)
         
         for j in j_set:
             downsampling_block_idx = \
-                j-j_set[0]
+                j_set[0]-j
             downsampling_block = \
                 self._downsampling_blocks[downsampling_block_idx]
-            Y_1 = \
-                downsampling_block(Y_2)
+            Y_2 = \
+                downsampling_block(Y_3)
 
             resnet_stage_idx = downsampling_block_idx+1
             resnet_stage = self._resnet_stages[resnet_stage_idx]
-            Y_2 = resnet_stage(Y_1)
+            Y_3 = resnet_stage(Y_2)
 
             if (j < self._j_epsilon) or (j == self._j_vdash):
                 bottleneck_block_idx = (resnet_stage_idx
                                         - (self._j_dashv-(self._j_epsilon-1))
                                         + (self._j_vdash == self._j_epsilon))
-                bottleneck_block = self._bottleneck_blocks[idx_2]
-                Y_3 = bottleneck_block(Y_2)
+                bottleneck_block = self._bottleneck_blocks[bottleneck_block_idx]
+                Y_4 = bottleneck_block(Y_3)
 
                 num_prediction_blocks_for_current_j = \
                     self._calc_num_prediction_blocks_for_current_j(j)
@@ -4657,10 +4755,10 @@ class _SegmentationNet(torch.nn.Module):
                 for prediction_block_idx in prediction_block_idx_subset:
                     prediction_block = \
                         self._prediction_blocks[prediction_block_idx]
-                    Y_4 = \
-                        prediction_block(Y_3)
+                    Y_5 = \
+                        prediction_block(Y_4)
                     dwt_coeffs = \
-                        (Y_4,) + dwt_coeffs
+                        (Y_5,) + dwt_coeffs
                     prediction_block_count += \
                         1
 
@@ -4762,7 +4860,7 @@ def _check_and_convert_j_epsilon(params):
 
 
 
-def check_and_convert_j_dashv(params):
+def _check_and_convert_j_dashv(params):
     obj_name = "j_dashv"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}    
     j_dashv = czekitout.convert.to_positive_int(**kwargs)
@@ -5048,6 +5146,7 @@ class _MLModel(_cls_alias):
                  "j_epsilon": self._core_attrs["j_epsilon"],
                  "j_dashv": self._core_attrs["j_dashv"],
                  "num_filters_in_first_conv_layer": 32,
+                 "kernel_size_of_first_conv_layer": 7,
                  "num_resnet_building_blocks_per_stage": 5,
                  "num_filters_per_bottleneck_conv_layer": 4}
 
@@ -5441,6 +5540,10 @@ _ml_data_shape_analyzer_err_msg_1 = \
      "file at the file path ``'{}'`` must satisfy "
      "``hdf5_dataset.shape[1] >= {}`` and ``hdf5_dataset.shape[1]`` must be a "
      "power of two.")
+
+_check_and_convert_resolution_level_of_disk_boundary_sample_size_err_msg_1 = \
+    ("The object ``resolution_level_of_disk_boundary_sample_size`` must either "
+     "be set to ``None`` or an integer greater than or equal to ``7``.")
 
 _check_and_convert_bounding_box_marker_style_kwargs_err_msg_1 = \
     ("The object ``bounding_box_marker_style_kwargs`` must either be set to "

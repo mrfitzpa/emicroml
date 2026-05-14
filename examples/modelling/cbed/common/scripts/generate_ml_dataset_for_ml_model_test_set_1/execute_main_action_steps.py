@@ -795,6 +795,11 @@ class CroppedCBEDPatternGenerator():
 
         self._initialize_and_cache_cbed_pattern_params()
 
+        N_dot = self._cropped_cbed_pattern_params["disk_boundary_sample_size"]
+
+        self.resolution_level_of_disk_boundary_sample_size = \
+            round(np.round(np.log2(N_dot)))
+
         return None
 
 
@@ -1281,9 +1286,17 @@ kwargs = {"ml_model_task": \
 if ml_model_task == "cbed/distortion/estimation":
     cls_name = "CBEDPatternGenerator"
 else:
+    ml_input_image_width = ml_input_image_width_in_pixels
+    unformatted_path = (path_to_data_dir_1
+                        + "/ml_datasets"
+                        + "/ml_datasets_with"
+                        + "_{}_pixel_wide_cropped_cbed_patterns"
+                        + "/ml_dataset_for_training.h5")
+    path_to_ml_training_dataset = unformatted_path.format(ml_input_image_width)
+
     kwargs = {**kwargs,
               "path_to_ml_training_dataset": \
-              path_to_data_dir_1+"/ml_datasets/ml_dataset_for_training.h5",
+              path_to_ml_training_dataset,
               "num_pixels_across_each_cropping_window": \
               ml_input_image_width_in_pixels}
     cls_name = "CroppedCBEDPatternGenerator"
@@ -1308,14 +1321,14 @@ unformatted_output_filename = (path_to_data_dir_1
                                + "/ml_datasets_with_{}cbed_patterns_of_{}"
                                + "/ml_datasets_with_{}_sized_disks"
                                + "/ml_dataset_{}.h5")
-output_filename = unformatted_output_filename.format(cbed_pattern_descriptor,
-                                                     partial_path,
+output_filename = unformatted_output_filename.format(partial_path,
+                                                     cbed_pattern_descriptor,
                                                      sample_name,
                                                      disk_size,
                                                      ml_dataset_idx)
 
 # num_patterns = 2880
-num_patterns = 10
+num_patterns = 50
 
 kwargs = {"output_filename": output_filename,
           "max_num_ml_data_instances_per_file_update": 288}
@@ -1332,5 +1345,7 @@ else:
               "num_cropped_cbed_patterns": \
               num_patterns,
               "cropped_cbed_pattern_generator": \
-              pattern_generator}    
+              pattern_generator,
+              "resolution_level_of_disk_boundary_sample_size": \
+              pattern_generator.resolution_level_of_disk_boundary_sample_size}
 ml_model_task_module.generate_and_save_ml_dataset(**kwargs)

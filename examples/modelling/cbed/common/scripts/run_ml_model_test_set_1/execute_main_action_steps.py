@@ -88,6 +88,9 @@ import re
 # For setting Python's seed.
 import random
 
+# For accessing imported modules via their names stored as strings.
+import sys
+
 
 
 # For avoiding errors related to the ``mkl-service`` package. Note that
@@ -175,9 +178,8 @@ path_to_data_dir_1 = converted_cmd_line_args["path_to_data_dir_1"]
 
 # Select the ``emicroml`` submodule required to generate a ML dataset that is
 # appropriate to the specified ML model task.
-global_symbol_table = globals()
 module_name = "emicroml.modelling.{}".format(ml_model_task).replace("/", ".")
-ml_model_task_module = global_symbol_table[module_name]
+ml_model_task_module = sys.modules[module_name]
 
 
 
@@ -211,11 +213,11 @@ for partial_path_1 in partial_path_set_1:
     # Search for ML models within current subset.
     path_to_ml_datasets = path_to_data_dir_1 + "/ml_datasets"
 
-    partial_path_2 = partial_path_2.replace("models_for", "datasets_with")
+    partial_path_2 = partial_path_1.replace("models_for", "datasets_with")
     
     partial_path_3 = path_to_ml_models + partial_path_1
 
-    pattern = "ml_model_[0-9]*"
+    pattern = r"ml_model_[0-9]*"
     ml_model_idx_set = tuple(int(name.split("_")[-1])
                              for name in os.listdir(partial_path_3)
                              if re.fullmatch(pattern, name))
@@ -233,7 +235,7 @@ for partial_path_1 in partial_path_set_1:
     partial_path_4 = unformatted_path.format(cbed_pattern_descriptor,
                                              sample_name)
 
-    pattern = "ml_dataset_with_[a-z]*_sized_disks\.h5"
+    pattern = r"ml_dataset_with_[a-z]*_sized_disks\.h5"
     disk_sizes = tuple(name.split("_")[-3]
                        for name in os.listdir(partial_path_4)
                        if re.fullmatch(pattern, name))
@@ -273,7 +275,7 @@ for partial_path_1 in partial_path_set_1:
             path_to_ml_model_state_dicts = \
                 unformatted_path.format(ml_model_idx)
             pattern = \
-                "ml_model_at_lr_step_[0-9]*\.pth"
+                r"ml_model_at_lr_step_[0-9]*\.pth"
             largest_lr_step_idx = \
                 max([name.split("_")[-1].split(".")[0]
                      for name in os.listdir(path_to_ml_model_state_dicts)

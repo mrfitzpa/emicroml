@@ -81,6 +81,8 @@ source ${path_to_repo_root}/${basename} ${SLURM_TMPDIR}/tempenv false
 # Copy the input data to the temporary directories.
 cd ${path_to_data_dir_1}
 
+shopt -s nullglob
+
 partial_path_1=ml_models
 path_to_ml_models=${path_to_data_dir_1}/${partial_path_1}
 
@@ -92,6 +94,8 @@ then
 else
     partial_path_set_3=( "${partial_path_set_2[@]/#//}" )
 fi
+
+shopt -u nullglob
 
 partial_path_2=ml_datasets
 
@@ -170,7 +174,7 @@ python ${path_to_script_to_execute} \
        --data_dir_1=${SLURM_TMPDIR}
 python_script_exit_code=$?
 
-if [ "${python_script_exit_code}" != 0 ];
+if [ "${python_script_exit_code}" != 0 ]
 then
     msg="\n\n\nThe slurm job terminated early with at least one error. "
     msg=${msg}"See traceback for details.\n\n\n"

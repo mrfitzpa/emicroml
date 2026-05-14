@@ -103,13 +103,40 @@ do
     fi
 done
 
+path_to_data_dir_2=${dirname_2}
+
+partial_path_4=ml_datasets
+if [[ "${ml_model_task}" == "cbed/disk/"* ]]
+then       
+    N=${ml_input_image_width_in_pixels}
+    partial_path_5=${partial_path_4}/ml_datasets_with_${N}_pixel_wide
+    partial_path_6=${partial_path_5}_cropped_cbed_patterns
+else
+    partial_path_6=${partial_path_4}
+fi
+
+dirname_1=${path_to_data_dir_1}/${partial_path_6}
+dirname_2=${SLURM_TMPDIR}/${partial_path_6}
+basename_1=ml_dataset_for_training.h5
+basename_2=${basename_1}
+filename_1=${dirname_1}/${basename_1}
+filename_2=${dirname_2}/${basename_2}
+
+mkdir -p ${dirname_2}
+if [ "${filename_1}" != "${filename_2}" ]
+then
+    cp ${filename_1} ${filename_2}
+    msg="Copied file at ``'"${filename_1}"'`` to ``'"${filename_2}"'``."
+    echo ${msg}
+    echo ""
+fi
+
 echo ""
 echo ""
 
 
 
 # Execute the script which executes the main action steps.
-path_to_data_dir_2=${dirname_2}
 
 basename=execute_main_action_steps.py
 path_to_script_to_execute=${path_to_dir_containing_current_script}/${basename}
@@ -124,7 +151,7 @@ python ${path_to_script_to_execute} \
        --data_dir_2=${path_to_data_dir_2}
 python_script_exit_code=$?
 
-if [ "${python_script_exit_code}" != 0 ];
+if [ "${python_script_exit_code}" != 0 ]
 then
     msg="\n\n\nThe slurm job terminated early with at least one error. "
     msg=${msg}"See traceback for details.\n\n\n"
@@ -137,15 +164,6 @@ fi
 # Move the non-temporary output data that is generated from the main steps to
 # their expected final destinations. Also delete/remove any remaining temporary
 # files or directories.
-partial_path_4=ml_datasets
-if [[ "${ml_model_task}" == "cbed/disk/"* ]
-then       
-    N=${ml_input_image_width_in_pixels}
-    partial_path_5=${partial_path_4}/ml_datasets_with_${N}_pixel_wide
-    partial_path_6=${partial_path_5}_cropped_cbed_patterns
-else
-    partial_path_6=${partial_path_4}
-fi
 partial_path_7=${partial_path_6}/ml_datasets_for_ml_model_test_set_1    
 if [ "${ml_model_task}" == "cbed/distortion/estimation" ]
 then

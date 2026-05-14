@@ -538,6 +538,8 @@ _default_num_cropped_cbed_patterns = \
     _module_alias._default_num_cropped_cbed_patterns
 _default_cropped_cbed_pattern_generator = \
     _module_alias._default_cropped_cbed_pattern_generator
+_default_resolution_level_of_disk_boundary_sample_size = \
+    _module_alias._default_resolution_level_of_disk_boundary_sample_size
 _default_output_filename = \
     _module_alias._default_output_filename
 _default_max_num_ml_data_instances_per_file_update = \
@@ -550,6 +552,8 @@ def generate_and_save_ml_dataset(
         _default_num_cropped_cbed_patterns,
         cropped_cbed_pattern_generator=\
         _default_cropped_cbed_pattern_generator,
+        resolution_level_of_disk_boundary_sample_size=\
+        _default_resolution_level_of_disk_boundary_sample_size,
         output_filename=\
         _default_output_filename,
         max_num_ml_data_instances_per_file_update=\
@@ -825,76 +829,81 @@ def generate_and_save_ml_dataset(
     29. If ``cropped_cbed_pattern_idx < num_cropped_cbed_patterns-1``, then go
     to instruction 15. Otherwise, go to instruction 30.
 
-    30. Set ``principal_disk_boundary_pt_sets`` to
+    30. If ``resolution_level_of_disk_boundary_sample_size is not None``, then
+    set ``j_dashv`` to
+    ``resolution_level_of_disk_boundary_sample_size is not None``. Otherwise,
+    go to the next instruction.
+
+    31. Set ``principal_disk_boundary_pt_sets`` to
     ``np.zeros((num_cropped_cbed_patterns, 2**j_dashv, 2))``.
 
-    31. Set ``cropped_cbed_pattern_idx`` to ``-1``.
+    32. Set ``cropped_cbed_pattern_idx`` to ``-1``.
 
-    32. Set ``cropped_cbed_pattern_idx`` to ``cropped_cbed_pattern_idx+1``.
+    33. Set ``cropped_cbed_pattern_idx`` to ``cropped_cbed_pattern_idx+1``.
 
-    33. Set ``principal_disk_boundary_pt_set_temp`` to
+    34. Set ``principal_disk_boundary_pt_set_temp`` to
     ``principal_disk_boundary_pt_sets_temp[cropped_cbed_pattern_idx]``.
 
-    34. Starting from the right-most point in
+    35. Starting from the right-most point in
     ``principal_disk_boundary_pt_set_temp``, sample counterclockwise
     ``2**j_dashv`` evenly spaced points along the perimeter of the polygon with
     vertices equal to the points stored in
     ``principal_disk_boundary_pt_set_temp``, and store the resulting sample of
     points in ``principal_disk_boundary_pt_set``.
 
-    35. Store ``principal_disk_boundary_pt_set`` in
+    36. Store ``principal_disk_boundary_pt_set`` in
     ``principal_disk_boundary_pt_sets[cropped_cbed_pattern_idx]``.
 
-    36. Set ``pt_set`` to ``principal_disk_boundary_pt_set``.
+    37. Set ``pt_set`` to ``principal_disk_boundary_pt_set``.
 
-    37. Set ``pattern_idx`` to ``cropped_cbed_pattern_idx``.
+    38. Set ``pattern_idx`` to ``cropped_cbed_pattern_idx``.
 
-    38. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
+    39. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
     ``pywt.wavedec(data=pt_set[cartesian_idx], wavelet="db1",
     mode="periodization", level=j_dashv-0)[0]`` in
     ``max_level_db1_approx_coeff_sets_of_principal_disk_boundary_pt_sets[pattern_idx,
     :, cartesian_idx]``.
 
-    39. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
+    40. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
     ``pywt.wavedec(data=pt_set[cartesian_idx], wavelet="db2",
     mode="periodization", level=j_dashv-2)[0]`` in
     ``max_level_db2_approx_coeff_sets_of_principal_disk_boundary_pt_sets[pattern_idx,
     :, cartesian_idx]``.
 
-    40. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
+    41. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
     ``pywt.wavedec(data=pt_set[cartesian_idx], wavelet="db4",
     mode="periodization", level=j_dashv-3)[0]`` in
     ``max_level_db4_approx_coeff_sets_of_principal_disk_boundary_pt_sets[pattern_idx,
     :, cartesian_idx]``.
 
-    41. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
+    42. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
     ``pywt.wavedec(data=pt_set[cartesian_idx], wavelet="db8",
     mode="periodization", level=j_dashv-4)[0]`` in
     ``max_level_db8_approx_coeff_sets_of_principal_disk_boundary_pt_sets[pattern_idx,
     :, cartesian_idx]``.
 
-    42. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
+    43. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
     ``pywt.wavedec(data=pt_set[cartesian_idx], wavelet="db16",
     mode="periodization", level=j_dashv-5)[0]`` in
     ``max_level_db16_approx_coeff_sets_of_principal_disk_boundary_pt_sets[pattern_idx,
     :, cartesian_idx]``.
 
-    43. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
+    44. For every integer ``cartesian_idx`` from ``0`` to ``1``, store
     ``pywt.wavedec(data=pt_set[cartesian_idx], wavelet="db32",
     mode="periodization", level=j_dashv-6)[0]`` in
     ``max_level_db32_approx_coeff_sets_of_principal_disk_boundary_pt_sets[pattern_idx,
     :, cartesian_idx]``.
 
-    44. If ``cropped_cbed_pattern_idx < num_cropped_cbed_patterns-1``, then go
-    to instruction 32. Otherwise, go to instruction 45.
+    45. If ``cropped_cbed_pattern_idx < num_cropped_cbed_patterns-1``, then go
+    to instruction 33. Otherwise, go to instruction 46.
 
-    45. For each normalizable HDF5 dataset, calculate the values of the HDF5
+    46. For each normalizable HDF5 dataset, calculate the values of the HDF5
     attributes ``"normalization_weight"`` and ``"normalization_bias"`` of the
     HDF5 dataset that would min-max normalize correctly the HDF5 dataset.
 
-    46. Min-max normalized all normalizable HDF5 datasets.
+    47. Min-max normalized all normalizable HDF5 datasets.
 
-    47. Stop.
+    48. Stop.
 
     Parameters
     ----------
@@ -904,6 +913,15 @@ def generate_and_save_ml_dataset(
     cropped_cbed_pattern_generator : `any_fake_cbed_pattern_generator` | `None`, optional
         ``cropped_cbed_pattern_generator`` specifies the fake CBED pattern
         generator to be used.
+    resolution_level_of_disk_boundary_sample_size : `int` | `None`, optional
+        If ``resolution_level_of_disk_boundary_sample_size`` is set to an
+        integer, then the resolution level of the disk boundary sample size
+        (i.e. ``j_dashv`` introduced above) is overridden with the value stored
+        in ``resolution_level_of_disk_boundary_sample_size``. In this case,
+        ``resolution_level_of_disk_boundary_sample_size`` must be greater than
+        or equal to ``7``. Otherwise, if
+        ``resolution_level_of_disk_boundary_sample_size`` is set to ``None``,
+        then ``j_dashv`` is determined automatically, as described above.
     output_filename : `str`, optional
         The relative or absolute filename of the HDF5 file to which to store the
         ML dataset to be generated.
@@ -945,6 +963,7 @@ def _check_and_convert_generate_and_save_ml_dataset_params(params):
 def _generate_and_save_ml_dataset(cropped_cbed_pattern_generator,
                                   max_num_ml_data_instances_per_file_update,
                                   num_cropped_cbed_patterns,
+                                  resolution_level_of_disk_boundary_sample_size,
                                   output_filename,
                                   start_time):
     kwargs = locals()

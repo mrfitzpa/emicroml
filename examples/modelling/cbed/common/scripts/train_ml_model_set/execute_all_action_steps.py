@@ -37,6 +37,9 @@ import pathlib
 # For getting the path to current script and for executing other scripts.
 import os
 
+# For pattern matching.
+import re
+
 
 
 ##############################################

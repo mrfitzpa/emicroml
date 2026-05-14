@@ -89,8 +89,8 @@ ml_input_image_widths_in_pixels = ((512,)
                                    if ("distortion" in ml_model_task)
                                    else (64, 128))
 for ml_input_image_width_in_pixels in ml_input_image_widths_in_pixels:
-    num_ml_datasets = 2
     # num_ml_datasets = 55
+    num_ml_datasets = 3
     for ml_dataset_idx in range(num_ml_datasets):
         unformatted_cmd_str = ("python {} "
                                "--ml_model_task={} "

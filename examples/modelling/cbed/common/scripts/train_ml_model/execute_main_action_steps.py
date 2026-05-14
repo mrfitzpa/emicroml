@@ -65,6 +65,9 @@ script.
 # For parsing command line arguments.
 import argparse
 
+# For accessing imported modules via their names stored as strings.
+import sys
+
 # For setting Python's seed.
 import random
 
@@ -191,6 +194,13 @@ torch.backends.cudnn.benchmark = False
 
 
 
+# Select the ``emicroml`` submodule required to generate a ML dataset that is
+# appropriate to the specified ML model task. 
+module_name = "emicroml.modelling.{}".format(ml_model_task).replace("/", ".")
+ml_model_task_module = sys.modules[module_name]
+
+
+
 # Load the training and validation ML datasets.
 ml_dataset_types = ("training", "validation")
 unformatted_path = (str(pathlib.Path(path_to_ml_training_dataset).parent)
@@ -216,7 +226,6 @@ for ml_dataset_type in ml_dataset_types:
 # training parameters according to the specified ML model index and ML model
 # task.
 if ml_model_task == "cbed/distortion/estimation":
-    ml_model_task_module = emicroml.modelling.cbed.distortion.estimation
     architecture_set = ("distoptica_net",)
 
     attr_name = "num_pixels_across_each_cbed_pattern"
@@ -234,10 +243,10 @@ if ml_model_task == "cbed/distortion/estimation":
     
     min_lr_in_first_annealing_cycle_set = (2e-5,)
     num_lr_annealing_cycles_set = (1,)
-    num_epochs_in_first_lr_annealing_cycle_set = (16,)
+    # num_epochs_in_first_lr_annealing_cycle_set = (16,)
+    num_epochs_in_first_lr_annealing_cycle_set = (2,)
     multiplicative_decay_factor_set = (0.5,)
 elif ml_model_task == "cbed/disk/localization":
-    ml_model_task_module = emicroml.modelling.cbed.disk.localization
     architecture_set = ("localization_net",)
 
     attr_name = "num_pixels_across_each_cropped_cbed_pattern"
@@ -259,7 +268,6 @@ elif ml_model_task == "cbed/disk/localization":
     num_epochs_in_first_lr_annealing_cycle_set = (2,)
     multiplicative_decay_factor_set = (0.5,)
 elif ml_model_task == "cbed/disk/segmentation":
-    ml_model_task_module = emicroml.modelling.cbed.disk.segmentation
     architecture_set = ("segmentation_net",)
 
     attr_name = "num_pixels_across_each_cropped_cbed_pattern"

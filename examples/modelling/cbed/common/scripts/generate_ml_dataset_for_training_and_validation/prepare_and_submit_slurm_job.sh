@@ -91,7 +91,7 @@ python ${path_to_script_to_execute} \
        --data_dir_1=${SLURM_TMPDIR}
 python_script_exit_code=$?
 
-if [ "${python_script_exit_code}" != 0 ];
+if [ "${python_script_exit_code}" != 0 ]
 then
     msg="\n\n\nThe slurm job terminated early with at least one error. "
     msg=${msg}"See traceback for details.\n\n\n"
@@ -105,7 +105,7 @@ fi
 # their expected final destinations. Also delete/remove any remaining temporary
 # files or directories.
 partial_path_1=ml_datasets
-if [[ "${ml_model_task}" == "cbed/disk/"* ]
+if [[ "${ml_model_task}" == "cbed/disk/"* ]]
 then       
     N=${ml_input_image_width_in_pixels}
     partial_path_2=${partial_path_1}/ml_datasets_with_${N}_pixel_wide

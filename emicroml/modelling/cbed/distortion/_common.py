@@ -984,8 +984,6 @@ def _generate_and_save_ml_dataset(cbed_pattern_generator,
                axes_labels_of_hdf5_datasets_of_ml_dataset_file,
                start_time)
 
-    _print_generate_and_save_ml_dataset_end_msg(start_time, output_filename)
-
     return None
 
 

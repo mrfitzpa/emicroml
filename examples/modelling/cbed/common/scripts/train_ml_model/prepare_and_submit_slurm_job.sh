@@ -123,10 +123,10 @@ python ${path_to_script_to_execute} \
        --ml_model_task=${ml_model_task} \
        --ml_model_idx=${ml_model_idx} \
        --data_dir_1=${SLURM_TMPDIR} \
-       --path_to_ml_training_dataset=${path_to_ml_training_dataset}
+       --ml_training_dataset=${path_to_ml_training_dataset}
 python_script_exit_code=$?
 
-if [ "${python_script_exit_code}" != 0 ];
+if [ "${python_script_exit_code}" != 0 ]
 then
     msg="\n\n\nThe slurm job terminated early with at least one error. "
     msg=${msg}"See traceback for details.\n\n\n"

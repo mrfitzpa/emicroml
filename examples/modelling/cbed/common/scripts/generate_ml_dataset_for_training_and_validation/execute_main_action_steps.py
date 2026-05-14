@@ -212,7 +212,7 @@ output_filename = unformatted_output_filename.format(partial_path,
                                                      ml_dataset_idx)
 
 # num_patterns = 11520
-num_patterns = 5
+num_patterns = 20
 
 kwargs = {"output_filename": output_filename,
           "max_num_ml_data_instances_per_file_update": 576}
@@ -229,6 +229,7 @@ else:
               "num_cropped_cbed_patterns": \
               num_patterns,
               "cropped_cbed_pattern_generator": \
-              pattern_generator}
+              pattern_generator,
+              "resolution_level_of_disk_boundary_sample_size": \
+              None}
 ml_model_task_module.generate_and_save_ml_dataset(**kwargs)
-    
