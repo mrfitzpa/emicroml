@@ -264,8 +264,7 @@ elif ml_model_task == "cbed/disk/localization":
     
     min_lr_in_first_annealing_cycle_set = (2e-5,)
     num_lr_annealing_cycles_set = (1,)
-    # num_epochs_in_first_lr_annealing_cycle_set = (16,)
-    num_epochs_in_first_lr_annealing_cycle_set = (2,)
+    num_epochs_in_first_lr_annealing_cycle_set = (16,)
     multiplicative_decay_factor_set = (0.5,)
 elif ml_model_task == "cbed/disk/segmentation":
     architecture_set = ("segmentation_net",)
@@ -288,8 +287,7 @@ elif ml_model_task == "cbed/disk/segmentation":
     
     min_lr_in_first_annealing_cycle_set = (2e-5,)
     num_lr_annealing_cycles_set = (1,)
-    # num_epochs_in_first_lr_annealing_cycle_set = (16,)
-    num_epochs_in_first_lr_annealing_cycle_set = (2,)
+    num_epochs_in_first_lr_annealing_cycle_set = (16,)
     multiplicative_decay_factor_set = (0.5,)
 
 

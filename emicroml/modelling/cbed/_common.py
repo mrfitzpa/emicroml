@@ -437,10 +437,11 @@ class _DefaultDistortionModelGenerator(fancytypes.PreSerializableAndUpdatable):
                 True//(not distortion_model_requires_an_invalid_mask_frame)
 
                 distortion_model_generation_has_not_been_completed = False
-            except:
+            except Exception as err:
                 generation_attempt_count += 1
                 
-                if generation_attempt_count == max_num_generation_attempts:
+                if ((generation_attempt_count == max_num_generation_attempts)
+                    and (isinstance(err, KeyboardInterrupt))):
                     raise err_type(err_msg)
 
         return distortion_model

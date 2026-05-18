@@ -97,8 +97,7 @@ paths_to_ml_training_datasets = \
 # Execute the script at ``path_to_script_to_execute`` multiple times to train
 # multiple ML models.
 for path_to_ml_training_dataset in paths_to_ml_training_datasets:
-    # num_ml_models_to_train = 10
-    num_ml_models_to_train = 1
+    num_ml_models_to_train = 10
     for ml_model_idx in range(num_ml_models_to_train):
         unformatted_cmd_str = ("python {} "
                                "--ml_model_task={} "

@@ -849,10 +849,11 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
                 self._check_contrast_of_principcal_disk(cropped_cbed_pattern)
                 
                 cropped_cbed_pattern_generation_has_not_been_completed = False
-            except:
+            except Exception as err:
                 generation_attempt_count += 1
 
-                if generation_attempt_count == max_num_generation_attempts:
+                if ((generation_attempt_count == max_num_generation_attempts)
+                    and (isinstance(err, KeyboardInterrupt))):
                     unformatted_err_msg = \
                         _default_cropped_cbed_pattern_generator_err_msg_2
 

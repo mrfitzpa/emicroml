@@ -1327,8 +1327,7 @@ output_filename = unformatted_output_filename.format(partial_path,
                                                      disk_size,
                                                      ml_dataset_idx)
 
-# num_patterns = 2880
-num_patterns = 50
+num_patterns = 2880
 
 kwargs = {"output_filename": output_filename,
           "max_num_ml_data_instances_per_file_update": 288}

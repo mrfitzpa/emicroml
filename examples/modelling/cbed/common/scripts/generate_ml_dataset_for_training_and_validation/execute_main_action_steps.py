@@ -169,7 +169,7 @@ num_pixels_across_each_cbed_pattern = (ml_input_image_width_in_pixels
 sampling_grid_dims_in_pixels = 2*(num_pixels_across_each_cbed_pattern,)
 
 kwargs = {"rng_seed": \
-          ml_dataset_idx + 4000,
+          ml_dataset_idx + 4000 + ("segmentation" in ml_model_task)*10000,
           "sampling_grid_dims_in_pixels": \
           sampling_grid_dims_in_pixels,
           "least_squares_alg_params": \
@@ -211,8 +211,7 @@ unformatted_output_filename = (path_to_data_dir_1
 output_filename = unformatted_output_filename.format(partial_path,
                                                      ml_dataset_idx)
 
-# num_patterns = 11520
-num_patterns = 20
+num_patterns = 11520
 
 kwargs = {"output_filename": output_filename,
           "max_num_ml_data_instances_per_file_update": 576}
