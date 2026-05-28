@@ -670,14 +670,14 @@ class _DefaultCBEDPatternGenerator(_cls_alias):
         temp_3 = 2*constant_bg
         
         temp_4 = max(temp_1*temp_2, temp_3)
-        
-        temp_5 = (max_abs_prescaled_amplitude_sum
+
+        temp_5 = (max_abs_prescaled_amplitude_sum.item()
                   if (max_abs_prescaled_amplitude_sum != 0)
-                  else 1)
+                  else 1.0)
         
         temp_6 = temp_5
         
-        rescaling_factor_1 = abs(temp_4/temp_6).item()
+        rescaling_factor_1 = temp_4/temp_6
 
         return rescaling_factor_1
 
