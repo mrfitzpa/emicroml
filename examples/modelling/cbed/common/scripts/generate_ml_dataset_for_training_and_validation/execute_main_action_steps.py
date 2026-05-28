@@ -211,7 +211,9 @@ unformatted_output_filename = (path_to_data_dir_1
 output_filename = unformatted_output_filename.format(partial_path,
                                                      ml_dataset_idx)
 
-num_patterns = 11520
+num_patterns = (11520//4
+		if ("disk" in ml_model_task)
+		else 11520)
 
 kwargs = {"output_filename": output_filename,
           "max_num_ml_data_instances_per_file_update": 576}

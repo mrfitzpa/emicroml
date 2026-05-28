@@ -932,6 +932,7 @@ def generate_and_save_ml_dataset(
     """
     params = locals()
     params["start_time"] = time.time()
+    params["ml_model_task"] = "cbed/disk/localization"
 
     global_symbol_table = globals()
 
@@ -961,6 +962,7 @@ def _check_and_convert_generate_and_save_ml_dataset_params(params):
 
 
 def _generate_and_save_ml_dataset(cropped_cbed_pattern_generator,
+                                  ml_model_task,
                                   max_num_ml_data_instances_per_file_update,
                                   num_cropped_cbed_patterns,
                                   resolution_level_of_disk_boundary_sample_size,
@@ -2026,12 +2028,25 @@ def _de_pre_serialize_ml_dataset_manager(serializable_rep):
 
 
 
+def _get_j_vdash_from_wavelet_name(wavelet_name):
+    module_alias = emicroml.modelling.cbed.disk._common
+    func_alias = module_alias._get_j_vdash_from_wavelet_name
+    j_vdash = func_alias(wavelet_name)
+
+    return j_vdash
+
+
+
 _module_alias = \
     emicroml.modelling.cbed.disk._common
 _default_num_pixels_across_each_cropped_cbed_pattern = \
     _module_alias._default_num_pixels_across_each_cropped_cbed_pattern
+_default_num_downsamplings = \
+    5
 _default_mini_batch_norm_eps = \
     _module_alias._default_mini_batch_norm_eps
+_default_bce_loss_weight = \
+    1.0
 _default_normalization_weights = \
     _module_alias._default_normalization_weights
 _default_normalization_biases = \
@@ -2046,21 +2061,28 @@ _cls_alias = _module_alias._MLModel
 class _MLModel(_cls_alias):
     def __init__(self,
                  num_pixels_across_each_cropped_cbed_pattern,
+                 num_downsamplings,
                  mini_batch_norm_eps,
+                 bce_loss_weight,
                  normalization_weights,
                  normalization_biases):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
         ctor_params = self._check_and_convert_ctor_params(ctor_params)
+
+        wavelet_name = "db2"
+        j_vdash = _get_j_vdash_from_wavelet_name(wavelet_name)
+        j_epsilon = j_vdash
+        j_dashv = j_vdash + num_downsamplings
         
         module_alias = emicroml.modelling.cbed.disk._common
         cls_alias = module_alias._MLModel
         kwargs = {**ctor_params,
-                  "ml_model_task": "cbed/disk/localization",
-                  "wavelet_name": None,
-                  "j_epsilon": None,
-                  "j_dashv": None}
+                  "wavelet_name": wavelet_name,
+                  "j_epsilon": j_epsilon,
+                  "j_dashv": j_dashv}
+        del kwargs["num_downsamplings"]
         cls_alias.__init__(self, **kwargs)
 
         return None
@@ -2126,11 +2148,19 @@ class MLModel(_MLModel):
         :class:`emicroml.modelling.cbed.disk.localization.MLDataset`
         representing the aforementioned ML dataset. Moreover, the parameter is
         expected to be a positive integer that is divisible by ``2**5``.
+    num_downsamplings : `int`, optional
+        The number of downsampling operations in the ML model. This parameter is
+        expected to be a positive integer that satisfies ``N % 2**M == 0``
+        where ``N`` and ``M`` are aliases for the parameters
+        ``num_pixels_across_each_cropped_cbed_pattern`` and
+        ``num_downsamplings`` respectively.
     mini_batch_norm_eps : `float`, optional
         This parameter specifies the value to use for the construction parameter
         ``eps`` for every construction of an instance of the class
         :class:`torch.nn.BatchNorm1d` and every construction of an instance of
         the class :class:`torch.nn.BatchNorm2d`. Must be a positive number.
+    bce_loss_weight : `float`, optional
+        Insert description here.  TESTING.
     normalization_weights : `dict`, optional
         The normalization weights of the ML dataset used or to be used to train
         the ML model. This parameter is expected to be equal to the instance
@@ -2155,8 +2185,12 @@ class MLModel(_MLModel):
     def __init__(self,
                  num_pixels_across_each_cropped_cbed_pattern=\
                  _default_num_pixels_across_each_cropped_cbed_pattern,
+                 num_downsamplings=\
+                 _default_num_downsamplings,
                  mini_batch_norm_eps=\
                  _default_mini_batch_norm_eps,
+                 bce_loss_weight=\
+                 _default_bce_loss_weight,
                  normalization_weights=\
                  _default_normalization_weights,
                  normalization_biases=\

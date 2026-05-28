@@ -396,7 +396,7 @@ _module_alias = \
 _default_num_pixels_across_each_cbed_pattern = \
     _module_alias._default_num_pixels_across_each_cbed_pattern
 _default_max_num_disks_in_any_cbed_pattern = \
-    20
+    10
 _default_num_pixels_across_each_expected_cropping_window = \
     _default_num_pixels_across_each_cbed_pattern//4
 
@@ -599,11 +599,15 @@ class _DefaultCBEDPatternGenerator(_cls_alias):
             min_distance_from_principal_disk_support_center = \
                 (2*u_a_support
                  + (4/self._num_pixels_across_each_cbed_pattern))
+            
             max_distance_from_principal_disk_support_center = \
                 ((0.5
                   * self._num_pixels_across_each_expected_cropping_window
                   / self._num_pixels_across_each_cbed_pattern)
                  + ((3/4)*u_a_support))
+            max_distance_from_principal_disk_support_center = \
+                max(max_distance_from_principal_disk_support_center,
+                    min_distance_from_principal_disk_support_center)
 
             kwargs = {"low": min_distance_from_principal_disk_support_center,
                       "high": max_distance_from_principal_disk_support_center}
@@ -629,13 +633,60 @@ class _DefaultCBEDPatternGenerator(_cls_alias):
             super()._generate_intra_disk_shape_wishlist(undistorted_disks)
 
         if len(undistorted_disks) == 0:
-            idx = self._rng.choice((0, 1, 2), p=(1/4, 1/2, 1/4)).item()
-            bool_set = ((True, True), (True, False), (False, True))[idx]
+            intra_disk_shape_wishlist["uniform_disk_set"] = True
+            # idx = self._rng.choice((0, 1, 2), p=(1/4, 1/2, 1/4)).item()
+            # bool_set = ((True, True), (True, False), (False, True))[idx]
             
-            intra_disk_shape_wishlist["uniform_disk_set"] = bool_set[0]
-            intra_disk_shape_wishlist["nonuniform_lune_set"] = bool_set[1]
+            # intra_disk_shape_wishlist["uniform_disk_set"] = bool_set[0]
+            # intra_disk_shape_wishlist["nonuniform_lune_set"] = bool_set[1]
 
         return intra_disk_shape_wishlist
+
+
+
+    def _generate_rescaling_factor_1(self,
+                                     undistorted_disk_support,
+                                     undistorted_tds_model_1,
+                                     undistorted_tds_model_2,
+                                     max_abs_prescaled_amplitude_sum):
+        undistorted_disk_support_core_attrs = \
+            undistorted_disk_support.get_core_attrs(deep_copy=False)
+        u_x_c_support, u_y_c_support = \
+            undistorted_disk_support_core_attrs["center"]
+
+        undistorted_tds_model_2_core_attrs = \
+            undistorted_tds_model_2.get_core_attrs(deep_copy=False)
+        constant_bg = \
+            undistorted_tds_model_2_core_attrs["constant_bg"]
+
+        kwargs = {"u_x": torch.tensor(((u_x_c_support,),), device=self._device),
+                  "u_y": torch.tensor(((u_y_c_support,),), device=self._device),
+                  "device": self._device,
+                  "skip_validation_and_conversion": True}
+        temp_1 = undistorted_tds_model_1.eval(**kwargs)[0, 0].item()
+        
+        temp_2 = 1.25 + abs(self._rng.normal(loc=0, scale=4))
+        
+        temp_3 = 2*constant_bg
+        
+        temp_4 = max(temp_1*temp_2, temp_3)
+        
+        temp_5 = (max_abs_prescaled_amplitude_sum
+                  if (max_abs_prescaled_amplitude_sum != 0)
+                  else 1)
+        
+        temp_6 = temp_5
+        
+        rescaling_factor_1 = abs(temp_4/temp_6).item()
+
+        return rescaling_factor_1
+
+
+
+    def _generate_rescaling_factor_2(self, max_abs_amplitude_sums, disk_idx):
+        rescaling_factor_2 = 1
+
+        return rescaling_factor_2
 
 
 
@@ -674,6 +725,16 @@ def _de_pre_serialize_num_pixels_across_each_cropping_window(
     num_pixels_across_each_cropping_window = serializable_rep
 
     return num_pixels_across_each_cropping_window
+
+
+
+def _get_ml_model_task(obj):
+    get_fully_qualified_class_name = \
+        czekitout.name.fully_qualified_class_name
+    ml_model_task = \
+        "/".join(get_fully_qualified_class_name(obj).split(".")[2:-1])
+
+    return ml_model_task
 
 
 
@@ -822,44 +883,63 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
         
         while cropped_cbed_pattern_generation_has_not_been_completed:
             try:
-                cropped_cbed_pattern_params = \
-                    self._generate_cropped_cbed_pattern_params()
-                kwargs = \
-                    cropped_cbed_pattern_params
+                module_alias = \
+                    self._execute_phase_1_of_cropped_cbed_pattern_generation
                 cropped_cbed_pattern = \
-                    fakecbed.discretized.CroppedCBEDPattern(**kwargs)
+                    module_alias()
 
-                principal_disk_is_overlapping = \
-                    cropped_cbed_pattern.principal_disk_is_overlapping
-                principal_disk_is_clipped = \
-                    cropped_cbed_pattern.principal_disk_is_clipped
-                
-                if principal_disk_is_overlapping or principal_disk_is_clipped:
-                    err_msg = _default_cropped_cbed_pattern_generator_err_msg_1
-                    raise ValueError(err_msg)
+                module_alias = \
+                    self._execute_phase_2_of_cropped_cbed_pattern_generation
+                kwargs = \
+                    {"cropped_cbed_pattern": cropped_cbed_pattern}
+                cropped_cbed_pattern = \
+                    module_alias(**kwargs)
 
-                mask_frame = self._generate_mask_frame(cropped_cbed_pattern)
-
-                kwargs = {"new_core_attr_subset_candidate": \
-                          {"mask_frame": mask_frame},
-                          "skip_validation_and_conversion": \
-                          True}
-                cropped_cbed_pattern.update(**kwargs)
-
-                self._check_contrast_of_principcal_disk(cropped_cbed_pattern)
+                _ = cropped_cbed_pattern.get_signal(deep_copy=False)
                 
                 cropped_cbed_pattern_generation_has_not_been_completed = False
             except Exception as err:
                 generation_attempt_count += 1
 
+                if isinstance(err, RuntimeError):
+                    raise err
+
                 if ((generation_attempt_count == max_num_generation_attempts)
-                    and (isinstance(err, KeyboardInterrupt))):
+                    or (isinstance(err, KeyboardInterrupt))):
                     unformatted_err_msg = \
                         _default_cropped_cbed_pattern_generator_err_msg_2
 
                     args = ("", " ({})".format(max_num_generation_attempts))
                     err_msg = unformatted_err_msg.format(*args)
                     raise RuntimeError(err_msg)
+
+        return cropped_cbed_pattern
+
+
+
+    def _execute_phase_1_of_cropped_cbed_pattern_generation(self):
+        cropped_cbed_pattern_params = \
+            self._generate_cropped_cbed_pattern_params()
+        
+        kwargs = cropped_cbed_pattern_params
+        cropped_cbed_pattern = fakecbed.discretized.CroppedCBEDPattern(**kwargs)
+
+        principal_disk_is_overlapping = \
+            cropped_cbed_pattern.principal_disk_is_overlapping
+        principal_disk_is_clipped = \
+            cropped_cbed_pattern.principal_disk_is_clipped
+                
+        if principal_disk_is_overlapping or principal_disk_is_clipped:
+            err_msg = _default_cropped_cbed_pattern_generator_err_msg_1
+            raise ValueError(err_msg)
+
+        mask_frame = self._generate_mask_frame(cropped_cbed_pattern)
+
+        kwargs = {"new_core_attr_subset_candidate": {"mask_frame": mask_frame},
+                  "skip_validation_and_conversion": True}
+        cropped_cbed_pattern.update(**kwargs)
+
+        self._check_contrast_of_principcal_disk(cropped_cbed_pattern)
 
         return cropped_cbed_pattern
 
@@ -891,21 +971,18 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
         disk_absence_registry = \
             cbed_pattern.get_disk_absence_registry(deep_copy=False)
 
-        method_alias = \
-            self._calc_approximate_bounding_boxes_of_disk_supports_in_pixels
-        kwargs = \
-            {"disk_supports": disk_supports}
-        approximate_bounding_boxes_of_disk_supports_in_pixels = \
-            method_alias(**kwargs)
+        method_alias = self._calc_approximate_bounding_boxes_of_disk_supports
+        kwargs = {"disk_supports": disk_supports}
+        approximate_bounding_boxes_of_disk_supports = method_alias(**kwargs)
 
         principal_disk_idx = self._principal_disk_idx
         N = self._num_pixels_across_each_cbed_pattern
 
-        L_set, R_set, B_set, T_set = \
-            approximate_bounding_boxes_of_disk_supports_in_pixels.t()
+        q_x_L_set, q_x_R_set, q_y_B_set, q_y_T_set = \
+            approximate_bounding_boxes_of_disk_supports.t()
 
-        q_x_c_box_set = (L_set+(N-R_set))/(2*N) + 1e6*disk_absence_registry
-        q_y_c_box_set = (B_set+(N-T_set))/(2*N) + 1e6*disk_absence_registry
+        q_x_c_box_set = (q_x_L_set+q_x_R_set)/2 + 1e6*disk_absence_registry
+        q_y_c_box_set = (q_y_B_set+q_y_T_set)/2 + 1e6*disk_absence_registry
 
         kwargs = {"tensors": (q_x_c_box_set, q_y_c_box_set), "dim": 1}
         positions = torch.stack(**kwargs)
@@ -919,14 +996,19 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
         q_x_c_box = q_x_c_box_set[principal_disk_idx].item()
         q_y_c_box = q_y_c_box_set[principal_disk_idx].item()
 
-        tensors = (L_set, R_set, B_set, T_set)
-        L, R, B, T = [tensor[principal_disk_idx].item() for tensor in tensors]
+        tensors = (q_x_L_set, q_x_R_set, q_y_B_set, q_y_T_set)
+        q_x_L, q_x_R, q_y_B, q_y_T = [tensor[principal_disk_idx].item()
+                                      for tensor
+                                      in tensors]
+        q_x_W = q_x_R-q_x_L
+        q_y_H = q_y_T-q_y_B
 
-        kwargs = {"low": 0, "high": 2*np.pi}
+        kwargs = {"low": 0,
+                  "high": 2*np.pi}
         u_phi_cwc = self._rng.uniform(**kwargs)
         
         kwargs = {"low": 0,
-                  "high": max(min(0.4*N*nn_distance, L-2, R-2, B-2, T-2)/N, 0)}
+                  "high": min(0.4*nn_distance, 0.45*q_x_W, 0.45*q_y_H)}
         u_r_cwc = self._rng.uniform(**kwargs)
 
         cropping_window_center = (q_x_c_box + u_r_cwc*np.cos(u_phi_cwc).item(),
@@ -936,8 +1018,9 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
 
 
 
-    def _calc_approximate_bounding_boxes_of_disk_supports_in_pixels(
-            self, disk_supports):
+    def _calc_approximate_bounding_boxes_of_disk_supports(self, disk_supports):
+        N = self._num_pixels_across_each_cbed_pattern
+
         rows_are_nonzero = disk_supports.any(dim=-1)+0.0
         cols_are_nonzero = disk_supports.any(dim=-2)+0.0
 
@@ -947,20 +1030,23 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
         T_set = rows_are_nonzero.argmax(dim=-1)
         B_set = torch.flip(rows_are_nonzero, dims=(-1,)).argmax(dim=-1)
 
+        q_x_L_set = (1/N)*(0.5+L_set)
+        q_x_R_set = 1-(1/N)*((1-0.5)+R_set)
+
+        q_y_B_set = (1/N)*(0.5+B_set)
+        q_y_T_set = 1-(1/N)*((1-0.5)+T_set)
+
         kwargs = \
-            {"tensors": (L_set, R_set, B_set, T_set), "dim": 1}
-        approximate_bounding_boxes_of_disk_supports_in_pixels = \
+            {"tensors": (q_x_L_set, q_x_R_set, q_y_B_set, q_y_T_set), "dim": 1}
+        approximate_bounding_boxes_of_disk_supports = \
             torch.stack(**kwargs)
 
-        return approximate_bounding_boxes_of_disk_supports_in_pixels
+        return approximate_bounding_boxes_of_disk_supports
 
 
 
     def _generate_mask_frame(self, cropped_cbed_pattern):
-        get_fully_qualified_class_name = \
-            czekitout.name.fully_qualified_class_name
-        ml_model_task = \
-            "/".join(get_fully_qualified_class_name(self).split(".")[2:-1])
+        ml_model_task = _get_ml_model_task(self)
 
         num_pixels_across_each_cropping_window = \
             self._num_pixels_across_each_cropping_window
@@ -1106,6 +1192,489 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
 
 
 
+    def _execute_phase_2_of_cropped_cbed_pattern_generation(
+            self, cropped_cbed_pattern):
+        ml_model_task = _get_ml_model_task(self)
+
+        if ml_model_task == "cbed/disk/localization":
+            kwargs = \
+                {"a": (True, False), "p": (0.3, 1-0.3)}
+            cropped_cbed_pattern_is_to_be_modified = \
+                self._rng.choice(**kwargs).item()
+
+            if cropped_cbed_pattern_is_to_be_modified:
+                method_alias = \
+                    self._generate_indices_of_central_overlapping_disks
+                kwargs = \
+                    {"cropped_cbed_pattern": cropped_cbed_pattern}
+                indices_of_central_overlapping_disks = \
+                    method_alias(**kwargs)
+
+                undistorted_disks = \
+                    self._get_undistorted_disks(cropped_cbed_pattern)
+                distortion_model = \
+                    self._get_distortion_model(cropped_cbed_pattern)
+
+                kwargs = \
+                    {"disk_clipping_registry": \
+                     self._get_disk_clipping_registry(cropped_cbed_pattern),
+                     "undistorted_disks": \
+                     undistorted_disks,
+                     "indices_of_central_overlapping_disks": \
+                     indices_of_central_overlapping_disks}
+                _ = \
+                    self._shift_disk_subset(**kwargs)
+
+                method_alias = \
+                    self._rescale_intra_disk_shapes_of_central_overlapping_disks
+                kwargs = \
+                    {"distortion_model": \
+                     distortion_model,
+                     "indices_of_central_overlapping_disks": \
+                     indices_of_central_overlapping_disks,
+                     "undistorted_disks": \
+                     undistorted_disks}
+                _ = \
+                    method_alias(**kwargs)
+
+                cropped_cbed_pattern = \
+                    self._reconstruct_cropped_cbed_pattern(cropped_cbed_pattern)
+
+        return cropped_cbed_pattern
+
+
+
+    def _generate_indices_of_central_overlapping_disks(self,
+                                                       cropped_cbed_pattern):
+        method_alias = \
+            self._generate_indices_of_candidate_central_overlapping_disks
+        kwargs = \
+            {"cropped_cbed_pattern": cropped_cbed_pattern}
+        indices_of_candidate_central_overlapping_disks = \
+            method_alias(**kwargs)
+
+        kwargs = \
+            {"indices_of_candidate_central_overlapping_disks": \
+             indices_of_candidate_central_overlapping_disks}
+        num_central_overlapping_disks = \
+            self._generate_num_central_overlapping_disks(**kwargs)
+
+        disk_idx_choices = \
+            tuple(disk_idx
+                  for disk_idx
+                  in indices_of_candidate_central_overlapping_disks
+                  if (disk_idx != self._principal_disk_idx))
+        probabilities_of_choices = \
+            len(disk_idx_choices) * (1/max(len(disk_idx_choices), 1),)
+
+        if num_central_overlapping_disks > 0:
+            kwargs = \
+                {"a": disk_idx_choices,
+                 "p": probabilities_of_choices,
+                 "size": num_central_overlapping_disks-1,
+                 "replace": False}
+            indices_of_central_overlapping_disks = \
+                tuple(self._rng.choice(**kwargs).tolist()
+                      + [self._principal_disk_idx])
+        else:
+            indices_of_central_overlapping_disks = \
+                tuple()
+
+        return indices_of_central_overlapping_disks
+
+
+
+    def _generate_indices_of_candidate_central_overlapping_disks(
+            self, cropped_cbed_pattern):
+        undistorted_disks = self._get_undistorted_disks(cropped_cbed_pattern)
+
+        indices_of_candidate_central_overlapping_disks = tuple()
+        for disk_idx, undistorted_disk in enumerate(undistorted_disks):
+            kwargs = {"undistorted_disk": undistorted_disk}
+            intra_support_shapes = self._get_intra_support_shapes(**kwargs)
+
+            uniform_disk_types = (fakecbed.shapes.Circle,
+                                  fakecbed.shapes.Ellipse)
+            
+            disk_is_a_candidate = \
+                any(isinstance(intra_support_shape, uniform_disk_types)
+                    for intra_support_shape
+                    in intra_support_shapes)
+
+            indices_of_candidate_central_overlapping_disks += \
+                disk_is_a_candidate*(disk_idx,)
+
+        return indices_of_candidate_central_overlapping_disks
+
+
+
+    def _get_undistorted_disks(self, cropped_cbed_pattern):
+        cbed_pattern = \
+            self._get_cbed_pattern(cropped_cbed_pattern)
+
+        cbed_pattern_core_attrs = \
+            cbed_pattern.get_core_attrs(deep_copy=False)
+        undistorted_disks = \
+            cbed_pattern_core_attrs["undistorted_disks"]
+
+        return undistorted_disks
+
+
+
+    def _get_cbed_pattern(self, cropped_cbed_pattern):
+        cropped_cbed_pattern_core_attrs = \
+            cropped_cbed_pattern.get_core_attrs(deep_copy=False)
+        cbed_pattern = \
+            cropped_cbed_pattern_core_attrs["cbed_pattern"]
+
+        return cbed_pattern
+
+
+
+    def _generate_num_central_overlapping_disks(
+            self, indices_of_candidate_central_overlapping_disks):
+        num_candidate_central_overlapping_disks = \
+            len(indices_of_candidate_central_overlapping_disks)
+
+        kwargs = \
+            {"low": 0,
+             "high": (num_candidate_central_overlapping_disks>1)+1}
+        num_central_overlapping_disks_lower_limit_1 = \
+            2*self._rng.integers(**kwargs).item()
+
+        num_central_overlapping_disks_upper_limit_1 = \
+            (num_candidate_central_overlapping_disks
+             * (num_central_overlapping_disks_lower_limit_1 > 0))
+
+        kwargs = \
+            {"low": num_central_overlapping_disks_lower_limit_1,
+             "high": num_central_overlapping_disks_upper_limit_1+1}
+        num_central_overlapping_disks_upper_limit_2 = \
+            self._rng.integers(**kwargs).item()
+
+        kwargs = \
+            {"low": num_central_overlapping_disks_lower_limit_1,
+             "high": num_central_overlapping_disks_upper_limit_2+1}
+        num_central_overlapping_disks = \
+            self._rng.integers(**kwargs).item()
+
+        return num_central_overlapping_disks
+
+
+
+    def _get_distortion_model(self, cropped_cbed_pattern):
+        cbed_pattern = \
+            self._get_cbed_pattern(cropped_cbed_pattern)
+
+        cbed_pattern_core_attrs = \
+            cbed_pattern.get_core_attrs(deep_copy=False)
+        distortion_model = \
+            cbed_pattern_core_attrs["distortion_model"]
+
+        return distortion_model
+
+
+
+    def _get_intra_support_shapes(self, undistorted_disk):
+        undistorted_disk_core_attrs = \
+            undistorted_disk.get_core_attrs(deep_copy=False)
+        intra_support_shapes = \
+            undistorted_disk_core_attrs["intra_support_shapes"]
+
+        return intra_support_shapes
+
+
+
+    def _get_disk_clipping_registry(self, cropped_cbed_pattern):
+        disk_clipping_registry = \
+            cropped_cbed_pattern.get_disk_clipping_registry(deep_copy=False)
+
+        return disk_clipping_registry
+
+
+
+    def _shift_disk_subset(self,
+                           disk_clipping_registry,
+                           undistorted_disks,
+                           indices_of_central_overlapping_disks):
+        if len(indices_of_central_overlapping_disks) == 0:
+            indices_of_disks_to_shift = \
+                (torch.where(~disk_clipping_registry)[0].tolist()
+                 + [self._principal_disk_idx])
+            
+            new_disk_region = "out_of_image_view"
+        else:
+            indices_of_disks_to_shift = \
+                tuple(disk_idx
+                      for disk_idx
+                      in indices_of_central_overlapping_disks
+                      if (disk_idx != self._principal_disk_idx))
+
+            new_disk_region = "central_overlapping_cluster"
+
+        for idx_of_disk_to_shift in indices_of_disks_to_shift:
+            kwargs = {"undistorted_disks": undistorted_disks,
+                      "idx_of_disk_to_shift": idx_of_disk_to_shift,
+                      "new_disk_region": new_disk_region}
+            displacement = self._generate_displacement_for_disk_shift(**kwargs)
+
+            kwargs = {"undistorted_disk": \
+                      undistorted_disks[idx_of_disk_to_shift],
+                      "displacement_for_disk_shift": \
+                      displacement}
+            self._shift_disk(**kwargs)
+
+        return None
+
+
+
+    def _generate_displacement_for_disk_shift(self,
+                                              undistorted_disks,
+                                              idx_of_disk_to_shift,
+                                              new_disk_region):
+        undistorted_disk_1 = undistorted_disks[self._principal_disk_idx]
+        undistorted_disk_2 = undistorted_disks[idx_of_disk_to_shift]
+
+        kwargs = \
+            {"undistorted_disk": undistorted_disk_1}
+        original_undistorted_disk_1_support_center = \
+            self._get_undistorted_disk_support_center(**kwargs)
+        u_a_support = \
+            self._get_undistorted_disk_semi_major_axis(**kwargs)
+
+        kwargs = \
+            {"undistorted_disk": undistorted_disk_2}
+        original_undistorted_disk_2_support_center = \
+            self._get_undistorted_disk_support_center(**kwargs)
+
+        u_x_c_0, u_y_c_0 = \
+            (((new_disk_region == "central_overlapping_cluster")
+              * np.array(original_undistorted_disk_1_support_center))
+             + (new_disk_region == "out_of_image_view")*1e6)
+
+        min_d = ((new_disk_region == "central_overlapping_cluster")
+                 * 0.2 * u_a_support)
+        max_d = ((new_disk_region == "central_overlapping_cluster")
+                 * 1.90 * u_a_support)
+
+        kwargs = {"low": min_d, "high": max_d}
+        d = self._rng.uniform(**kwargs)
+
+        kwargs = {"low": 0, "high": 2*np.pi}
+        phi = self._rng.uniform(**kwargs)
+
+        new_undistorted_disk_2_support_center = \
+            ((u_x_c_0 + d*np.cos(phi)).item(), (u_y_c_0 + d*np.sin(phi)).item())
+
+        displacement_for_disk_shift = \
+            (np.array(new_undistorted_disk_2_support_center)
+             - np.array(original_undistorted_disk_2_support_center))
+
+        return displacement_for_disk_shift
+
+
+
+    def _shift_disk(self, undistorted_disk, displacement_for_disk_shift):
+        kwargs = {"undistorted_disk": undistorted_disk}
+        undistorted_disk_support = self._get_undistorted_disk_support(**kwargs)
+        intra_support_shapes = self._get_intra_support_shapes(**kwargs)
+
+        shapes_to_shift = (undistorted_disk_support,)
+        for intra_support_shape in intra_support_shapes:
+            special_case_cls_1 = fakecbed.shapes.NonuniformBoundedShape
+            special_case_cls_2 = fakecbed.shapes.PlaneWave
+            
+            if isinstance(intra_support_shape, special_case_cls_1):
+                intra_support_shape_core_attrs = \
+                    intra_support_shape.get_core_attrs(deep_copy=False)
+
+                peak = intra_support_shape_core_attrs["intra_support_shapes"][0]
+                lune = intra_support_shape_core_attrs["support"]
+
+                lune_core_attrs = lune.get_core_attrs(deep_copy=False)
+                bg_ellipse = lune_core_attrs["bg_ellipse"]
+                fg_ellipse = lune_core_attrs["fg_ellipse"]
+
+                shapes_to_shift += \
+                    (peak, bg_ellipse, fg_ellipse)
+            elif isinstance(intra_support_shape, special_case_cls_2):
+                shapes_to_shift += \
+                    tuple()
+            else:
+                shapes_to_shift += \
+                    (intra_support_shape,)
+
+        for shape_to_shift in shapes_to_shift:
+            shape_to_shift_core_attrs = \
+                shape_to_shift.get_core_attrs(deep_copy=False)
+            original_center = \
+                np.array(shape_to_shift_core_attrs["center"])
+            new_center = \
+                (original_center + displacement_for_disk_shift).tolist()
+
+            kwargs = {"new_core_attr_subset_candidate": {"center": new_center},
+                      "skip_validation_and_conversion": True}
+            shape_to_shift.update(**kwargs)
+
+        return None
+
+
+
+    def _get_undistorted_disk_support_center(self, undistorted_disk):
+        undistorted_disk_support = \
+            self._get_undistorted_disk_support(undistorted_disk)
+
+        undistorted_disk_support_core_attrs = \
+            undistorted_disk_support.get_core_attrs(deep_copy=False)
+        undistorted_disk_support_center = \
+            undistorted_disk_support_core_attrs["center"]
+
+        return undistorted_disk_support_center
+
+
+
+    def _get_undistorted_disk_support(self, undistorted_disk):
+        undistorted_disk_core_attrs = \
+            undistorted_disk.get_core_attrs(deep_copy=False)
+        undistorted_disk_support = \
+            undistorted_disk_core_attrs["support"]
+
+        return undistorted_disk_support
+
+
+
+    def _get_undistorted_disk_semi_major_axis(self, undistorted_disk):
+        undistorted_disk_support = \
+            self._get_undistorted_disk_support(undistorted_disk)
+
+        undistorted_disk_support_core_attrs = \
+            undistorted_disk_support.get_core_attrs(deep_copy=False)
+        undistorted_disk_semi_major_axis = \
+            undistorted_disk_support_core_attrs["semi_major_axis"]
+
+        return undistorted_disk_semi_major_axis
+
+
+
+    def _rescale_intra_disk_shapes_of_central_overlapping_disks(
+            self,
+            distortion_model,
+            indices_of_central_overlapping_disks,
+            undistorted_disks):
+        method_alias = \
+            self._generate_reference_intensities
+        kwargs = \
+            {"distortion_model": \
+             distortion_model,
+             "indices_of_central_overlapping_disks": \
+             indices_of_central_overlapping_disks,
+             "undistorted_disks": \
+             undistorted_disks}
+        reference_intensities = \
+            self._generate_reference_intensities(**kwargs)
+
+        for disk_idx_1 in indices_of_central_overlapping_disks:
+            kwargs = {"reference_intensities": reference_intensities,
+                      "disk_idx_1": disk_idx_1}
+            rescaling_factor_3 = self._generate_rescaling_factor_3(**kwargs)
+
+            undistorted_disk = undistorted_disks[disk_idx_1]
+
+            kwargs = {"undistorted_disk": undistorted_disk}
+            intra_support_shapes = self._get_intra_support_shapes(**kwargs)
+            intra_disk_shapes = intra_support_shapes
+
+            rescale_intra_disk_shape = \
+                self._cbed_pattern_generator._rescale_intra_disk_shape
+
+            for intra_disk_shape in intra_disk_shapes:
+                kwargs = {"intra_disk_shape": intra_disk_shape,
+                          "rescaling_factor": rescaling_factor_3}
+                rescale_intra_disk_shape(**kwargs)
+
+        return None
+
+
+
+    def _generate_reference_intensities(self,
+                                        distortion_model,
+                                        indices_of_central_overlapping_disks,
+                                        undistorted_disks):
+        sampling_grid = distortion_model.get_sampling_grid(deep_copy=False)
+        u_x, u_y = sampling_grid
+
+        reference_intensities = dict()
+
+        for disk_idx in indices_of_central_overlapping_disks:
+            undistorted_disk = undistorted_disks[disk_idx]
+
+            kwargs = {"u_x": u_x,
+                      "u_y": u_y,
+                      "skip_validation_and_conversion": True}
+            undistorted_disk_image = undistorted_disk.eval(**kwargs)
+
+            reference_intensity = \
+                undistorted_disk_image[undistorted_disk_image>0].mean()
+
+            reference_intensities[disk_idx] = reference_intensity
+
+        return reference_intensities
+
+
+
+    def _get_uniform_intra_disk_shape(self, undistorted_disk):
+        kwargs = {"undistorted_disk": undistorted_disk}
+        intra_support_shapes = self._get_intra_support_shapes(**kwargs)
+
+        uniform_disk_types = (fakecbed.shapes.Circle, fakecbed.shapes.Ellipse)
+
+        uniform_intra_disk_shape = \
+            tuple(intra_support_shape
+                  for intra_support_shape
+                  in intra_support_shapes
+                  if isinstance(intra_support_shape, uniform_disk_types))[0]
+
+        return uniform_intra_disk_shape
+
+
+
+    def _generate_rescaling_factor_3(self, reference_intensities, disk_idx_1):
+        disk_idx_2 = self._principal_disk_idx
+
+        temp_1 = (self._rng.uniform(low=0.8, high=4)
+                  if (disk_idx_1 != disk_idx_2)
+                  else 1.0)
+
+        temp_2 = (reference_intensities[disk_idx_2]
+                  / reference_intensities[disk_idx_1])
+
+        rescaling_factor_3 = temp_1*temp_2
+
+        return rescaling_factor_3
+
+
+
+    def _reconstruct_cropped_cbed_pattern(self, cropped_cbed_pattern):
+        cbed_pattern = self._get_cbed_pattern(cropped_cbed_pattern)
+        cbed_pattern_core_attrs = cbed_pattern.get_core_attrs(deep_copy=False)
+
+        kwargs = {**cbed_pattern_core_attrs,
+                  "skip_validation_and_conversion": True}
+        cbed_pattern = fakecbed.discretized.CBEDPattern(**kwargs)
+
+        cropped_cbed_pattern_core_attrs = \
+            cropped_cbed_pattern.get_core_attrs(deep_copy=False)
+        cropped_cbed_pattern_core_attrs["cbed_pattern"] = \
+            cbed_pattern
+
+        kwargs = {**cropped_cbed_pattern_core_attrs,
+                  "skip_validation_and_conversion": True}
+        cropped_cbed_pattern = fakecbed.discretized.CroppedCBEDPattern(**kwargs)
+
+        return cropped_cbed_pattern
+                                                  
+
+
 def _generate_keys_of_unnormalizable_ml_data_dict_elems():
     unformatted_func_name = ("_generate_keys_of_unnormalizable"
                              "_ml_data_dict_elems{}_having_decoders")
@@ -1126,7 +1695,11 @@ def _generate_keys_of_unnormalizable_ml_data_dict_elems_not_having_decoders():
     keys_of_unnormalizable_ml_data_dict_elems_not_having_decoders = \
         ("cropped_cbed_pattern_images",
          "cropped_disk_overlap_maps",
-         "cropped_principal_disk_supports")
+         "cropped_principal_disk_supports",
+         "principal_disk_clipping_statuses",
+         "principal_disk_absence_statuses",
+         "principal_disk_overlapness_statuses",
+         "principal_disk_visibility_statuses")
 
     return keys_of_unnormalizable_ml_data_dict_elems_not_having_decoders
 
@@ -1255,7 +1828,8 @@ def _generate_cropped_cbed_pattern_signal(cropped_cbed_pattern_generator):
 
 
 
-def _check_cropped_cbed_pattern_signal(cropped_cbed_pattern_signal):
+def _check_cropped_cbed_pattern_signal(cropped_cbed_pattern_signal,
+                                       ml_model_task):
     path_to_item = \
         "FakeCBED.principal_disk_is_overlapping"
     principal_disk_is_overlapping = \
@@ -1271,7 +1845,8 @@ def _check_cropped_cbed_pattern_signal(cropped_cbed_pattern_signal):
                 
     current_func_name = "_check_cropped_cbed_pattern_signal"
     
-    if principal_disk_is_overlapping or principal_disk_is_clipped:
+    if ((principal_disk_is_overlapping or principal_disk_is_clipped)
+        and (ml_model_task == "cbed/disk/segmentation")):
         err_msg = globals()[current_func_name+"_err_msg_1"]
         raise ValueError(err_msg)
 
@@ -1296,17 +1871,17 @@ def _check_cropped_cbed_pattern_signal(cropped_cbed_pattern_signal):
 
 def _extract_ml_data_dict_from_cropped_cbed_pattern_signal(
         cropped_cbed_pattern_signal):
-    path_to_item = \
-        ("FakeCBED"
-         ".principal_disk_boundary_pts_in_cropped_image_fractional_coords")
-    principal_disk_boundary_pt_set = \
-        np.array(cropped_cbed_pattern_signal.metadata.get_item(path_to_item))
-
-    path_to_item = \
-        ("FakeCBED"
-         ".principal_disk_bounding_box_in_cropped_image_fractional_coords")
-    principal_disk_bounding_box = \
-        np.array(cropped_cbed_pattern_signal.metadata.get_item(path_to_item))
+    ml_data_dict_key_to_partial_item_path_map = \
+        {"principal_disk_boundary_pt_sets": \
+         "principal_disk_boundary_pts_in_cropped_image_fractional_coords",
+         "principal_disk_bounding_boxes": \
+         "principal_disk_bounding_box_in_cropped_image_fractional_coords",
+         "principal_disk_clipping_statuses": \
+         "principal_disk_is_clipped",
+         "principal_disk_absence_statuses": \
+         "principal_disk_is_absent",
+         "principal_disk_overlapness_statuses": \
+         "principal_disk_is_overlapping"}
 
     path_to_item = \
         ("FakeCBED.pre_serialized_core_attrs.principal_disk_idx")
@@ -1320,24 +1895,25 @@ def _extract_ml_data_dict_from_cropped_cbed_pattern_signal(
                     "cropped_disk_overlap_maps": \
                     cropped_cbed_pattern_signal.data[2],
                     "cropped_principal_disk_supports": \
-                    cropped_cbed_pattern_signal.data[3+principal_disk_idx],
-                    "principal_disk_boundary_pt_sets": \
-                    principal_disk_boundary_pt_set,
-                    "principal_disk_bounding_boxes": \
-                    principal_disk_bounding_box}
+                    cropped_cbed_pattern_signal.data[3+principal_disk_idx]}
     for key in keys_related_to_mra:
         wavelet_name = key.split("_")[2]
         j_vdash = _get_j_vdash_from_wavelet_name(wavelet_name)
         ml_data_dict[key] = np.zeros((2**j_vdash, 2))
+    for key in ml_data_dict_key_to_partial_item_path_map:
+        partial_item_path = ml_data_dict_key_to_partial_item_path_map[key]
+        path_to_item = "FakeCBED.{}".format(partial_item_path)
+        signal = cropped_cbed_pattern_signal
+        ml_data_dict[key] = np.array(signal.metadata.get_item(path_to_item))
     for key in ml_data_dict:
         ml_data_dict[key] = np.expand_dims(ml_data_dict[key], axis=0)
+    if ml_data_dict["principal_disk_absence_statuses"][0].item():
+        ml_data_dict["principal_disk_bounding_boxes"][:, :] = 0.5
+        ml_data_dict["principal_disk_boundary_pt_sets"][:, :, :] = 0.5
 
-    # For each key ``key`` in
-    # ``keys_related_to_mra+("principal_disk_boundary_pt_sets",)``,
-    # ``ml_data_dict[key]`` is updated via the function
-    # ``_update_ml_dataset_output_file``, which is called near the end of the
-    # functions ``_generate_and_save_ml_dataset`` and
-    # ``_combine_ml_dataset_files``.
+    ml_data_dict["principal_disk_visibility_statuses"] = \
+        ((~ml_data_dict["principal_disk_clipping_statuses"])
+         * (~ml_data_dict["principal_disk_overlapness_statuses"]))
 
     return ml_data_dict
 
@@ -1351,8 +1927,9 @@ _tol_for_comparing_floats = _module_alias._tol_for_comparing_floats
 _module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._UnnormalizedMLDataInstanceGenerator
 class _UnnormalizedMLDataInstanceGenerator(_cls_alias):
-    def __init__(self, cropped_cbed_pattern_generator):
+    def __init__(self, cropped_cbed_pattern_generator, ml_model_task):
         self._cropped_cbed_pattern_generator = cropped_cbed_pattern_generator
+        self._ml_model_task = ml_model_task
 
         self._expected_cropped_cbed_pattern_dims_in_pixels = None
 
@@ -1369,7 +1946,8 @@ class _UnnormalizedMLDataInstanceGenerator(_cls_alias):
         self._expected_disk_boundary_sample_size = \
             cropped_cbed_pattern_signal.metadata.get_item(path_to_item)
 
-        kwargs = {"cropped_cbed_pattern_signal": cropped_cbed_pattern_signal}
+        kwargs = {"cropped_cbed_pattern_signal": cropped_cbed_pattern_signal,
+                  "ml_model_task": ml_model_task}
         _check_cropped_cbed_pattern_signal(**kwargs)
 
         cached_ml_data_instances = self._generate(num_ml_data_instances=1)
@@ -1392,7 +1970,8 @@ class _UnnormalizedMLDataInstanceGenerator(_cls_alias):
         cropped_cbed_pattern_signal = \
             _generate_cropped_cbed_pattern_signal(**kwargs)
 
-        kwargs = {"cropped_cbed_pattern_signal": cropped_cbed_pattern_signal}
+        kwargs = {"cropped_cbed_pattern_signal": cropped_cbed_pattern_signal,
+                  "ml_model_task": self._ml_model_task}
         _check_cropped_cbed_pattern_signal(**kwargs)
 
         cropped_cbed_pattern_dims_in_pixels = \
@@ -1425,6 +2004,7 @@ class _UnnormalizedMLDataInstanceGenerator(_cls_alias):
             method_alias()
 
         func_alias = _extract_ml_data_dict_from_cropped_cbed_pattern_signal
+        kwargs = {"cropped_cbed_pattern_signal": cropped_cbed_pattern_signal}
         ml_data_dict = {**ml_data_dict, **func_alias(**kwargs)}
 
         return ml_data_dict
@@ -1456,6 +2036,8 @@ def _generate_ml_data_dict_key_to_shape_template_map():
         elif "box" in key:
             shape_template = (variable_axis_size_dict_keys[0],
                               4)
+        elif "status" in key:
+            shape_template = (variable_axis_size_dict_keys[0],)
         elif key == "principal_disk_boundary_pt_sets":
             shape_template = (variable_axis_size_dict_keys[0],
                               variable_axis_size_dict_keys[2],
@@ -1542,7 +2124,9 @@ def _calc_j_dashv_candidate(principal_disk_boundary_pt_set,
 
     j_dashv_candidate = _calc_j_dashv_candidate_lower_limit()
 
-    j = np.log2(cropped_cbed_pattern_dims_in_pixels[0]*L)
+    j = (np.log2(cropped_cbed_pattern_dims_in_pixels[0]*L)
+         if (L != 0)
+         else j_dashv_candidate)
     j = (np.round(j) if (np.isclose(j, round(j))) else np.ceil(j)).item()
     j = round(j)
 
@@ -1634,29 +2218,33 @@ def _reinterpolate_boundary_pt_set(interpolated_boundary_pt_set,
               "dtype": interpolated_boundary_pt_set.dtype}
     reinterpolated_boundary_pt_set = np.zeros(**kwargs)
 
-    data_on_which_to_eval_interpolant = (np.arange(num_pts_in_reinterpolation)
-                                         / num_pts_in_reinterpolation)
+    if s[-1] != 0:
+        data_on_which_to_eval_interpolant = \
+            (np.arange(num_pts_in_reinterpolation)
+             / num_pts_in_reinterpolation)
 
-    kwargs = {"a": s, "shift": -max_horizontal_coord_idx}
-    rolled_s = np.roll(**kwargs)
+        kwargs = {"a": s, "shift": -max_horizontal_coord_idx}
+        rolled_s = np.roll(**kwargs)
 
-    independent_data = ((rolled_s-s[max_horizontal_coord_idx])/s[-1])%1
-    independent_data[-1] = 1
+        independent_data = ((rolled_s-s[max_horizontal_coord_idx])/s[-1])%1
+        independent_data[-1] = 1
 
-    for cartesian_cmpnt_idx in range(num_cartesian_cmpnts):
-        kwargs = {"a": interpolated_boundary_pt_set[:, cartesian_cmpnt_idx],
-                  "shift": -max_horizontal_coord_idx}
-        rolled_interpolated_boundary_pt_set = np.roll(**kwargs)
+        for cartesian_cmpnt_idx in range(num_cartesian_cmpnts):
+            kwargs = {"a": interpolated_boundary_pt_set[:, cartesian_cmpnt_idx],
+                      "shift": -max_horizontal_coord_idx}
+            rolled_interpolated_boundary_pt_set = np.roll(**kwargs)
 
-        dependent_data = rolled_interpolated_boundary_pt_set
-        dependent_data = np.append(dependent_data, dependent_data[0])
+            dependent_data = rolled_interpolated_boundary_pt_set
+            dependent_data = np.append(dependent_data, dependent_data[0])
 
-        kwargs = \
-            {"x": data_on_which_to_eval_interpolant,
-             "xp": independent_data,
-             "fp": dependent_data}
-        reinterpolated_boundary_pt_set[:, cartesian_cmpnt_idx] = \
-            np.interp(**kwargs)
+            kwargs = \
+                {"x": data_on_which_to_eval_interpolant,
+                 "xp": independent_data,
+                 "fp": dependent_data}
+            reinterpolated_boundary_pt_set[:, cartesian_cmpnt_idx] = \
+                np.interp(**kwargs)
+    else:
+        reinterpolated_boundary_pt_set[:, :] = 0.5
 
     return reinterpolated_boundary_pt_set
 
@@ -2007,7 +2595,7 @@ def _generate_ml_data_dict_key_to_dtype_map():
     all_valid_ml_data_dict_keys = _generate_all_valid_ml_data_dict_keys()
 
     for key in all_valid_ml_data_dict_keys:
-        if "support" in key:
+        if ("support" in key) or ("status" in key):
             dtype = np.bool_
         elif "overlap_map" in key:
             dtype = np.uint8
@@ -2604,6 +3192,8 @@ def _generate_axes_labels_of_hdf5_datasets_of_ml_dataset_file():
         elif "box" in key:
             axes_labels_of_hdf5_dataset = ("cropped cbed pattern idx",
                                            "box side idx")
+        elif "status" in key:
+            axes_labels_of_hdf5_dataset = ("cropped cbed pattern idx",)
         elif key == "principal_disk_boundary_pt_sets":
             axes_labels_of_hdf5_dataset = ("cropped cbed pattern idx",
                                            "pt idx")
@@ -2717,13 +3307,15 @@ _default_output_filename = _module_alias._default_output_filename
 
 def _generate_and_save_ml_dataset(
         cropped_cbed_pattern_generator,
+        ml_model_task,
         max_num_ml_data_instances_per_file_update,
         num_cropped_cbed_patterns,
         resolution_level_of_disk_boundary_sample_size,
         output_filename,
         start_time):
     kwargs = \
-        {"cropped_cbed_pattern_generator": cropped_cbed_pattern_generator}
+        {"cropped_cbed_pattern_generator": cropped_cbed_pattern_generator,
+         "ml_model_task": ml_model_task}
     unnormalized_ml_data_instance_generator = \
         _UnnormalizedMLDataInstanceGenerator(**kwargs)
 
@@ -4054,103 +4646,6 @@ def _pre_serialize_ml_dataset_manager(ml_dataset_manager):
 
 
 
-_building_block_counts_in_stages_of_localization_net = \
-    (3, 5, 2)
-
-
-
-class _LocalizationNet(torch.nn.Module):
-    def __init__(self,
-                 num_pixels_across_each_cropped_cbed_pattern,
-                 mini_batch_norm_eps):
-        super().__init__()
-
-        self._num_pixels_across_each_cropped_cbed_pattern = \
-            num_pixels_across_each_cropped_cbed_pattern
-        self._mini_batch_norm_eps = \
-            mini_batch_norm_eps
-        
-        self._distoptica_net = self._generate_distoptica_net()
-
-        return None
-
-
-
-    def _generate_distoptica_net(self):
-        num_filters_in_first_conv_layer = \
-            64
-        building_block_counts_in_stages = \
-            _building_block_counts_in_stages_of_localization_net
-        num_downsamplings = \
-            len(building_block_counts_in_stages)
-        num_nodes_in_second_last_layer = \
-            (num_filters_in_first_conv_layer * (2**num_downsamplings))
-
-        module_alias = emicroml.modelling._common
-        kwargs = {"num_input_channels": \
-                  1,
-                  "num_filters_in_first_conv_layer": \
-                  num_filters_in_first_conv_layer,
-                  "kernel_size_of_first_conv_layer": \
-                  7,
-                  "max_kernel_size_of_resnet_building_blocks": \
-                  3,
-                  "building_block_counts_in_stages": \
-                  building_block_counts_in_stages,
-                  "height_of_input_tensor_in_pixels": \
-                  self._num_pixels_across_each_cropped_cbed_pattern,
-                  "width_of_input_tensor_in_pixels": \
-                  self._num_pixels_across_each_cropped_cbed_pattern,
-                  "num_nodes_in_second_last_layer": \
-                  num_nodes_in_second_last_layer,
-                  "num_nodes_in_last_layer": \
-                  4,
-                  "mini_batch_norm_eps": \
-                  self._mini_batch_norm_eps}
-        distoptica_net = module_alias._DistopticaNet(**kwargs)
-
-        return distoptica_net
-
-
-
-    def forward(self, ml_inputs):
-        enhanced_cropped_cbed_pattern_images = \
-            self._get_and_enhance_cropped_cbed_pattern_images(ml_inputs)
-
-        intermediate_tensor = enhanced_cropped_cbed_pattern_images
-        output_tensor, _ = self._distoptica_net(intermediate_tensor)
-
-        key = "principal_disk_bounding_boxes"
-        ml_predictions = {"principal_disk_bounding_boxes": output_tensor}
-
-        return ml_predictions
-
-
-
-    def _get_and_enhance_cropped_cbed_pattern_images(self, ml_inputs):
-        kwargs = \
-            {"image_stack": ml_inputs["cropped_cbed_pattern_images"]}
-        enhanced_cropped_cbed_pattern_images = \
-            _min_max_normalize_image_stack(**kwargs)
-
-        gamma = 0.3
-
-        enhanced_cropped_cbed_pattern_images = \
-            torch.unsqueeze(enhanced_cropped_cbed_pattern_images, dim=1)
-        enhanced_cropped_cbed_pattern_images = \
-            torch.pow(enhanced_cropped_cbed_pattern_images, gamma)
-        enhanced_cropped_cbed_pattern_images = \
-            kornia.enhance.equalize(enhanced_cropped_cbed_pattern_images)
-
-        kwargs = {"input": enhanced_cropped_cbed_pattern_images,
-                  "min": 0,
-                  "max": 1}
-        enhanced_cropped_cbed_pattern_images = torch.clip(**kwargs)
-
-        return enhanced_cropped_cbed_pattern_images
-
-
-
 def _get_wavelet_name_from_j_vdash(j_vdash):
     wavelet_name = "db"+str(2**(j_vdash-1))
 
@@ -4432,15 +4927,14 @@ class _PredictionBlock(torch.nn.Module):
                  mini_batch_norm_eps):
         super().__init__()
 
-        self._j = \
-            j
-        self._j_dashv = \
-            j_dashv
-        self._mini_batch_norm_eps = \
-            mini_batch_norm_eps
+        self._j = j
+        self._j_dashv = j_dashv
+        self._mini_batch_norm_eps = mini_batch_norm_eps
 
         self._num_input_channels = 2**(j_dashv-1)
         self._num_output_channels = 2**j
+
+        self._terminus_sigmoid_activation_is_to_be_applied = (j == 0)
 
         self._fc_residual_block = self._generate_fc_residual_block()        
         self._fc_layer = self._generate_fc_layer()
@@ -4473,7 +4967,14 @@ class _PredictionBlock(torch.nn.Module):
 
 
     def _initialize_fc_layer_weights(self, fc_layer):
-        kwargs = {"activation_func": torch.nn.Identity(), "layer": fc_layer}
+        terminus_sigmoid_activation_is_to_be_applied = \
+            self._terminus_sigmoid_activation_is_to_be_applied
+
+        activation_func = (torch.nn.Sigmoid()
+                           if terminus_sigmoid_activation_is_to_be_applied
+                           else torch.nn.Identity())
+        
+        kwargs = {"activation_func": activation_func, "layer": fc_layer}
         _initialize_layer_weights_according_to_activation_func(**kwargs)
 
         return None
@@ -4481,8 +4982,13 @@ class _PredictionBlock(torch.nn.Module):
 
 
     def forward(self, X):
+        applying_terminus_sigmoid_activation = \
+            self._terminus_sigmoid_activation_is_to_be_applied
+
         Y = self._fc_residual_block(X)
         Y = self._fc_layer(Y)
+        if applying_terminus_sigmoid_activation:
+            Y = torch.nn.functional.sigmoid(Y)
 
         return Y
 
@@ -4511,7 +5017,7 @@ class _BasicResNetBuildingBlock(_cls_alias):
 
 
 
-class _SegmentationNet(torch.nn.Module):
+class _GeneralizedCoreNNModule(torch.nn.Module):
     def __init__(self,
                  wavelet_name,
                  j_epsilon,
@@ -4521,7 +5027,8 @@ class _SegmentationNet(torch.nn.Module):
                  kernel_size_of_first_conv_layer,
                  num_resnet_building_blocks_per_stage,
                  num_filters_per_bottleneck_conv_layer,
-                 mini_batch_norm_eps):
+                 mini_batch_norm_eps,
+                 ml_model_task):
         super().__init__()
 
         self._wavelet_name = \
@@ -4542,6 +5049,8 @@ class _SegmentationNet(torch.nn.Module):
             num_filters_per_bottleneck_conv_layer
         self._mini_batch_norm_eps = \
             mini_batch_norm_eps
+        self._ml_model_task = \
+            ml_model_task
 
         j_vdash = _get_j_vdash_from_wavelet_name(wavelet_name)
         self._j_vdash = j_vdash
@@ -4553,7 +5062,9 @@ class _SegmentationNet(torch.nn.Module):
         self._downsampling_blocks = self._generate_downsampling_blocks()
         self._bottleneck_blocks = self._generate_bottleneck_blocks()
         self._prediction_blocks = self._generate_prediction_blocks()
-        self._idwt_block = self._generate_idwt_block()
+
+        if "segmentation" in ml_model_task:
+            self._idwt_block = self._generate_idwt_block()
         
         return None
 
@@ -4667,10 +5178,13 @@ class _SegmentationNet(torch.nn.Module):
 
 
     def _generate_prediction_blocks(self):
+        ml_model_task = self._ml_model_task
+
         j_set = (tuple(j
                        for j in range(self._j_epsilon-1, self._j_vdash-1, -1)
                        for _ in range(2))
-                 + (self._j_vdash, self._j_vdash))
+                 + (self._j_vdash,)
+                 + (self._j_vdash*("localization" not in ml_model_task),))
 
         prediction_blocks = tuple()
         for j in j_set:
@@ -4696,19 +5210,27 @@ class _SegmentationNet(torch.nn.Module):
 
 
     def forward(self, ml_inputs):
-        dwt_coeffs = \
-            self._predict_dwt_coeffs(ml_inputs)
-        principal_disk_boundary_pt_sets = \
-            self._perform_mra_reconstruction(dwt_coeffs)
-
         ml_predictions = dict()
 
-        key = ("max_level_{}_approx_coeff_sets"
-               "_of_principal_disk_boundary_pt_sets").format(self._wavelet_name)
-        ml_predictions[key] = torch.stack(dwt_coeffs[:2], dim=2)
+        dwt_coeffs = self._predict_dwt_coeffs(ml_inputs)
 
-        key = "principal_disk_boundary_pt_sets"
-        ml_predictions[key] = principal_disk_boundary_pt_sets
+        if "segmentation" in self._ml_model_task:
+            principal_disk_boundary_pt_sets = \
+                self._perform_mra_reconstruction(dwt_coeffs)
+
+            key = ("max_level_{}_approx_coeff_sets"
+                   "_of_principal_disk_boundary"
+                   "_pt_sets").format(self._wavelet_name)
+            ml_predictions[key] = torch.stack(dwt_coeffs[:2], dim=2)
+
+            key = "principal_disk_boundary_pt_sets"
+            ml_predictions[key] = principal_disk_boundary_pt_sets
+        else:
+            key = "principal_disk_visibility_statuses"
+            ml_predictions[key] = torch.squeeze(dwt_coeffs[0], dim=1)
+
+            key = "principal_disk_bounding_boxes"
+            ml_predictions[key] = dwt_coeffs[1]
 
         return ml_predictions
 
@@ -4770,11 +5292,6 @@ class _SegmentationNet(torch.nn.Module):
     def _get_and_enhance_cropped_cbed_pattern_images(self, ml_inputs):
         kwargs = \
             {"image_stack": ml_inputs["cropped_cbed_pattern_images"]}
-        enhanced_cropped_cbed_pattern_images = \
-            _clip_image_stack_from_below_to_second_smallest_image_vals(**kwargs)
-
-        kwargs = \
-            {"image_stack": enhanced_cropped_cbed_pattern_images}
         enhanced_cropped_cbed_pattern_images = \
             _min_max_normalize_image_stack(**kwargs)
 
@@ -4887,14 +5404,17 @@ def _check_and_convert_num_pixels_across_each_cropped_cbed_pattern(params):
 
     divisor = (_generate_divisor_3(params)
                if ("wavelet_name" in params)
-               else _generate_divisor_4())
+               else _generate_divisor_4(params))
 
     current_func_name = ("_check_and_convert"
                          "_num_pixels_across_each_cropped_cbed_pattern")
 
     if num_pixels_across_each_cropped_cbed_pattern % divisor != 0:
+        partial_err_msg = ("``wavelet_name`` and ``j_dashv``"
+                           if ("wavelet_name" in params)
+                           else "``num_downsamplings``")
         unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
-        err_msg = unformatted_err_msg.format(divisor)
+        err_msg = unformatted_err_msg.format(divisor, partial_err_msg)
         raise ValueError(err_msg)
 
     return num_pixels_across_each_cropped_cbed_pattern
@@ -4913,14 +5433,20 @@ def _generate_divisor_3(params):
 
 
 
-def _generate_divisor_4():
-    num_downsampling_steps_in_localization_net = \
-        (emicroml.modelling._common._DistopticaNetEntryFlow._num_downsamplings
-         + len(_building_block_counts_in_stages_of_localization_net))
-    divisor_4 = \
-        2**num_downsampling_steps_in_localization_net
+def _generate_divisor_4(params):
+    num_downsamplings = _check_and_convert_num_downsamplings(params)
+    divisor_4 = 2**num_downsamplings
 
     return divisor_4
+
+
+
+def _check_and_convert_num_downsamplings(params):
+    obj_name = "num_downsamplings"
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}    
+    num_downsamplings = czekitout.convert.to_positive_int(**kwargs)
+
+    return num_downsamplings
 
 
 
@@ -4930,6 +5456,15 @@ def _check_and_convert_mini_batch_norm_eps(params):
     mini_batch_norm_eps = func_alias(params)
 
     return mini_batch_norm_eps
+
+
+
+def _check_and_convert_bce_loss_weight(params):
+    obj_name = "bce_loss_weight"
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}    
+    bce_loss_weight = czekitout.convert.to_nonnegative_float(**kwargs)
+
+    return bce_loss_weight
 
 
 
@@ -5011,18 +5546,6 @@ _default_normalizable_elems_of_ml_inputs_are_normalized = \
     _module_alias._default_normalizable_elems_of_ml_inputs_are_normalized
 _default_unnormalize_normalizable_elems_of_ml_predictions = \
     _module_alias._default_unnormalize_normalizable_elems_of_ml_predictions
-_default_cropping_window_centers = \
-    None
-_default_auxiliary_distortion_estimation_model = \
-    None
-_default_auxiliary_localization_model = \
-    None
-_default_disk_fitting_alg_params = \
-    None
-_default_distortion_model_sampling_grid_dims_in_pixels = \
-    _default_sampling_grid_dims_in_pixels
-_default_distortion_model_least_squares_alg_params = \
-    _default_least_squares_alg_params
 
 
 
@@ -5034,10 +5557,10 @@ class _MLModel(_cls_alias):
                  mini_batch_norm_eps,
                  normalization_weights,
                  normalization_biases,
-                 ml_model_task,
                  wavelet_name,
                  j_epsilon,
-                 j_dashv):
+                 j_dashv,
+                 bce_loss_weight):
         current_cls_ctor_params = \
             {key: val
              for key, val in locals().items()
@@ -5069,7 +5592,7 @@ class _MLModel(_cls_alias):
                   "base_cls_ctor_params": base_cls_ctor_params}
         cls_alias.__init__(self, **kwargs)
 
-        self._initialize_ml_model_cmpnts(ml_model_task)
+        self._initialize_ml_model_cmpnts(current_cls_ctor_params)
 
         return None
 
@@ -5078,30 +5601,40 @@ class _MLModel(_cls_alias):
     def _get_base_cls_ctor_params(self, current_cls_ctor_params):
         base_cls_ctor_params = current_cls_ctor_params.copy()
 
-        ml_model_task = base_cls_ctor_params.pop("ml_model_task")
+        ml_model_task = _get_ml_model_task(self)
 
         if "localization" in ml_model_task:
-            del base_cls_ctor_params["wavelet_name"]
+            wavelet_name = base_cls_ctor_params.pop("wavelet_name")
+            j_dashv = base_cls_ctor_params.pop("j_dashv")
+            j_vdash = _get_j_vdash_from_wavelet_name(wavelet_name)
+            
+            base_cls_ctor_params["num_downsamplings"] = j_dashv - j_vdash
+            
             del base_cls_ctor_params["j_epsilon"]
-            del base_cls_ctor_params["j_dashv"]
+        else:
+            del base_cls_ctor_params["bce_loss_weight"]
 
         return base_cls_ctor_params
 
 
 
-    def _generate_variable_axis_size_dict(self,
-                                          num_pixels_across_each_cropped_cbed_pattern):
+    def _generate_variable_axis_size_dict(
+            self, num_pixels_across_each_cropped_cbed_pattern):
         variable_axis_size_dict_keys = _generate_variable_axis_size_dict_keys()
         num_keys = len(variable_axis_size_dict_keys)
 
-        variable_axis_size_dict = dict()
+        variable_axis_size_dict = \
+            dict()
         for key_idx, key in enumerate(variable_axis_size_dict_keys):
             if key_idx == 0:
-                variable_size_of_axis = None
+                variable_size_of_axis = \
+                    None
             elif key_idx == num_keys-1:
-                variable_size_of_axis = None
+                variable_size_of_axis = \
+                    None
             else:
-                variable_size_of_axis = num_pixels_across_each_cropped_cbed_pattern
+                variable_size_of_axis = \
+                    num_pixels_across_each_cropped_cbed_pattern
                 
             variable_axis_size_dict[key] = variable_size_of_axis
 
@@ -5129,30 +5662,24 @@ class _MLModel(_cls_alias):
 
 
 
-    def _initialize_ml_model_cmpnts(self, ml_model_task):
+    def _initialize_ml_model_cmpnts(self, current_cls_ctor_params):
         core_nn_module_ctor_params = \
-            {"num_pixels_across_each_cropped_cbed_pattern": \
-             self._core_attrs["num_pixels_across_each_cropped_cbed_pattern"],
-             "mini_batch_norm_eps": \
-             self._core_attrs["mini_batch_norm_eps"]}
-
-        if "localization" in ml_model_task:
-            core_nn_module_cls = _LocalizationNet
-        else:
-            core_nn_module_cls = _SegmentationNet
-            
-            core_nn_module_ctor_params = \
-                {**core_nn_module_ctor_params,
-                 "wavelet_name": self._core_attrs["wavelet_name"],
-                 "j_epsilon": self._core_attrs["j_epsilon"],
-                 "j_dashv": self._core_attrs["j_dashv"],
-                 "num_filters_in_first_conv_layer": 32,
-                 "kernel_size_of_first_conv_layer": 7,
-                 "num_resnet_building_blocks_per_stage": 5,
-                 "num_filters_per_bottleneck_conv_layer": 4}
+            {key: current_cls_ctor_params[key]
+             for key
+             in current_cls_ctor_params
+             if "normalization" not in key}
+        core_nn_module_ctor_params = \
+            {**core_nn_module_ctor_params,
+             "num_filters_in_first_conv_layer": 32,
+             "kernel_size_of_first_conv_layer": 7,
+             "num_resnet_building_blocks_per_stage": 5,
+             "num_filters_per_bottleneck_conv_layer": 4,
+             "ml_model_task": _get_ml_model_task(self)}
+        _ = \
+            core_nn_module_ctor_params.pop("bce_loss_weight", None)
 
         kwargs = core_nn_module_ctor_params
-        self._core_nn_module = core_nn_module_cls(**kwargs)
+        self._core_nn_module = _GeneralizedCoreNNModule(**kwargs)
 
         return None
 
@@ -5197,43 +5724,81 @@ class _MLModel(_cls_alias):
 
 
 
-    def _predict_distortion_models_via_cbed_disk_fit(
-            self,
-            cbed_pattern_images,
-            cropping_window_centers=\
-            _default_cropping_window_centers,
-            auxiliary_distortion_estimation_model=\
-            _default_auxiliary_distortion_estimation_model,
-            auxiliary_localization_model=\
-            _default_auxiliary_localization_model,
-            cbed_disk_fitting_alg_params=\
-            _default_disk_fitting_alg_params,
-            distortion_model_sampling_grid_dims_in_pixels=\
-            _default_distortion_model_sampling_grid_dims_in_pixels,
-            distortion_model_least_squares_alg_params=\
-            _default_distortion_model_least_squares_alg_params):
-        # Perhaps ``cbed_disk_fitting_alg_params`` can store
-        # ``cropping_window_centers``,
-        # ``auxiliary_distortion_estimation_model``, and
-        # ``auxiliary_localization_model``.
-
-        return None
-
-
-
-def _calc_mses_of_principal_disk_bounding_boxes(ml_predictions, ml_targets):
-    calc_mse_loss = torch.nn.functional.mse_loss
-    
+def _calc_cious_of_principal_disk_bounding_boxes(ml_predictions, ml_targets):
     key = "principal_disk_bounding_boxes"
 
-    kwargs = \
-        {"input": ml_predictions[key],
-         "target": ml_targets[key],
-         "reduction": "none"}
-    mses_of_principal_disk_bounding_boxes = \
-        calc_mse_loss(**kwargs).mean(dim=(1,))
+    q_x_L_set_1, q_x_R_set_1, q_y_B_set_1, q_y_T_set_1 = \
+        ml_predictions[key].T
+    q_x_L_set_2, q_x_R_set_2, q_y_B_set_2, q_y_T_set_2 = \
+        ml_targets[key].T
+    q_x_L_set_3, q_x_R_set_3, q_y_B_set_3, q_y_T_set_3 = \
+        (torch.max(q_x_L_set_1, q_x_L_set_2),
+         torch.min(q_x_R_set_1, q_x_R_set_2),
+         torch.max(q_y_B_set_1, q_y_B_set_2),
+         torch.min(q_y_T_set_1, q_y_T_set_2))
+    q_x_L_set_4, q_x_R_set_4, q_y_B_set_4, q_y_T_set_4 = \
+        (torch.min(q_x_L_set_1, q_x_L_set_2),
+         torch.max(q_x_R_set_1, q_x_R_set_2),
+         torch.min(q_y_B_set_1, q_y_B_set_2),
+         torch.max(q_y_T_set_1, q_y_T_set_2))
 
-    return mses_of_principal_disk_bounding_boxes
+    func_alias = \
+        _calc_ious_and_aspect_ratio_penalties_of_principal_disk_bounding_boxes
+    kwargs = \
+        {"q_x_W_1": q_x_R_set_1 - q_x_L_set_1,
+         "q_x_W_2": q_x_R_set_2 - q_x_L_set_2,
+         "q_x_W_3": torch.clamp(q_x_R_set_3 - q_x_L_set_3, min=0),
+         "q_y_H_1": q_y_T_set_1 - q_y_B_set_1,
+         "q_y_H_2": q_y_T_set_2 - q_y_B_set_2,
+         "q_y_H_3": torch.clamp(q_y_T_set_3 - q_y_B_set_3, min=0)}         
+    ious, aspect_ratio_penalty_terms = \
+        func_alias(**kwargs)
+
+    q_x_W_4 = q_x_R_set_4 - q_x_L_set_4    
+    q_y_H_4 = q_y_T_set_4 - q_y_B_set_4
+    q_xy_d_sq = q_x_W_4**2 + q_y_H_4**2
+    tol = (q_xy_d_sq == 0.0)*1e-7
+    separation_penalty_terms = q_xy_d_sq + tol
+
+    q_x_c_set_1 = (q_x_L_set_1+q_x_R_set_1)/2
+    q_y_c_set_1 = (q_y_B_set_1+q_y_T_set_1)/2
+
+    q_x_c_set_2 = (q_x_L_set_2+q_x_R_set_2)/2
+    q_y_c_set_2 = (q_y_B_set_2+q_y_T_set_2)/2
+
+    q_xy_rho_sq = ((q_x_c_set_1-q_x_c_set_2)**2
+                   + (q_y_c_set_1-q_y_c_set_2)**2)
+
+    cious = ious - separation_penalty_terms - aspect_ratio_penalty_terms
+    cious_of_principal_disk_bounding_boxes = cious
+
+    return cious_of_principal_disk_bounding_boxes
+
+
+
+def _calc_ious_and_aspect_ratio_penalties_of_principal_disk_bounding_boxes(
+        q_x_W_1, q_x_W_2, q_x_W_3, q_y_H_1, q_y_H_2, q_y_H_3):
+    q_xy_A_1 = q_x_W_1*q_y_H_1
+    q_xy_A_2 = q_x_W_2*q_y_H_2
+    q_xy_A_3 = q_x_W_3*q_y_H_3
+
+    tol = (q_xy_A_2 == 0.0)*1e-7
+    unity = torch.tensor(1.0, dtype=q_xy_A_3.dtype)
+    pi = 4.0 * torch.atan(unity)
+
+    ious = q_xy_A_3 / (q_xy_A_1 + q_xy_A_2 - q_xy_A_3 + tol)
+
+    v = (4/pi/pi) * (torch.atan(q_x_W_2/(q_y_H_2+tol))
+                     - torch.atan(q_x_W_1/(q_y_H_1+tol)))**2
+
+    with torch.no_grad():
+        alpha = v / ((1.0 - ious) + v + tol)
+
+    ious_of_principal_disk_bounding_boxes = ious
+    aspect_ratio_penalties_of_principal_disk_bounding_boxes = alpha*v
+
+    return (ious_of_principal_disk_bounding_boxes,
+            aspect_ratio_penalties_of_principal_disk_bounding_boxes)
 
 
 
@@ -5244,6 +5809,21 @@ def _calc_mads_of_principal_disk_bounding_boxes(ml_predictions, ml_targets):
         (ml_predictions[key] - ml_targets[key]).abs().mean(dim=(1,))
 
     return mads_of_principal_disk_bounding_boxes
+
+
+
+def _calc_bces_of_principal_disk_visibility_statuses(ml_predictions,
+                                                     ml_targets):
+    calc_bces = torch.nn.functional.binary_cross_entropy
+    
+    key = "principal_disk_visibility_statuses"
+
+    kwargs = {"input": ml_predictions[key],
+              "target": ml_targets[key].to(dtype=ml_predictions[key].dtype),
+              "reduction": "none"}
+    bces_of_principal_disk_visibility_statuses = calc_bces(**kwargs)
+
+    return bces_of_principal_disk_visibility_statuses
 
 
 
@@ -5314,10 +5894,13 @@ class _MLMetricCalculator(_cls_alias):
         global_symbol_table = globals()
 
         for key_1 in ml_predictions:
-            partial_key_set_1 = (("mses", "mads")
-                                 if ("boxes" in key_1)
-                                 else ("meds",))
-            
+            if "boxes" in key_1:
+                partial_key_set_1 = ("cious", "mads")
+            elif "boundary" in key_1:
+                partial_key_set_1 = ("meds",)
+            else:
+                partial_key_set_1 = ("bces",)
+
             for partial_key_1 in partial_key_set_1:
                 partial_key_2 = ("approx_coeff_sets"
                                  if ("approx_coeff_sets" in key_1)
@@ -5378,12 +5961,19 @@ class _MLLossCalculator(_cls_alias):
         losses_of_current_mini_batch = {"total": 0.0}
 
         for key_1 in key_set_1:
-            key_2 = \
-                "total"
+            key_2 = "total"
+            loss_weight = (ml_model._core_attrs["bce_loss_weight"]
+                           if ("bce" in key_1)
+                           else 1.0)
+
+            clamp = torch.clamp
+
             losses_of_current_mini_batch[key_1] = \
-                metrics_of_current_mini_batch[key_1].mean()
+                (clamp(1.0-metrics_of_current_mini_batch[key_1].mean(), min=0)
+                 if ("ciou" in key_1)
+                 else metrics_of_current_mini_batch[key_1].mean())
             losses_of_current_mini_batch[key_2] += \
-                losses_of_current_mini_batch[key_1]
+                loss_weight*losses_of_current_mini_batch[key_1]
 
         return losses_of_current_mini_batch
 
@@ -5489,14 +6079,17 @@ _check_and_convert_num_pixels_across_each_cropping_window_err_msg_1 = \
 
 _default_cropped_cbed_pattern_generator_err_msg_1 = \
     ("The principal CBED disk of the cropped CBED pattern must not be clipped "
-     "nor overlapping with any other CBED disks.")
+     "nor overlapping with any other CBED disks in the first phase of the "
+     "generation of the cropped CBED pattern.")
 _default_cropped_cbed_pattern_generator_err_msg_2 = \
     ("The cropped CBED pattern generator{} has exceeded its programmed maximum "
-     "number of attempts{} to generate a valid cropped CBED pattern: see "
-     "traceback for details.")
+     "number of attempts{} to generate a valid cropped CBED pattern: check "
+     "whether the constructor parameters impose too stringent of constraints "
+     "on cropped CBED pattern generation.")
 _default_cropped_cbed_pattern_generator_err_msg_3 = \
     ("The contrast of the principal CBED disk of the cropped CBED pattern is "
-     "too low.")
+     "too low in the first phase of the generation of the cropped CBED "
+     "pattern.")
 
 _generate_cropped_cbed_pattern_signal_err_msg_1 = \
     _default_cropped_cbed_pattern_generator_err_msg_2
@@ -5582,4 +6175,4 @@ _check_and_convert_j_dashv_err_msg_1 = \
 _check_and_convert_num_pixels_across_each_cropped_cbed_pattern_err_msg_1 = \
     ("The object ``num_pixels_across_each_cropped_cbed_pattern`` must be a "
      "positive integer that is divisible by ``{}``, to be in accordance with "
-     "``wavelet_name`` and ``j_dashv``.")
+     "{}.")

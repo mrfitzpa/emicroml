@@ -1964,10 +1964,9 @@ class _DistopticaNet(torch.nn.Module):
             64
         building_block_counts_in_stages = \
             _building_block_counts_in_stages_of_distoptica_net
-        num_downsamplings = \
-            len(building_block_counts_in_stages)
         num_nodes_in_second_last_layer = \
-            (num_filters_in_first_conv_layer * (2**num_downsamplings))
+            (num_filters_in_first_conv_layer
+             * (2**len(building_block_counts_in_stages)))
 
         module_alias = emicroml.modelling._common
         kwargs = {"num_input_channels": \

@@ -121,21 +121,22 @@ then
 
     # Install the remaining libraries in the virtual environment. Where
     # applicable, GPU-supported versions of libraries are installed.
-    pkgs="numpy<2.0.0 numba hyperspy h5py pytest ipympl jupyter torch kornia"
-    pkgs=${pkgs}" blosc2 msgpack PyWavelets"
+    pkgs="numpy<2.0.0 numba hyperspy h5py pytest ipympl jupyter torch<=2.9.1"
+    pkgs=${pkgs}" kornia blosc2 msgpack PyWavelets pyopencl pyFAI"
+    pkgs=${pkgs}" pytools<=2025.1.6"
     if [ "${install_libs_required_to_run_all_examples}" = true ]
     then
-	pkgs=${pkgs}" pyopencl pyFAI pyprismatic-gpu"
+	pkgs=${pkgs}" pyprismatic-gpu"
     fi
     pip install --no-index ${pkgs}
 
     cd ${path_to_repo_root}/_wheels_for_offline_env_setup_on_drac_server
 
     pkgs="czekitout*.whl fancytypes*.whl h5pywrappers*.whl"
-    pkgs=${pkgs}" distoptica*.whl fakecbed*.whl"
+    pkgs=${pkgs}" distoptica*.whl empix*.whl fakecbed*.whl"
     if [ "${install_libs_required_to_run_all_examples}" = true ]
     then
-	pkgs=${pkgs}" empix*.whl embeam*.whl prismatique*.whl"
+	pkgs=${pkgs}" embeam*.whl prismatique*.whl"
     fi
     pkgs=${pkgs}" emicroml*.whl"
     pip install ${pkgs}

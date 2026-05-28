@@ -932,6 +932,7 @@ def generate_and_save_ml_dataset(
     """
     params = locals()
     params["start_time"] = time.time()
+    params["ml_model_task"] = "cbed/disk/segmentation"
 
     global_symbol_table = globals()
 
@@ -961,6 +962,7 @@ def _check_and_convert_generate_and_save_ml_dataset_params(params):
 
 
 def _generate_and_save_ml_dataset(cropped_cbed_pattern_generator,
+                                  ml_model_task,
                                   max_num_ml_data_instances_per_file_update,
                                   num_cropped_cbed_patterns,
                                   resolution_level_of_disk_boundary_sample_size,
@@ -2044,6 +2046,18 @@ _default_normalization_biases = \
     _module_alias._default_normalization_biases
 _default_unnormalize_normalizable_elems_of_ml_predictions = \
     _module_alias._default_unnormalize_normalizable_elems_of_ml_predictions
+_default_cropping_window_centers = \
+    None
+_default_auxiliary_distortion_estimation_model = \
+    None
+_default_auxiliary_localization_model = \
+    None
+_default_disk_fitting_alg_params = \
+    None
+_default_distortion_model_sampling_grid_dims_in_pixels = \
+    _default_sampling_grid_dims_in_pixels
+_default_distortion_model_least_squares_alg_params = \
+    _default_least_squares_alg_params
 
 
 
@@ -2066,7 +2080,7 @@ class _MLModel(_cls_alias):
         module_alias = emicroml.modelling.cbed.disk._common
         cls_alias = module_alias._MLModel
         kwargs = {**ctor_params,
-                  "ml_model_task": "cbed/disk/segmentation"}
+                  "bce_loss_weight": 0.0}
         cls_alias.__init__(self, **kwargs)
 
         return None
@@ -2379,6 +2393,56 @@ class MLModel(_MLModel):
                   for key, val in locals().items()
                   if (key not in ("self", "__class__"))}
         ml_predictions = super().make_predictions(**kwargs)
+
+        return ml_predictions
+
+
+
+    def predict_distortion_models_via_cbed_disk_fit(
+            self,
+            cbed_pattern_images,
+            cropping_window_centers=\
+            _default_cropping_window_centers,
+            auxiliary_distortion_estimation_model=\
+            _default_auxiliary_distortion_estimation_model,
+            auxiliary_localization_model=\
+            _default_auxiliary_localization_model,
+            cbed_disk_fitting_alg_params=\
+            _default_disk_fitting_alg_params,
+            distortion_model_sampling_grid_dims_in_pixels=\
+            _default_distortion_model_sampling_grid_dims_in_pixels,
+            distortion_model_least_squares_alg_params=\
+            _default_distortion_model_least_squares_alg_params):
+        # Perhaps ``cbed_disk_fitting_alg_params`` can store
+        # ``cropping_window_centers``,
+        # ``auxiliary_distortion_estimation_model``, and
+        # ``auxiliary_localization_model``.
+        params = {key: val
+                  for key, val in locals().items()
+                  if (key not in ("self", "__class__"))}
+
+        global_symbol_table = globals()
+        for param_name in params:
+            func_name = "_check_and_convert_" + param_name
+            func_alias = global_symbol_table[func_name]
+            params[param_name] = func_alias(params)
+
+        self._predict_distortion_models_via_cbed_disk_fit(params)
+
+        return ml_predictions
+
+
+
+    def _predict_distortion_models_via_cbed_disk_fit(
+            self,
+            cbed_pattern_images,
+            cropping_window_centers,
+            auxiliary_distortion_estimation_model,
+            auxiliary_localization_model,
+            cbed_disk_fitting_alg_params,
+            distortion_model_sampling_grid_dims_in_pixels,
+            distortion_model_least_squares_alg_params):
+        
 
         return ml_predictions
 

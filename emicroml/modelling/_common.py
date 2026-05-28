@@ -1575,7 +1575,7 @@ class _MLDataRenormalizer():
 
         hdf5_dataset_path = input_hdf5_dataset.name[1:]
         key = hdf5_dataset_path
-            
+
         renormalized_data_chunk = (data_chunk*renormalization_weight
                                    + renormalization_bias)
         if key in keys_of_normalizable_ml_data_dict_elems:

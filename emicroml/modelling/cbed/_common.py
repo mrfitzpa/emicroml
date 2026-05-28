@@ -2240,7 +2240,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         characteristic_scales_of_orbitals = \
             self._characteristic_scales_of_orbitals
         characteristic_sizes_of_orbitals = \
-                self._characteristic_sizes_of_orbitals
+            self._characteristic_sizes_of_orbitals
 
         prescaled_amplitude_set_of_orbital_set = tuple()
         for orbital in prescaled_intra_disk_shape_subset:
@@ -2472,15 +2472,9 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         disk_indices = self._rng.choice(**kwargs)
 
         for disk_idx in disk_indices:
-            temp_1 = np.sort(max_abs_amplitude_sums)[-2].item()
-            temp_2 = self._rng.uniform(low=10, high=11)
-            temp_3 = (max_abs_amplitude_sums[disk_idx]
-                      if (max_abs_amplitude_sums[disk_idx] != 0)
-                      else 1)
-            temp_4 = self._rng.uniform(low=1/5, high=1/3)
-            rescaling_factor_2 = (temp_1*temp_2/temp_3
-                                  if disk_idx > 0
-                                  else temp_4)
+            kwargs = {"max_abs_amplitude_sums": max_abs_amplitude_sums,
+                      "disk_idx": disk_idx}
+            rescaling_factor_2 = self._generate_rescaling_factor_2(**kwargs)
 
             undistorted_disk = \
                 undistorted_disks[disk_idx]
@@ -2503,6 +2497,21 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
             max_abs_amplitude_sums[disk_idx] *= rescaling_factor_2
 
         return None
+
+
+
+    def _generate_rescaling_factor_2(self, max_abs_amplitude_sums, disk_idx):
+        temp_1 = np.sort(max_abs_amplitude_sums)[-2].item()
+        temp_2 = self._rng.uniform(low=10, high=11)
+        temp_3 = (max_abs_amplitude_sums[disk_idx]
+                  if (max_abs_amplitude_sums[disk_idx] != 0)
+                  else 1)
+        temp_4 = self._rng.uniform(low=1/5, high=1/3)
+        rescaling_factor_2 = (temp_1*temp_2/temp_3
+                              if disk_idx > 0
+                              else temp_4)
+
+        return rescaling_factor_2
 
 
 
@@ -2591,7 +2600,7 @@ class _DefaultCBEDPatternGenerator(fancytypes.PreSerializableAndUpdatable):
         min_num_bands_pinned_to_disks = 0
         max_num_bands_pinned_to_disks = (0
                                          if (u_a_support > threshold)
-                                         else num_bands)
+                                         else num_bands - (num_bands == 1))
         
         kwargs = {"low": min_num_bands_pinned_to_disks,
                   "high": max_num_bands_pinned_to_disks+1}
