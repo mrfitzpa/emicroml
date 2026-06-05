@@ -3862,6 +3862,7 @@ def _check_and_convert_cropped_cbed_pattern_images(params):
     target_device = \
         params.get("target_device", None)
 
+    module_alias = emicroml.modelling._common
     kwargs = {"numerical_data_container": \
               obj,
               "name_of_obj_alias_of_numerical_data_container": \
@@ -3870,7 +3871,7 @@ def _check_and_convert_cropped_cbed_pattern_images(params):
               torch.Tensor,
               "target_device": \
               None}
-    obj = _convert_numerical_data_container(**kwargs)
+    obj = module_alias._convert_numerical_data_container(**kwargs)
 
     current_func_name = "_check_and_convert_cropped_cbed_pattern_images"
 
@@ -5709,7 +5710,7 @@ class _MLModel(_cls_alias):
              next(self.parameters()).device}
         cropped_cbed_pattern_images = \
             _check_and_convert_cropped_cbed_pattern_images(params)
-        ml_inputs["cbed_pattern_images"] = \
+        ml_inputs["cropped_cbed_pattern_images"] = \
             cropped_cbed_pattern_images
 
         kwargs = {"ml_inputs": \

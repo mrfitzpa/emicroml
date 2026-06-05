@@ -246,7 +246,7 @@ if ml_model_task == "cbed/distortion/estimation":
     num_epochs_in_first_lr_annealing_cycle_set = (16,)
     multiplicative_decay_factor_set = (0.5,)
 elif ml_model_task == "cbed/disk/localization":
-    architecture_set = ("localization_net",)
+    architecture_set = ("CBEDDLocNet",)
 
     attr_name = "num_pixels_across_each_cropped_cbed_pattern"
     num_pixels_across_each_cropped_cbed_pattern = getattr(ml_training_dataset,
@@ -266,28 +266,28 @@ elif ml_model_task == "cbed/disk/localization":
     num_epochs_in_first_lr_annealing_cycle_set = (16,)
     multiplicative_decay_factor_set = (0.5,)
 elif ml_model_task == "cbed/disk/segmentation":
-    architecture_set = ("segmentation_net",)
+    architecture_set = 2*("CBEDDSegNet",)
 
     attr_name = "num_pixels_across_each_cropped_cbed_pattern"
     num_pixels_across_each_cropped_cbed_pattern = getattr(ml_training_dataset,
                                                           attr_name)
 
-    wavelet_name_set = ("db8",)
-    j_dashv_minus_j_epsilon_set = (0,)
+    wavelet_name_set = len(architecture_set)*("db8",)
+    j_dashv_minus_j_epsilon_set = len(architecture_set)*(0,)
 
-    mini_batch_size_set = (64,)
+    mini_batch_size_set = len(architecture_set)*(64,)
 
-    num_epochs_during_warmup_set = (4,)
-    initial_lr_set = (1e-8,)
-    max_lr_set = (5e-3,)
+    num_epochs_during_warmup_set = len(architecture_set)*(16,)
+    initial_lr_set = len(architecture_set)*(1e-8,)
+    max_lr_set = (5e-3, 1e-2)
 
-    weight_decay_set = (7.25e-4,)
-    momentum_factor_set = (0.9,)
+    weight_decay_set = len(architecture_set)*(7.25e-4,)
+    momentum_factor_set = len(architecture_set)*(0.9,)
     
-    min_lr_in_first_annealing_cycle_set = (2e-5,)
-    num_lr_annealing_cycles_set = (1,)
-    num_epochs_in_first_lr_annealing_cycle_set = (16,)
-    multiplicative_decay_factor_set = (0.5,)
+    min_lr_in_first_annealing_cycle_set = len(architecture_set)*(2e-5,)
+    num_lr_annealing_cycles_set = len(architecture_set)*(1,)
+    num_epochs_in_first_lr_annealing_cycle_set = len(architecture_set)*(64,)
+    multiplicative_decay_factor_set = len(architecture_set)*(0.5,)
 
 
 
@@ -450,7 +450,7 @@ elif ml_model_task == "cbed/disk/localization":
          "num_pixels_across_each_cropped_cbed_pattern": \
          num_pixels_across_each_cropped_cbed_pattern,
          "num_downsamplings": \
-         5,
+         6,
          "bce_loss_weight": \
          1.0}
 elif ml_model_task == "cbed/disk/segmentation":
