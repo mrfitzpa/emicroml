@@ -5059,6 +5059,7 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
         self._num_downsamplings = j_dashv-j_vdash+1
 
         self._first_conv_layer = self._generate_first_conv_layer()
+        self._first_mini_batch_norm = self._generate_first_mini_batch_norm()
         self._resnet_stages = self._generate_resnet_stages()
         self._downsampling_blocks = self._generate_downsampling_blocks()
         self._bottleneck_blocks = self._generate_bottleneck_blocks()
@@ -5091,6 +5092,27 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
     def _initialize_first_conv_layer_weights(self, conv_layer):
         kwargs = {"activation_func": torch.nn.ReLU(), "layer": conv_layer}
         _initialize_layer_weights_according_to_activation_func(**kwargs)
+
+        return None
+
+
+
+    def _generate_first_mini_batch_norm(self):
+        kwargs = {"num_features": self._first_conv_layer.out_channels,
+                  "eps": self._mini_batch_norm_eps}
+        mini_batch_norm = torch.nn.BatchNorm2d(**kwargs)
+
+        kwargs = {"mini_batch_norm": mini_batch_norm}
+        self._initialize_first_mini_batch_norm_weights_and_biases(**kwargs)
+
+        return mini_batch_norm
+    
+
+
+    def _initialize_first_mini_batch_norm_weights_and_biases(self,
+                                                             mini_batch_norm):
+        torch.nn.init.constant_(mini_batch_norm.weight, 1)
+        torch.nn.init.constant_(mini_batch_norm.bias, 0)
 
         return None
 
@@ -5238,36 +5260,34 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
         
 
     def _predict_dwt_coeffs(self, ml_inputs):
-        dwt_coeffs = tuple()
-
-        j_set = range(self._j_dashv-1, self._j_vdash-1, -1)
+        input_tensor = ml_inputs["cropped_cbed_pattern_images"]
+        j_set = range(self._j_dashv, self._j_vdash-1, -1)
         prediction_block_count = 0
 
-        Y_1 = self._get_and_enhance_cropped_cbed_pattern_images(ml_inputs)
-        Y_2 = self._first_conv_layer(Y_1)
+        dwt_coeffs = tuple()
 
-        resnet_stage_idx = 0
-        resnet_stage = self._resnet_stages[resnet_stage_idx]
-        Y_3 = resnet_stage(Y_2)
-        
         for j in j_set:
-            downsampling_block_idx = \
-                j_set[0]-j
-            downsampling_block = \
-                self._downsampling_blocks[downsampling_block_idx]
-            Y_2 = \
-                downsampling_block(Y_3)
+            downsampling_block_idx = j_set[0]-j-1
+
+            if downsampling_block_idx == -1:
+                Y_1 = \
+                    self._entry_flow(input_tensor)
+            else:
+                downsampling_block = \
+                    self._downsampling_blocks[downsampling_block_idx]
+                Y_1 = \
+                    downsampling_block(Y_2)
 
             resnet_stage_idx = downsampling_block_idx+1
             resnet_stage = self._resnet_stages[resnet_stage_idx]
-            Y_3 = resnet_stage(Y_2)
+            Y_2 = resnet_stage(Y_1)
 
             if (j < self._j_epsilon) or (j == self._j_vdash):
                 bottleneck_block_idx = (resnet_stage_idx
                                         - (self._j_dashv-(self._j_epsilon-1))
                                         + (self._j_vdash == self._j_epsilon))
                 bottleneck_block = self._bottleneck_blocks[bottleneck_block_idx]
-                Y_4 = bottleneck_block(Y_3)
+                Y_3 = bottleneck_block(Y_2)
 
                 num_prediction_blocks_for_current_j = \
                     self._calc_num_prediction_blocks_for_current_j(j)
@@ -5279,10 +5299,10 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
                 for prediction_block_idx in prediction_block_idx_subset:
                     prediction_block = \
                         self._prediction_blocks[prediction_block_idx]
-                    Y_5 = \
-                        prediction_block(Y_4)
+                    Y_4 = \
+                        prediction_block(Y_3)
                     dwt_coeffs = \
-                        (Y_5,) + dwt_coeffs
+                        (Y_4,) + dwt_coeffs
                     prediction_block_count += \
                         1
 
@@ -5290,27 +5310,23 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
 
 
 
-    def _get_and_enhance_cropped_cbed_pattern_images(self, ml_inputs):
-        kwargs = \
-            {"image_stack": ml_inputs["cropped_cbed_pattern_images"]}
-        enhanced_cropped_cbed_pattern_images = \
-            _min_max_normalize_image_stack(**kwargs)
+    def _entry_flow(self, input_tensor):
+        kwargs = {"image_stack": input_tensor}
+        intermediate_tensor = _min_max_normalize_image_stack(**kwargs)
 
         gamma = 0.3
 
-        enhanced_cropped_cbed_pattern_images = \
-            torch.unsqueeze(enhanced_cropped_cbed_pattern_images, dim=1)
-        enhanced_cropped_cbed_pattern_images = \
-            torch.pow(enhanced_cropped_cbed_pattern_images, gamma)
-        enhanced_cropped_cbed_pattern_images = \
-            kornia.enhance.equalize(enhanced_cropped_cbed_pattern_images)
+        intermediate_tensor = torch.unsqueeze(intermediate_tensor, dim=1)
+        intermediate_tensor = torch.pow(intermediate_tensor, gamma)
 
-        kwargs = {"input": enhanced_cropped_cbed_pattern_images,
-                  "min": 0,
-                  "max": 1}
-        enhanced_cropped_cbed_pattern_images = torch.clip(**kwargs)
+        kwargs = {"input": intermediate_tensor, "min": 0, "max": 1}
+        intermediate_tensor = torch.clip(**kwargs)
 
-        return enhanced_cropped_cbed_pattern_images
+        intermediate_tensor = self._first_conv_layer(intermediate_tensor)
+        intermediate_tensor = self._first_mini_batch_norm(intermediate_tensor)
+        output_tensor = torch.nn.functional.relu(intermediate_tensor)
+
+        return output_tensor
 
 
 
