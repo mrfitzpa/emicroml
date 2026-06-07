@@ -5892,6 +5892,13 @@ class _MLMetricCalculator(_cls_alias):
         metrics_of_current_mini_batch = \
             super()._calc_metrics_of_current_mini_batch(**kwargs)
 
+        kwargs = \
+            {"ml_predictions": ml_predictions,
+             "ml_targets": ml_targets,
+             "ml_model": ml_model}
+        ml_predictions, ml_targets = \
+            self._unnormalize_normalizable_elems_in_ml_data_dicts(**kwargs)
+
         global_symbol_table = globals()
 
         for key_1 in ml_predictions:
@@ -5918,6 +5925,25 @@ class _MLMetricCalculator(_cls_alias):
                 metrics_of_current_mini_batch[key_2] = func_alias(**kwargs)
 
         return metrics_of_current_mini_batch
+
+
+
+    def _unnormalize_normalizable_elems_in_ml_data_dicts(self,
+                                                         ml_predictions,
+                                                         ml_targets,
+                                                         ml_model):
+        ml_predictions = \
+            {key: 1.0*ml_predictions[key] for key in ml_predictions}
+        ml_targets = \
+            {key: 1.0*ml_targets[key] for key in ml_targets}
+
+        for ml_data_dict in (ml_predictions, ml_targets):
+            kwargs = {"ml_data_dict": ml_data_dict,
+                      "normalization_weights": ml_model._normalization_weights,
+                      "normalization_biases": ml_model._normalization_biases}
+            _unnormalize_normalizable_elems_in_ml_data_dict(**kwargs)
+
+        return ml_predictions, ml_targets
 
 
 
