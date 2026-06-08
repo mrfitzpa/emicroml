@@ -4688,11 +4688,168 @@ def _initialize_layer_weights_according_to_activation_func(activation_func,
 
 
 
+# class _BottleneckBlock(torch.nn.Module):
+#     def __init__(self,
+#                  num_pixels_across_each_cropped_cbed_pattern,
+#                  num_input_channels,
+#                  num_filters_per_conv_layer,
+#                  j_vdash,
+#                  j,
+#                  j_dashv,
+#                  mini_batch_norm_eps):
+#         super().__init__()
+
+#         self._num_pixels_across_each_cropped_cbed_pattern = \
+#             num_pixels_across_each_cropped_cbed_pattern
+#         self._num_input_channels = \
+#             num_input_channels
+#         self._num_filters_per_conv_layer = \
+#             num_filters_per_conv_layer
+#         self._j_vdash = \
+#             j_vdash
+#         self._j = \
+#             j
+#         self._j_dashv = \
+#             j_dashv
+#         self._mini_batch_norm_eps = \
+#             mini_batch_norm_eps
+
+#         self._num_output_channels = 2**(j_dashv-1)
+
+#         self._conv_layers = self._generate_conv_layers()
+#         self._num_mini_batch_norms = len(self._conv_layers)+1
+#         self._mini_batch_norms = self._generate_mini_batch_norms()
+#         self._fc_layer = self._generate_fc_layer()
+        
+#         return None
+
+
+    
+#     def _generate_conv_layers(self):
+#         num_conv_layers = 0 + (self._j > self._j_vdash)
+
+#         conv_layers = tuple(self._generate_conv_layer()
+#                             for conv_layer_idx
+#                             in range(num_conv_layers))
+        
+#         conv_layers = torch.nn.ModuleList(conv_layers)
+
+#         return conv_layers
+
+
+
+#     def _generate_conv_layer(self):
+#         kwargs = {"in_channels": self._num_input_channels,
+#                   "out_channels": self._num_filters_per_conv_layer,
+#                   "kernel_size": 1,
+#                   "stride": 1,
+#                   "padding": 0,
+#                   "padding_mode": "zeros",
+#                   "bias": False}
+#         conv_layer = torch.nn.Conv2d(**kwargs)
+
+#         kwargs = {"conv_layer": conv_layer}
+#         self._initialize_conv_layer_weights(**kwargs)
+
+#         return conv_layer
+
+
+
+#     def _initialize_conv_layer_weights(self, conv_layer):
+#         kwargs = {"activation_func": torch.nn.ReLU(), "layer": conv_layer}
+#         _initialize_layer_weights_according_to_activation_func(**kwargs)
+
+#         return None
+
+
+
+#     def _generate_mini_batch_norms(self):
+#         mini_batch_norms = \
+#             tuple(self._generate_mini_batch_norm(mini_batch_norm_idx)
+#                   for mini_batch_norm_idx
+#                   in range(self._num_mini_batch_norms))
+
+#         mini_batch_norms = torch.nn.ModuleList(mini_batch_norms)
+
+#         return mini_batch_norms
+
+
+
+#     def _generate_mini_batch_norm(self, mini_batch_norm_idx):
+#         if mini_batch_norm_idx < self._num_mini_batch_norms-1:
+#             kwargs = {"num_features": self._num_filters_per_conv_layer,
+#                       "eps": self._mini_batch_norm_eps}
+#             mini_batch_norm = torch.nn.BatchNorm2d(**kwargs)
+#         else:
+#             kwargs = {"num_features": self._num_output_channels,
+#                       "eps": self._mini_batch_norm_eps}
+#             mini_batch_norm = torch.nn.BatchNorm1d(**kwargs)
+
+#         kwargs = {"mini_batch_norm": mini_batch_norm}
+#         self._initialize_mini_batch_norm_weights_and_biases(**kwargs)
+
+#         return mini_batch_norm
+
+
+    
+#     def _initialize_mini_batch_norm_weights_and_biases(self, mini_batch_norm):
+#         torch.nn.init.constant_(mini_batch_norm.weight, 1)
+#         torch.nn.init.constant_(mini_batch_norm.bias, 0)
+            
+#         return None
+
+
+
+#     def _generate_fc_layer(self):
+#         N_1 = (self._num_pixels_across_each_cropped_cbed_pattern
+#                // 2**(self._j_dashv-self._j))
+#         C_1 = (self._num_filters_per_conv_layer
+#                if (self._j > self._j_vdash)
+#                else self._num_input_channels)
+
+#         kwargs = {"in_features": N_1*N_1*C_1,
+#                   "out_features": self._num_output_channels,
+#                   "bias": False}
+#         fc_layer = torch.nn.Linear(**kwargs)
+
+#         self._initialize_fc_layer_weights(fc_layer)
+
+#         return fc_layer
+
+
+
+#     def _initialize_fc_layer_weights(self, fc_layer):
+#         kwargs = {"activation_func": torch.nn.ReLU(), "layer": fc_layer}
+#         _initialize_layer_weights_according_to_activation_func(**kwargs)
+
+#         return None
+
+
+
+#     def forward(self, X):
+#         Y = X
+
+#         layers = self._conv_layers + (self._fc_layer,)
+#         num_layers = len(layers)
+        
+#         for layer_idx, layer in enumerate(layers):
+#             mini_batch_norm_idx = layer_idx
+#             mini_batch_norm = self._mini_batch_norms[mini_batch_norm_idx]
+
+#             if layer_idx == num_layers-1:
+#                 torch.flatten(Y, start_dim=1)
+#             Y = layer(Y)
+#             Y = mini_batch_norm(Y)
+#             Y = torch.nn.functional.relu(Y)
+        
+#         return Y
+
+
+
 class _BottleneckBlock(torch.nn.Module):
     def __init__(self,
                  num_pixels_across_each_cropped_cbed_pattern,
                  num_input_channels,
-                 num_filters_per_conv_layer,
                  j_vdash,
                  j,
                  j_dashv,
@@ -4703,8 +4860,6 @@ class _BottleneckBlock(torch.nn.Module):
             num_pixels_across_each_cropped_cbed_pattern
         self._num_input_channels = \
             num_input_channels
-        self._num_filters_per_conv_layer = \
-            num_filters_per_conv_layer
         self._j_vdash = \
             j_vdash
         self._j = \
@@ -4714,132 +4869,34 @@ class _BottleneckBlock(torch.nn.Module):
         self._mini_batch_norm_eps = \
             mini_batch_norm_eps
 
-        self._num_output_channels = 2**(j_dashv-1)
+        self._num_output_nodes = 2**(j_dashv-1)
 
-        self._conv_layers = self._generate_conv_layers()
-        self._mini_batch_norms = self._generate_mini_batch_norms()
-        self._fc_layer = self._generate_fc_layer()
+        self._fc_residual_block = self._generate_fc_residual_block()
         
         return None
 
 
     
-    def _generate_conv_layers(self):
-        num_conv_layers = 0 + (self._j > self._j_vdash)
-
-        conv_layers = tuple(self._generate_conv_layer()
-                            for conv_layer_idx
-                            in range(num_conv_layers))
-        
-        conv_layers = torch.nn.ModuleList(conv_layers)
-
-        return conv_layers
-
-
-
-    def _generate_conv_layer(self):
-        kwargs = {"in_channels": self._num_input_channels,
-                  "out_channels": self._num_filters_per_conv_layer,
-                  "kernel_size": 1,
-                  "stride": 1,
-                  "padding": 0,
-                  "padding_mode": "zeros",
-                  "bias": False}
-        conv_layer = torch.nn.Conv2d(**kwargs)
-
-        kwargs = {"conv_layer": conv_layer}
-        self._initialize_conv_layer_weights(**kwargs)
-
-        return conv_layer
-
-
-
-    def _initialize_conv_layer_weights(self, conv_layer):
-        kwargs = {"activation_func": torch.nn.ReLU(), "layer": conv_layer}
-        _initialize_layer_weights_according_to_activation_func(**kwargs)
-
-        return None
-
-
-
-    def _generate_mini_batch_norms(self):
-        num_mini_batch_norms = len(self._conv_layers)
-
-        mini_batch_norms = \
-            tuple(self._generate_mini_batch_norm()
-                  for mini_batch_norm_idx
-                  in range(num_mini_batch_norms))
-
-        mini_batch_norms = torch.nn.ModuleList(mini_batch_norms)
-
-        return mini_batch_norms
-
-
-
-    def _generate_mini_batch_norm(self):
-        kwargs = {"num_features": self._num_filters_per_conv_layer,
-                  "eps": self._mini_batch_norm_eps}
-        mini_batch_norm = torch.nn.BatchNorm2d(**kwargs)
-
-        kwargs = {"mini_batch_norm": mini_batch_norm}
-        self._initialize_mini_batch_norm_weights_and_biases(**kwargs)
-
-        return mini_batch_norm
-
-
-    
-    def _initialize_mini_batch_norm_weights_and_biases(self, mini_batch_norm):
-        torch.nn.init.constant_(mini_batch_norm.bias, 0)
-        torch.nn.init.constant_(mini_batch_norm.weight, 1)
-            
-        return None
-
-
-
-    def _generate_fc_layer(self):
+    def _generate_fc_residual_block(self):
         N_1 = (self._num_pixels_across_each_cropped_cbed_pattern
                // 2**(self._j_dashv-self._j))
-        C_1 = (self._num_filters_per_conv_layer
-             if (self._j > self._j_vdash)
-             else self._num_input_channels)
+        C_1 = self._num_input_channels
 
-        kwargs = {"in_features": N_1*N_1*C_1,
-                  "out_features": self._num_output_channels,
-                  "bias": True}
-        fc_layer = torch.nn.Linear(**kwargs)
+        kwargs = {"num_input_nodes": N_1*N_1*C_1,
+                  "num_output_nodes": self._num_output_nodes,
+                  "final_activation_func": torch.nn.ReLU(),
+                  "mini_batch_norm_eps": self._mini_batch_norm_eps}
+        fc_residual_block = _FCResidualBlock(**kwargs)
 
-        self._initialize_fc_layer_weights(fc_layer)
-
-        return fc_layer
+        return fc_residual_block
 
 
 
-    def _initialize_fc_layer_weights(self, fc_layer):
-        kwargs = {"activation_func": torch.nn.ReLU(), "layer": fc_layer}
-        _initialize_layer_weights_according_to_activation_func(**kwargs)
-
-        return None
-
-
-
-    def forward(self, X):
-        Y = X
+    def forward(self, input_tensor):
+        intermediate_tensor = torch.flatten(input_tensor, start_dim=1)
+        output_tensor = self._fc_residual_block(intermediate_tensor)
         
-        for conv_layer_idx, conv_layer in enumerate(self._conv_layers):
-            mini_batch_norm_idx = conv_layer_idx
-            mini_batch_norm = self._mini_batch_norms[mini_batch_norm_idx]
-            
-            Y = conv_layer(Y)
-            Y = mini_batch_norm(Y)
-            Y = torch.nn.functional.relu(Y)
-
-        fc_layer = self._fc_layer
-            
-        Y = torch.flatten(Y, start_dim=1)
-        Y = fc_layer(Y)
-        Y = torch.nn.functional.relu(Y)
-
-        return Y
+        return output_tensor
 
 
 
@@ -4905,7 +4962,8 @@ _module_alias = emicroml.modelling._common
 _cls_alias = _module_alias._FCResidualBlock
 class _FCResidualBlock(_cls_alias):
     def __init__(self,
-                 num_input_channels,
+                 num_input_nodes,
+                 num_output_nodes,
                  final_activation_func,
                  mini_batch_norm_eps):
         ctor_params = {key: val
@@ -4921,6 +4979,81 @@ class _FCResidualBlock(_cls_alias):
 
 
 
+# class _PredictionBlock(torch.nn.Module):
+#     def __init__(self,
+#                  j,
+#                  j_dashv,
+#                  mini_batch_norm_eps):
+#         super().__init__()
+
+#         self._j = j
+#         self._j_dashv = j_dashv
+#         self._mini_batch_norm_eps = mini_batch_norm_eps
+
+#         self._num_input_nodes = 2**(j_dashv-1)
+#         self._num_output_nodes = 2**j
+
+#         self._terminus_sigmoid_activation_is_to_be_applied = (j == 0)
+
+#         self._fc_residual_block = self._generate_fc_residual_block()
+#         self._fc_layer = self._generate_fc_layer()
+
+#         return None
+
+
+
+#     def _generate_fc_residual_block(self):
+#         kwargs = {"num_input_nodes": self._num_input_nodes,
+#                   "num_output_nodes": self._num_input_nodes,
+#                   "final_activation_func": torch.nn.ReLU(),
+#                   "mini_batch_norm_eps": self._mini_batch_norm_eps}
+#         fc_residual_block = _FCResidualBlock(**kwargs)
+
+#         return fc_residual_block
+
+
+
+#     def _generate_fc_layer(self):
+#         kwargs = {"in_features": self._num_input_nodes,
+#                   "out_features": self._num_output_nodes,
+#                   "bias": True}
+#         fc_layer = torch.nn.Linear(**kwargs)
+
+#         kwargs = {"fc_layer": fc_layer}
+#         self._initialize_fc_layer_weights(**kwargs)
+
+#         return fc_layer
+
+
+
+#     def _initialize_fc_layer_weights(self, fc_layer):
+#         terminus_sigmoid_activation_is_to_be_applied = \
+#             self._terminus_sigmoid_activation_is_to_be_applied
+
+#         activation_func = (torch.nn.Sigmoid()
+#                            if terminus_sigmoid_activation_is_to_be_applied
+#                            else torch.nn.Identity())
+        
+#         kwargs = {"activation_func": activation_func, "layer": fc_layer}
+#         _initialize_layer_weights_according_to_activation_func(**kwargs)
+
+#         return None
+
+
+
+#     def forward(self, X):
+#         applying_terminus_sigmoid_activation = \
+#             self._terminus_sigmoid_activation_is_to_be_applied
+
+#         Y = self._fc_residual_block(X)
+#         Y = self._fc_layer(Y)
+#         if applying_terminus_sigmoid_activation:
+#             Y = torch.nn.functional.sigmoid(Y)
+
+#         return Y
+
+
+
 class _PredictionBlock(torch.nn.Module):
     def __init__(self,
                  j,
@@ -4932,12 +5065,12 @@ class _PredictionBlock(torch.nn.Module):
         self._j_dashv = j_dashv
         self._mini_batch_norm_eps = mini_batch_norm_eps
 
-        self._num_input_channels = 2**(j_dashv-1)
-        self._num_output_channels = 2**j
+        self._num_input_nodes = 2**(j_dashv-1)
+        self._num_output_nodes = 2**j
 
         self._terminus_sigmoid_activation_is_to_be_applied = (j == 0)
 
-        self._fc_residual_block = self._generate_fc_residual_block()        
+        self._fc_residual_block = self._generate_fc_residual_block()
         self._fc_layer = self._generate_fc_layer()
 
         return None
@@ -4945,7 +5078,8 @@ class _PredictionBlock(torch.nn.Module):
 
 
     def _generate_fc_residual_block(self):
-        kwargs = {"num_input_channels": self._num_input_channels,
+        kwargs = {"num_input_nodes": self._num_input_nodes,
+                  "num_output_nodes": self._num_input_nodes,
                   "final_activation_func": torch.nn.ReLU(),
                   "mini_batch_norm_eps": self._mini_batch_norm_eps}
         fc_residual_block = _FCResidualBlock(**kwargs)
@@ -4955,8 +5089,8 @@ class _PredictionBlock(torch.nn.Module):
 
 
     def _generate_fc_layer(self):
-        kwargs = {"in_features": self._num_input_channels,
-                  "out_features": self._num_output_channels,
+        kwargs = {"in_features": self._num_input_nodes,
+                  "out_features": self._num_output_nodes,
                   "bias": True}
         fc_layer = torch.nn.Linear(**kwargs)
 
@@ -4982,16 +5116,21 @@ class _PredictionBlock(torch.nn.Module):
 
 
 
-    def forward(self, X):
+    def forward(self, input_tensor):
         applying_terminus_sigmoid_activation = \
             self._terminus_sigmoid_activation_is_to_be_applied
 
-        Y = self._fc_residual_block(X)
-        Y = self._fc_layer(Y)
+        intermediate_tensor = \
+            self._fc_residual_block(input_tensor)
+        intermediate_tensor = \
+            self._fc_layer(input_tensor)
         if applying_terminus_sigmoid_activation:
-            Y = torch.nn.functional.sigmoid(Y)
+            intermediate_tensor = \
+                torch.nn.functional.sigmoid(intermediate_tensor)
+        output_tensor = \
+            intermediate_tensor
 
-        return Y
+        return output_tensor
 
 
     
@@ -5027,7 +5166,6 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
                  num_filters_in_first_conv_layer,
                  kernel_size_of_first_conv_layer,
                  num_resnet_building_blocks_per_stage,
-                 num_filters_per_bottleneck_conv_layer,
                  mini_batch_norm_eps,
                  ml_model_task):
         super().__init__()
@@ -5046,8 +5184,6 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
             kernel_size_of_first_conv_layer
         self._num_resnet_building_blocks_per_stage = \
             num_resnet_building_blocks_per_stage
-        self._num_filters_per_bottleneck_conv_layer = \
-            num_filters_per_bottleneck_conv_layer
         self._mini_batch_norm_eps = \
             mini_batch_norm_eps
         self._ml_model_task = \
@@ -5181,8 +5317,6 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
                       self._num_pixels_across_each_cropped_cbed_pattern,
                       "num_input_channels": \
                       resnet_stage._num_output_channels,
-                      "num_filters_per_conv_layer": \
-                      self._num_filters_per_bottleneck_conv_layer,
                       "j_vdash": \
                       self._j_vdash,
                       "j": \
@@ -5360,6 +5494,351 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
             torch.stack(rescaled_approximation_coeffs[-2:], dim=2)
 
         return principal_disk_boundary_pt_sets
+
+
+
+# class _GeneralizedCoreNNModule(torch.nn.Module):
+#     def __init__(self,
+#                  wavelet_name,
+#                  j_epsilon,
+#                  j_dashv,
+#                  num_pixels_across_each_cropped_cbed_pattern,
+#                  num_filters_in_first_conv_layer,
+#                  kernel_size_of_first_conv_layer,
+#                  num_resnet_building_blocks_per_stage,
+#                  num_filters_per_bottleneck_conv_layer,
+#                  mini_batch_norm_eps,
+#                  ml_model_task):
+#         super().__init__()
+
+#         self._wavelet_name = \
+#             wavelet_name
+#         self._j_epsilon = \
+#             j_epsilon
+#         self._j_dashv = \
+#             j_dashv
+#         self._num_pixels_across_each_cropped_cbed_pattern = \
+#             num_pixels_across_each_cropped_cbed_pattern
+#         self._num_filters_in_first_conv_layer = \
+#             num_filters_in_first_conv_layer
+#         self._kernel_size_of_first_conv_layer = \
+#             kernel_size_of_first_conv_layer
+#         self._num_resnet_building_blocks_per_stage = \
+#             num_resnet_building_blocks_per_stage
+#         self._num_filters_per_bottleneck_conv_layer = \
+#             num_filters_per_bottleneck_conv_layer
+#         self._mini_batch_norm_eps = \
+#             mini_batch_norm_eps
+#         self._ml_model_task = \
+#             ml_model_task
+
+#         j_vdash = _get_j_vdash_from_wavelet_name(wavelet_name)
+#         self._j_vdash = j_vdash
+        
+#         self._num_downsamplings = j_dashv-j_vdash+1
+
+#         self._first_conv_layer = self._generate_first_conv_layer()
+#         self._first_mini_batch_norm = self._generate_first_mini_batch_norm()
+#         self._resnet_stages = self._generate_resnet_stages()
+#         self._downsampling_blocks = self._generate_downsampling_blocks()
+#         self._bottleneck_blocks = self._generate_bottleneck_blocks()
+#         self._prediction_blocks = self._generate_prediction_blocks()
+
+#         if "segmentation" in ml_model_task:
+#             self._idwt_block = self._generate_idwt_block()
+        
+#         return None
+
+
+
+#     def _generate_first_conv_layer(self):
+#         kwargs = {"in_channels": 1,
+#                   "out_channels": self._num_filters_in_first_conv_layer,
+#                   "kernel_size": self._kernel_size_of_first_conv_layer,
+#                   "stride": 1,
+#                   "padding": (self._kernel_size_of_first_conv_layer-1)//2,
+#                   "padding_mode": "zeros",
+#                   "bias": False}
+#         conv_layer = torch.nn.Conv2d(**kwargs)
+
+#         kwargs = {"conv_layer": conv_layer}
+#         self._initialize_first_conv_layer_weights(**kwargs)
+
+#         return conv_layer
+
+
+
+#     def _initialize_first_conv_layer_weights(self, conv_layer):
+#         kwargs = {"activation_func": torch.nn.ReLU(), "layer": conv_layer}
+#         _initialize_layer_weights_according_to_activation_func(**kwargs)
+
+#         return None
+
+
+
+#     def _generate_first_mini_batch_norm(self):
+#         kwargs = {"num_features": self._first_conv_layer.out_channels,
+#                   "eps": self._mini_batch_norm_eps}
+#         mini_batch_norm = torch.nn.BatchNorm2d(**kwargs)
+
+#         kwargs = {"mini_batch_norm": mini_batch_norm}
+#         self._initialize_first_mini_batch_norm_weights_and_biases(**kwargs)
+
+#         return mini_batch_norm
+    
+
+
+#     def _initialize_first_mini_batch_norm_weights_and_biases(self,
+#                                                              mini_batch_norm):
+#         torch.nn.init.constant_(mini_batch_norm.weight, 1)
+#         torch.nn.init.constant_(mini_batch_norm.bias, 0)
+
+#         return None
+
+
+
+#     def _generate_resnet_stages(self):
+#         j_set = range(self._j_dashv, self._j_vdash-1, -1)
+        
+#         kwargs = \
+#             {"num_input_channels": self._num_filters_in_first_conv_layer,
+#              "max_kernel_size": 3,
+#              "num_building_blocks": self._num_resnet_building_blocks_per_stage,
+#              "final_activation_func": torch.nn.ReLU(),
+#              "mini_batch_norm_eps": self._mini_batch_norm_eps}
+
+#         resnet_stages = tuple()
+#         for resnet_stage_idx, j in enumerate(j_set):
+#             resnet_stage = _BasicResNetStage(**kwargs)
+#             resnet_stages += (resnet_stage,)
+            
+#             if resnet_stage_idx % 2 == 1:
+#                 kwargs["num_input_channels"] *= 2
+        
+#         resnet_stages = torch.nn.ModuleList(resnet_stages)
+
+#         return resnet_stages
+
+
+
+#     def _generate_downsampling_blocks(self):
+#         num_stages = len(self._resnet_stages)
+#         downsampling_block_indices = range(num_stages-1)
+
+#         kwargs = {"num_input_channels": self._num_filters_in_first_conv_layer,
+#                   "num_output_channels": self._num_filters_in_first_conv_layer,
+#                   "max_kernel_size": 3,
+#                   "first_conv_layer_performs_downsampling": True,
+#                   "final_activation_func": torch.nn.ReLU(),
+#                   "mini_batch_norm_eps": self._mini_batch_norm_eps}
+
+#         downsampling_blocks = tuple()
+#         for downsampling_block_idx in downsampling_block_indices:
+#             downsampling_block = _BasicResNetBuildingBlock(**kwargs)
+#             downsampling_blocks += (downsampling_block,)
+
+#             kwargs["num_input_channels"] = kwargs["num_output_channels"]
+#             if downsampling_block_idx % 2 == 0:
+#                 kwargs["num_output_channels"] *= 2
+
+#         downsampling_blocks = torch.nn.ModuleList(downsampling_blocks)
+
+#         return downsampling_blocks
+
+
+
+#     def _generate_bottleneck_blocks(self):
+#         j_set = range(self._j_vdash,
+#                       self._j_epsilon+(self._j_vdash == self._j_epsilon))
+
+#         bottleneck_blocks = tuple()
+#         for j in j_set:
+#             resnet_stage_idx = -1 - (j-j_set[0])
+#             resnet_stage = self._resnet_stages[resnet_stage_idx]
+
+#             kwargs = {"num_pixels_across_each_cropped_cbed_pattern": \
+#                       self._num_pixels_across_each_cropped_cbed_pattern,
+#                       "num_input_channels": \
+#                       resnet_stage._num_output_channels,
+#                       "num_filters_per_conv_layer": \
+#                       self._num_filters_per_bottleneck_conv_layer,
+#                       "j_vdash": \
+#                       self._j_vdash,
+#                       "j": \
+#                       j,
+#                       "j_dashv": \
+#                       self._j_dashv,
+#                       "mini_batch_norm_eps": \
+#                       self._mini_batch_norm_eps}
+#             bottleneck_block = _BottleneckBlock(**kwargs)
+#             bottleneck_blocks = (bottleneck_block,) + bottleneck_blocks
+
+#         bottleneck_blocks = torch.nn.ModuleList(bottleneck_blocks)
+
+#         return bottleneck_blocks
+
+
+
+#     def _generate_prediction_blocks(self):
+#         ml_model_task = self._ml_model_task
+
+#         j_set = (tuple(j
+#                        for j in range(self._j_epsilon-1, self._j_vdash-1, -1)
+#                        for _ in range(2))
+#                  + (self._j_vdash,)
+#                  + (self._j_vdash*("localization" not in ml_model_task),))
+
+#         prediction_blocks = tuple()
+#         for j in j_set:
+#             kwargs = {"j": j,
+#                       "j_dashv": self._j_dashv,
+#                       "mini_batch_norm_eps": self._mini_batch_norm_eps}
+#             prediction_block = _PredictionBlock(**kwargs)
+#             prediction_blocks += (prediction_block,)
+
+#         prediction_blocks = torch.nn.ModuleList(prediction_blocks)
+
+#         return prediction_blocks
+
+
+
+#     def _generate_idwt_block(self):
+#         kwargs = {"j_vdash": self._j_vdash,
+#                   "dtype": self._first_conv_layer.weight.dtype}
+#         idwt_block = _IDWTBlock(**kwargs)
+
+#         return idwt_block
+
+
+
+#     def forward(self, ml_inputs):
+#         ml_predictions = dict()
+
+#         dwt_coeffs = self._predict_dwt_coeffs(ml_inputs)
+
+#         if "segmentation" in self._ml_model_task:
+#             principal_disk_boundary_pt_sets = \
+#                 self._perform_mra_reconstruction(dwt_coeffs)
+
+#             key = ("max_level_{}_approx_coeff_sets"
+#                    "_of_principal_disk_boundary"
+#                    "_pt_sets").format(self._wavelet_name)
+#             ml_predictions[key] = torch.stack(dwt_coeffs[:2], dim=2)
+
+#             key = "principal_disk_boundary_pt_sets"
+#             ml_predictions[key] = principal_disk_boundary_pt_sets
+#         else:
+#             key = "principal_disk_visibility_statuses"
+#             ml_predictions[key] = torch.squeeze(dwt_coeffs[0], dim=1)
+
+#             key = "principal_disk_bounding_boxes"
+#             ml_predictions[key] = dwt_coeffs[1]
+
+#         return ml_predictions
+
+        
+
+#     def _predict_dwt_coeffs(self, ml_inputs):
+#         input_tensor = ml_inputs["cropped_cbed_pattern_images"]
+#         j_set = range(self._j_dashv, self._j_vdash-1, -1)
+#         prediction_block_count = 0
+
+#         dwt_coeffs = tuple()
+
+#         for j in j_set:
+#             downsampling_block_idx = j_set[0]-j-1
+
+#             if downsampling_block_idx == -1:
+#                 Y_1 = \
+#                     self._entry_flow(input_tensor)
+#             else:
+#                 downsampling_block = \
+#                     self._downsampling_blocks[downsampling_block_idx]
+#                 Y_1 = \
+#                     downsampling_block(Y_2)
+
+#             resnet_stage_idx = downsampling_block_idx+1
+#             resnet_stage = self._resnet_stages[resnet_stage_idx]
+#             Y_2 = resnet_stage(Y_1)
+
+#             if (j < self._j_epsilon) or (j == self._j_vdash):
+#                 bottleneck_block_idx = (resnet_stage_idx
+#                                         - (self._j_dashv-(self._j_epsilon-1))
+#                                         + (self._j_vdash == self._j_epsilon))
+#                 bottleneck_block = self._bottleneck_blocks[bottleneck_block_idx]
+#                 Y_3 = bottleneck_block(Y_2)
+
+#                 num_prediction_blocks_for_current_j = \
+#                     self._calc_num_prediction_blocks_for_current_j(j)
+
+#                 start = prediction_block_count
+#                 stop = start+num_prediction_blocks_for_current_j
+#                 prediction_block_idx_subset = range(start, stop)
+
+#                 for prediction_block_idx in prediction_block_idx_subset:
+#                     prediction_block = \
+#                         self._prediction_blocks[prediction_block_idx]
+#                     Y_4 = \
+#                         prediction_block(Y_3)
+#                     dwt_coeffs = \
+#                         (Y_4,) + dwt_coeffs
+#                     prediction_block_count += \
+#                         1
+
+#         return dwt_coeffs
+
+
+
+#     def _entry_flow(self, input_tensor):
+#         kwargs = {"image_stack": input_tensor}
+#         intermediate_tensor = _min_max_normalize_image_stack(**kwargs)
+
+#         gamma = 0.3
+
+#         intermediate_tensor = torch.unsqueeze(intermediate_tensor, dim=1)
+#         intermediate_tensor = torch.pow(intermediate_tensor, gamma)
+
+#         kwargs = {"input": intermediate_tensor, "min": 0, "max": 1}
+#         intermediate_tensor = torch.clip(**kwargs)
+
+#         intermediate_tensor = self._first_conv_layer(intermediate_tensor)
+#         intermediate_tensor = self._first_mini_batch_norm(intermediate_tensor)
+#         output_tensor = torch.nn.functional.relu(intermediate_tensor)
+
+#         return output_tensor
+
+
+
+#     def _calc_num_prediction_blocks_for_current_j(self, j):
+#         num_prediction_blocks_for_current_j = \
+#             2*(1 + (j == self._j_vdash)*(self._j_vdash != self._j_epsilon))
+
+#         return num_prediction_blocks_for_current_j
+    
+
+
+#     def _perform_mra_reconstruction(self, dwt_coeffs):
+#         rescaled_approximation_coeffs = dwt_coeffs[:2]
+#         j_set = range(self._j_vdash, self._j_dashv)
+#         num_cartesian_cmpnts = 2
+        
+#         for j in j_set:
+#             start = 2*((j-j_set[0])+1)
+#             stop = start+num_cartesian_cmpnts
+#             dwt_coeffs_idx_subset = range(start, stop)
+#             for dwt_coeffs_idx in dwt_coeffs_idx_subset:
+#                 rescaled_a_alpha_j = rescaled_approximation_coeffs[-2]
+#                 rescaled_d_alpha_j = (dwt_coeffs[dwt_coeffs_idx]
+#                                       if (j < self._j_epsilon)
+#                                       else 0*rescaled_a_alpha_j)
+#                 rescaled_a_alpha_jP1 = self._idwt_block(rescaled_a_alpha_j,
+#                                                         rescaled_d_alpha_j)
+#                 rescaled_approximation_coeffs += (rescaled_a_alpha_jP1,)
+
+#         principal_disk_boundary_pt_sets = \
+#             torch.stack(rescaled_approximation_coeffs[-2:], dim=2)
+
+#         return principal_disk_boundary_pt_sets
 
 
 
@@ -5690,7 +6169,7 @@ class _MLModel(_cls_alias):
              "num_filters_in_first_conv_layer": 32,
              "kernel_size_of_first_conv_layer": 7,
              "num_resnet_building_blocks_per_stage": 5,
-             "num_filters_per_bottleneck_conv_layer": 4,
+             # "num_filters_per_bottleneck_conv_layer": 4,  # TESTING.
              "ml_model_task": _get_ml_model_task(self)}
         _ = \
             core_nn_module_ctor_params.pop("bce_loss_weight", None)

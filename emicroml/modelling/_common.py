@@ -5498,6 +5498,13 @@ class _BasicResNetBuildingBlock(torch.nn.Module):
         self._mini_batch_norm_eps = \
             mini_batch_norm_eps
 
+        get_fully_qualified_class_name = \
+            czekitout.name.fully_qualified_class_name
+        fully_qualified_class_name = \
+            czekitout.name.fully_qualified_class_name(self)
+        self._resnet_d_is_to_be_applied = \
+            ("cbed.disk" in fully_qualified_class_name)
+
         self._skip_connection_contains_conv_layer = \
             ((num_input_channels != num_output_channels)
              or first_conv_layer_performs_downsampling)
@@ -5523,12 +5530,18 @@ class _BasicResNetBuildingBlock(torch.nn.Module):
 
 
     def _generate_conv_layer(self, conv_layer_idx):
+        resnet_d_is_not_to_be_applied = (not self._resnet_d_is_to_be_applied)
+
         kernel_size = (1
                        if (conv_layer_idx == 2)
                        else self._max_kernel_size)
+
         stride = (1
-                  if (conv_layer_idx == 1)
-                  else 1+self._first_conv_layer_performs_downsampling)
+                  + ((conv_layer_idx == 0)
+                     * self._first_conv_layer_performs_downsampling)
+                  + ((conv_layer_idx == 2)
+                     * resnet_d_is_not_to_be_applied
+                     * self._first_conv_layer_performs_downsampling))
 
         kwargs = {"out_channels": self._num_output_channels,
                   "kernel_size": kernel_size,
@@ -5616,6 +5629,11 @@ class _BasicResNetBuildingBlock(torch.nn.Module):
                 self._conv_layers[2](input_tensor)
             intermediate_tensor_2 = \
                 self._mini_batch_norms[2](intermediate_tensor_2)
+            if self._resnet_d_is_to_be_applied:
+                kwargs = \
+                    {"input": intermediate_tensor_2, "kernel_size": 2}
+                intermediate_tensor_2 = \
+                    torch.nn.functional.avg_pool2d(**kwargs)
             
         intermediate_tensor_1 += intermediate_tensor_2
         
@@ -6161,17 +6179,18 @@ class _DistopticaNet(torch.nn.Module):
 
 class _FCResidualBlock(torch.nn.Module):
     def __init__(self,
-                 num_input_channels,
+                 num_input_nodes,
+                 num_output_nodes,
                  final_activation_func,
                  mini_batch_norm_eps):
         super().__init__()
 
-        self._num_input_channels = num_input_channels
+        self._num_input_nodes = num_input_nodes
+        self._num_output_nodes = num_output_nodes
         self._final_activation_func = final_activation_func
         self._mini_batch_norm_eps = mini_batch_norm_eps
 
-        self._num_output_channels = num_input_channels
-        self._num_fc_layers = 2
+        self._num_fc_layers = 2 + (num_input_nodes != num_output_nodes)
         self._num_mini_batch_norms = self._num_fc_layers
 
         self._fc_layers = self._generate_fc_layers()
@@ -6195,9 +6214,10 @@ class _FCResidualBlock(torch.nn.Module):
 
 
     def _generate_fc_layer(self, fc_layer_idx):
-        kwargs = {"in_features": self._num_input_channels,
-                  "out_features": self._num_output_channels,
-                  "bias": False}
+        kwargs = {"out_features": self._num_output_nodes, "bias": False}
+        kwargs["in_features"] = (self._num_output_nodes
+                                 if (fc_layer_idx == 1)
+                                 else self._num_input_nodes)
         fc_layer = torch.nn.Linear(**kwargs)
 
         kwargs = {"fc_layer_idx": fc_layer_idx, "fc_layer": fc_layer}
@@ -6221,9 +6241,10 @@ class _FCResidualBlock(torch.nn.Module):
     def _generate_mini_batch_norms(self):
         num_mini_batch_norms = self._num_mini_batch_norms
 
-        mini_batch_norms = tuple(self._generate_mini_batch_norm()
-                                 for mini_batch_norm_idx
-                                 in range(num_mini_batch_norms))
+        mini_batch_norms = \
+            tuple(self._generate_mini_batch_norm(mini_batch_norm_idx)
+                  for mini_batch_norm_idx
+                  in range(num_mini_batch_norms))
 
         mini_batch_norms = torch.nn.ModuleList(mini_batch_norms)
 
@@ -6231,36 +6252,55 @@ class _FCResidualBlock(torch.nn.Module):
 
 
 
-    def _generate_mini_batch_norm(self):
-        kwargs = {"num_features": self._num_output_channels,
+    def _generate_mini_batch_norm(self, mini_batch_norm_idx):
+        kwargs = {"num_features": self._num_output_nodes,
                   "eps": self._mini_batch_norm_eps}
         mini_batch_norm = torch.nn.BatchNorm1d(**kwargs)
 
-        kwargs = {"mini_batch_norm": mini_batch_norm}
+        kwargs = {"mini_batch_norm_idx": mini_batch_norm_idx,
+                  "mini_batch_norm": mini_batch_norm}
         self._initialize_mini_batch_norm_weights_and_biases(**kwargs)
 
         return mini_batch_norm
 
 
 
-    def _initialize_mini_batch_norm_weights_and_biases(self, mini_batch_norm):
-        torch.nn.init.constant_(mini_batch_norm.weight, 1)
+    def _initialize_mini_batch_norm_weights_and_biases(self,
+                                                       mini_batch_norm_idx,
+                                                       mini_batch_norm):
         torch.nn.init.constant_(mini_batch_norm.bias, 0)
+        
+        if mini_batch_norm_idx < 2:
+            torch.nn.init.constant_(mini_batch_norm.weight, 1)
+        else:
+            torch.nn.init.constant_(mini_batch_norm.weight, 0)
 
         return None
 
 
 
-    def forward(self, X):
-        Y = self._fc_layers[0](X)
-        Y = self._mini_batch_norms[0](Y)
-        Y = torch.nn.functional.relu(Y)
-        Y = self._fc_layers[1](Y)
-        Y = self._mini_batch_norms[1](Y)
-        Y += X
-        Y = self._final_activation_func(Y)
+    def forward(self, input_tensor):
+        intermediate_tensor_1 = self._fc_layers[0](input_tensor)
+        intermediate_tensor_1 = self._mini_batch_norms[0](intermediate_tensor_1)
+        intermediate_tensor_1 = torch.nn.functional.relu(intermediate_tensor_1)
+        
+        intermediate_tensor_1 = self._fc_layers[1](intermediate_tensor_1)
+        intermediate_tensor_1 = self._mini_batch_norms[1](intermediate_tensor_1)
 
-        return Y
+        if self._num_input_nodes == self._num_output_nodes:
+            intermediate_tensor_2 = \
+                input_tensor
+        else:
+            intermediate_tensor_2 = \
+                self._fc_layers[2](input_tensor)
+            intermediate_tensor_2 = \
+                self._mini_batch_norms[2](intermediate_tensor_2)
+
+        intermediate_tensor_1 += intermediate_tensor_2
+        
+        output_tensor = self._final_activation_func(intermediate_tensor_1)
+
+        return output_tensor
 
 
 
