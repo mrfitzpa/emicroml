@@ -283,11 +283,14 @@ elif ml_model_task == "cbed/disk/segmentation":
 
     weight_decay_set = 2*(1e-6, 1e-5, 1e-4)
     momentum_factor_set = len(architecture_set)*(0.9,)
+
+    num_epochs_in_reduce_on_plateau_set = len(architecture_set)*(16,)
+    max_num_epochs_of_stagnation_set = len(architecture_set)*(3,)
     
-    min_lr_in_first_annealing_cycle_set = len(architecture_set)*(2e-5,)
-    num_lr_annealing_cycles_set = len(architecture_set)*(1,)
-    num_epochs_in_first_lr_annealing_cycle_set = len(architecture_set)*(16,)
-    multiplicative_decay_factor_set = len(architecture_set)*(0.5,)
+    # min_lr_in_first_annealing_cycle_set = len(architecture_set)*(2e-5,)
+    # num_lr_annealing_cycles_set = len(architecture_set)*(1,)
+    # num_epochs_in_first_lr_annealing_cycle_set = len(architecture_set)*(16,)
+    # multiplicative_decay_factor_set = len(architecture_set)*(0.5,)
 
 
 
@@ -306,10 +309,14 @@ ml_dataset_manager = ml_model_task_module.MLDatasetManager(**kwargs)
 
 # Construct the ML optimizer.
 ml_optimizer_params = {"base_lr": max_lr_set[ml_model_idx%M],
-                       "weight_decay": weight_decay_set[ml_model_idx%M],
-                       "momentum_factor": momentum_factor_set[ml_model_idx%M]}
+                       "weight_decay": weight_decay_set[ml_model_idx%M]}
+if "cbed/disk" in ml_model_task:
+    ml_optimizer_name = "sgd"
+else:
+    ml_optimizer_params["momentum_factor"] = momentum_factor_set[ml_model_idx%M]
+    ml_optimizer_name = "adam_w"
 
-kwargs = {"ml_optimizer_name": "sgd",
+kwargs = {"ml_optimizer_name": ml_optimizer_name,
           "ml_optimizer_params": ml_optimizer_params}
 ml_optimizer = emicroml.modelling.optimizers.Generic(**kwargs)
 
@@ -343,36 +350,61 @@ kwargs = \
 non_sequential_lr_scheduler_1 = \
     emicroml.modelling.lr.schedulers.Nonsequential(**kwargs)
 
-T = (num_epochs_in_first_lr_annealing_cycle_set[ml_model_idx%M]
-     * num_training_mini_batch_instances_per_epoch)
-num_steps_in_first_lr_annealing_cycle = T
-num_lr_annealing_cycles = num_lr_annealing_cycles_set[ml_model_idx%M]
-cycle_period_scale_factor = 2
-multiplicative_decay_factor = multiplicative_decay_factor_set[ml_model_idx%M]
+if "cbed/disk" in ml_model_task:
+    total_num_steps_in_lr_annealing_schedule = \
+        (num_epochs_in_reduce_on_plateau_set[ml_model_idx%M]
+         * num_training_mini_batch_instances_per_epoch)
+    max_num_steps_of_stagnation = \
+        (max_num_epochs_of_stagnation_set[ml_model_idx%M]
+         * num_training_mini_batch_instances_per_epoch)
 
-total_num_steps_in_lr_annealing_schedule = \
-    sum(T * (cycle_period_scale_factor**cycle_idx)
-        for cycle_idx
-        in range(num_lr_annealing_cycles))
+    lr_scheduler_params = {"ml_optimizer": \
+                           ml_optimizer,
+                           "total_num_steps": \
+                           total_num_steps_in_lr_annealing_schedule,
+                           "reduction_factor": \
+                           0.5,
+                           "max_num_steps_of_stagnation": \
+                           max_num_steps_of_stagnation,
+                           "improvement_threshold": \
+                           0.001,
+                           "averaging_window_in_steps": \
+                           num_training_mini_batch_instances_per_epoch}
 
-min_lr_in_first_annealing_cycle = \
-    min_lr_in_first_annealing_cycle_set[ml_model_idx%M]
+    lr_scheduler_name = "reduce_on_plateau"
+else:
+    T = (num_epochs_in_first_lr_annealing_cycle_set[ml_model_idx%M]
+         * num_training_mini_batch_instances_per_epoch)
+    num_steps_in_first_lr_annealing_cycle = T
+    num_lr_annealing_cycles = num_lr_annealing_cycles_set[ml_model_idx%M]
+    cycle_period_scale_factor = 2
+    multiplicative_decay_factor = multiplicative_decay_factor_set[ml_model_idx%M]
 
-lr_scheduler_params = {"ml_optimizer": \
-                       ml_optimizer,
-                       "total_num_steps": \
-                       total_num_steps_in_lr_annealing_schedule,
-                       "num_steps_in_first_cycle": \
-                       num_steps_in_first_lr_annealing_cycle,
-                       "cycle_period_scale_factor": \
-                       cycle_period_scale_factor,
-                       "min_lr_in_first_cycle": \
-                       min_lr_in_first_annealing_cycle,
-                       "multiplicative_decay_factor": \
-                       multiplicative_decay_factor}
+    total_num_steps_in_lr_annealing_schedule = \
+        sum(T * (cycle_period_scale_factor**cycle_idx)
+            for cycle_idx
+            in range(num_lr_annealing_cycles))
+
+    min_lr_in_first_annealing_cycle = \
+        min_lr_in_first_annealing_cycle_set[ml_model_idx%M]
+
+    lr_scheduler_params = {"ml_optimizer": \
+                           ml_optimizer,
+                           "total_num_steps": \
+                           total_num_steps_in_lr_annealing_schedule,
+                           "num_steps_in_first_cycle": \
+                           num_steps_in_first_lr_annealing_cycle,
+                           "cycle_period_scale_factor": \
+                           cycle_period_scale_factor,
+                           "min_lr_in_first_cycle": \
+                           min_lr_in_first_annealing_cycle,
+                           "multiplicative_decay_factor": \
+                           multiplicative_decay_factor}
+
+    lr_scheduler_name = "cosine_annealing_with_warm_restarts"
 
 kwargs = \
-    {"lr_scheduler_name": "cosine_annealing_with_warm_restarts",
+    {"lr_scheduler_name": lr_scheduler_name,
      "lr_scheduler_params": lr_scheduler_params}
 non_sequential_lr_scheduler_2 = \
     emicroml.modelling.lr.schedulers.Nonsequential(**kwargs)
