@@ -4929,27 +4929,19 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
                  kernel_size_of_first_conv_layer,
                  num_resnet_building_blocks_per_stage,
                  mini_batch_norm_eps,
-                 ml_model_task):
+                 ml_model_task,
+                 normalization_weights,
+                 normalization_biases):
+        ctor_params = {key: val
+                       for key, val in locals().items()
+                       if (key not in ("self", "__class__"))}
+
         super().__init__()
 
-        self._wavelet_name = \
-            wavelet_name
-        self._j_epsilon = \
-            j_epsilon
-        self._j_dashv = \
-            j_dashv
-        self._num_pixels_across_each_cropped_cbed_pattern = \
-            num_pixels_across_each_cropped_cbed_pattern
-        self._num_filters_in_first_conv_layer = \
-            num_filters_in_first_conv_layer
-        self._kernel_size_of_first_conv_layer = \
-            kernel_size_of_first_conv_layer
-        self._num_resnet_building_blocks_per_stage = \
-            num_resnet_building_blocks_per_stage
-        self._mini_batch_norm_eps = \
-            mini_batch_norm_eps
-        self._ml_model_task = \
-            ml_model_task
+        for ctor_param_name in ctor_params:
+            attr_name = "_"+ctor_param_name
+            attr = ctor_params[ctor_param_name]
+            setattr(self, attr_name, attr)
 
         j_vdash = _get_j_vdash_from_wavelet_name(wavelet_name)
         self._j_vdash = j_vdash
@@ -5150,6 +5142,11 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
 
             key = "principal_disk_bounding_boxes"
             ml_predictions[key] = dwt_coeffs[1]
+
+        kwargs = {"ml_data_dict": ml_predictions,
+                  "normalization_weights": self._normalization_weights,
+                  "normalization_biases": self._normalization_biases}
+        _normalize_normalizable_elems_in_ml_data_dict(**kwargs)
 
         return ml_predictions
 
@@ -5579,8 +5576,7 @@ class _MLModel(_cls_alias):
         core_nn_module_ctor_params = \
             {key: current_cls_ctor_params[key]
              for key
-             in current_cls_ctor_params
-             if "normalization" not in key}
+             in current_cls_ctor_params}
         core_nn_module_ctor_params = \
             {**core_nn_module_ctor_params,
              "num_filters_in_first_conv_layer": 32,
