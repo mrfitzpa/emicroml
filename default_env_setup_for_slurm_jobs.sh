@@ -122,7 +122,7 @@ then
     # Install the remaining libraries in the virtual environment. Where
     # applicable, GPU-supported versions of libraries are installed.
     pkgs="numpy<2.0.0 numba hyperspy h5py pytest ipympl jupyter torch<=2.9.1"
-    pkgs=${pkgs}" kornia blosc2 msgpack PyWavelets pyopencl pyFAI"
+    pkgs=${pkgs}" torcheval kornia blosc2 msgpack PyWavelets pyopencl pyFAI"
     pkgs=${pkgs}" pytools<=2025.1.6"
     if [ "${install_libs_required_to_run_all_examples}" = true ]
     then

@@ -48,6 +48,9 @@ import fakecbed
 # For building neural network models.
 import torch
 
+# For calculating precision-recall curves.
+import torcheval.metrics.functional
+
 # For generating distortion models.
 import distoptica
 
@@ -5378,6 +5381,15 @@ def _check_and_convert_bce_loss_weight(params):
 
 
 
+def _check_and_convert_decision_threshold(params):
+    obj_name = "decision_threshold"
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}    
+    decision_threshold = czekitout.convert.to_float(**kwargs)
+
+    return decision_threshold
+
+
+
 def _check_and_convert_normalization_weights(params):
     obj_name = "normalization_weights"
 
@@ -5470,7 +5482,8 @@ class _MLModel(_cls_alias):
                  wavelet_name,
                  j_epsilon,
                  j_dashv,
-                 bce_loss_weight):
+                 bce_loss_weight,
+                 decision_threshold):
         current_cls_ctor_params = \
             {key: val
              for key, val in locals().items()
@@ -5523,6 +5536,7 @@ class _MLModel(_cls_alias):
             del base_cls_ctor_params["j_epsilon"]
         else:
             del base_cls_ctor_params["bce_loss_weight"]
+            del base_cls_ctor_params["decision_threshold"]
 
         return base_cls_ctor_params
 
@@ -5585,6 +5599,8 @@ class _MLModel(_cls_alias):
              "ml_model_task": _get_ml_model_task(self)}
         _ = \
             core_nn_module_ctor_params.pop("bce_loss_weight", None)
+        _ = \
+            core_nn_module_ctor_params.pop("decision_threshold", None)
 
         kwargs = core_nn_module_ctor_params
         self._core_nn_module = _GeneralizedCoreNNModule(**kwargs)
@@ -5735,6 +5751,21 @@ def _calc_bces_of_principal_disk_visibility_statuses(ml_predictions,
 
 
 
+def _calc_signed_errs_of_principal_disk_visibility_statuses(ml_predictions,
+                                                            ml_targets):
+    key = "principal_disk_visibility_statuses"
+
+    eps = torch.finfo(ml_predictions[key].dtype).eps
+
+    signed_errs = (ml_targets[key].to(dtype=ml_predictions[key].dtype)
+                   - torch.clamp(ml_predictions[key], min=eps, max=1-eps))
+
+    signed_errs_of_principal_disk_visibility_statuses = signed_errs
+
+    return signed_errs_of_principal_disk_visibility_statuses
+
+
+
 def _calc_meds_of_principal_disk_boundary_pt_sets(ml_predictions, ml_targets):
     calc_euclidean_distances = torch.linalg.vector_norm
     calc_eds = calc_euclidean_distances
@@ -5815,7 +5846,7 @@ class _MLMetricCalculator(_cls_alias):
             elif "boundary" in key_1:
                 partial_key_set_1 = ("meds",)
             else:
-                partial_key_set_1 = ("bces",)
+                partial_key_set_1 = ("bces", "signed_errs")
 
             for partial_key_1 in partial_key_set_1:
                 partial_key_2 = ("approx_coeff_sets"
@@ -5997,6 +6028,158 @@ class _MLModelTester(_cls_alias):
         super().test_ml_model(**kwargs)
 
         return None
+
+
+
+def _check_and_convert_calc_and_save_pr_curve_params(params):
+    params = params.copy()
+
+    func_alias = \
+        _check_and_convert_path_to_ml_model_training_summary_output_data
+    params["path_to_ml_model_training_summary_output_data"] = \
+        func_alias(params)
+
+    func_alias = \
+        _check_and_convert_single_dim_slice
+    params["single_dim_slice"] = \
+        func_alias(params)
+
+    func_alias = \
+        _check_and_convert_path_to_pr_curve_data
+    params["path_to_pr_curve_data"] = \
+        func_alias(params)
+
+    return params
+
+
+
+def _check_and_convert_path_to_ml_model_training_summary_output_data(params):
+    obj_name = \
+        "path_to_ml_model_training_summary_output_data"
+    kwargs = \
+        {"obj": params[obj_name], "obj_name": obj_name}
+    path_to_ml_model_training_summary_output_data = \
+        czekitout.convert.to_str_from_str_like(**kwargs)
+    
+    return path_to_ml_model_training_summary_output_data
+
+
+
+def _check_and_convert_single_dim_slice(params):
+    obj_name = "single_dim_slice"
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    single_dim_slice = czekitout.convert.to_single_dim_slice(**kwargs)
+
+    return single_dim_slice
+
+
+
+def _check_and_convert_path_to_pr_curve_data(params):
+    obj_name = "path_to_pr_curve_data"
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    path_to_pr_curve_data = czekitout.convert.to_str_from_str_like(**kwargs)
+    
+    return path_to_pr_curve_data
+
+
+
+def _calc_and_save_pr_curve(path_to_ml_model_training_summary_output_data,
+                            single_dim_slice,
+                            path_to_pr_curve_data):
+    kwargs = {"path_to_ml_model_training_summary_output_data": \
+              path_to_ml_model_training_summary_output_data,
+              "single_dim_slice": \
+              single_dim_slice}
+    precisions, recalls, decision_thresholds = _calc_pr_curve(**kwargs)
+
+    kwargs = {"precisions": precisions,
+              "recalls": recalls,
+              "decision_thresholds": decision_thresholds,
+              "path_to_pr_curve_data": path_to_pr_curve_data}
+    _save_pr_curve(**kwargs)
+
+    return precisions, recalls, decision_thresholds
+
+
+
+def _calc_pr_curve(path_to_ml_model_training_summary_output_data,
+                   single_dim_slice):
+    phase = "validation"
+    metric_set_name = "signed_errs_of_principal_disk_visibility_statuses"
+    unformatted_path = "/ml_data_instance_metrics/{}/{}"
+    hdf5_dataset_path = unformatted_path.format(phase, metric_set_name)
+
+    kwargs = {"filename": path_to_ml_model_training_summary_output_data,
+              "path_in_file": hdf5_dataset_path}
+    hdf5_dataset_id = h5pywrappers.obj.ID(**kwargs)
+
+    kwargs = {"dataset_id": hdf5_dataset_id,
+              "multi_dim_slice": (single_dim_slice,)}
+    hdf5_datasubset_id = h5pywrappers.datasubset.ID(**kwargs)
+
+    kwargs = \
+        {"datasubset_id": hdf5_datasubset_id}
+    signed_errs_of_principal_disk_visibility_statuses = \
+        h5pywrappers.datasubset.load(**kwargs)
+    signed_errs_of_principal_disk_visibility_statuses = \
+        torch.from_numpy(signed_errs_of_principal_disk_visibility_statuses)
+
+    signed_errs = \
+        signed_errs_of_principal_disk_visibility_statuses
+    target_principal_disk_visibility_statuses = \
+        torch.clamp(torch.sign(signed_errs), min=0).int()
+
+    predicted_principal_disk_visibility_statuses = \
+        (target_principal_disk_visibility_statuses
+         - signed_errs_of_principal_disk_visibility_statuses)
+
+    kwargs = \
+        {"input": predicted_principal_disk_visibility_statuses,
+         "target": target_principal_disk_visibility_statuses}
+    precisions, recalls, decision_thresholds = \
+        torcheval.metrics.functional.binary_precision_recall_curve(**kwargs)
+
+    # TorchEval doesn't include last (trivial) decision threshold.
+    single_element_tensor = torch.ones_like(decision_thresholds[0:1])
+    tensors_to_join = (decision_thresholds, single_element_tensor)
+    decision_thresholds = torch.cat(tensors_to_join)
+
+    return precisions, recalls, decision_thresholds
+
+
+
+def _save_pr_curve(precisions,
+                   recalls,
+                   decision_thresholds,
+                   path_to_pr_curve_data):
+    kwargs = {"filename": path_to_pr_curve_data,
+              "path_in_file": "precisions"}
+    hdf5_dataset_id = h5pywrappers.obj.ID(**kwargs)
+
+    kwargs = {"dataset": precisions.numpy(force=True),
+              "dataset_id": hdf5_dataset_id,
+              "write_mode": "w"}
+    h5pywrappers.dataset.save(**kwargs)
+
+    kwargs = {"filename": path_to_pr_curve_data,
+              "path_in_file": "recalls"}
+    hdf5_dataset_id = h5pywrappers.obj.ID(**kwargs)
+
+    kwargs = {"dataset": recalls.numpy(force=True),
+              "dataset_id": hdf5_dataset_id,
+              "write_mode": "a"}
+    h5pywrappers.dataset.save(**kwargs)
+
+    kwargs = {"filename": path_to_pr_curve_data,
+              "path_in_file": "decision_thresholds"}
+    hdf5_dataset_id = h5pywrappers.obj.ID(**kwargs)
+
+    kwargs = {"dataset": decision_thresholds.numpy(force=True),
+              "dataset_id": hdf5_dataset_id,
+              "write_mode": "a"}
+    h5pywrappers.dataset.save(**kwargs)
+
+    return None
 
 
 

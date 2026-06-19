@@ -74,6 +74,12 @@ import random
 # For creating path objects.
 import pathlib
 
+# For listing subdirectories.
+import os
+
+# For pattern matching.
+import re
+
 
 
 # For avoiding errors related to the ``mkl-service`` package. Note that
@@ -82,6 +88,9 @@ import numpy as np
 
 # For setting the seed to the random-number-generator used in ``pytorch``.
 import torch
+
+# For loading objects from and saving objects to HDF5 files.
+import h5pywrappers
 
 
 
@@ -252,18 +261,18 @@ elif ml_model_task == "cbed/disk/localization":
     num_pixels_across_each_cropped_cbed_pattern = getattr(ml_training_dataset,
                                                           attr_name)
 
-    mini_batch_size_set = (64,)
-
-    num_epochs_during_warmup_set = (4,)
-    initial_lr_set = (1e-8,)
-    max_lr_set = (5e-3,)
-
-    weight_decay_set = (7.25e-4,)
-    momentum_factor_set = (0.9,)
+    mini_batch_size_set = len(architecture_set)*(64,)
     
-    min_lr_in_first_annealing_cycle_set = (2e-5,)
+    num_epochs_during_warmup_set = len(architecture_set)*(16,)
+    initial_lr_set = len(architecture_set)*(1e-8,)
+    max_lr_set = len(architecture_set)*(2.56e-1,)
+
+    weight_decay_set = (1e-6, 1e-5, 1e-4, 1e-3, 1e-2)
+    momentum_factor_set = len(architecture_set)*(0.9,)
+    
+    min_lr_in_first_annealing_cycle_set = (4.68e-2,)
     num_lr_annealing_cycles_set = (1,)
-    num_epochs_in_first_lr_annealing_cycle_set = (16,)
+    num_epochs_in_first_lr_annealing_cycle_set = (46,)
     multiplicative_decay_factor_set = (0.5,)
 elif ml_model_task == "cbed/disk/segmentation":
     architecture_set = 6*("CBEDDSegNet",)
@@ -476,3 +485,75 @@ ml_model = ml_model_task_module.MLModel(**kwargs)
 ml_model_param_groups = (ml_model.parameters(),)
 
 ml_model_trainer.train_ml_model(ml_model, ml_model_param_groups)
+
+
+
+# Calculate the precision-recall (PR) curve if the ML model is performing binary
+# classification; save the PR curve to file; estimate the decision threshold
+# that yields the maximum precision for a recall greater than or equal to 0.8;
+# and update the trained ML model with this new decision threshold.
+if ml_model_task == "cbed/disk/localization":
+    path_to_ml_model_training_summary_output_data = \
+        output_dirname + "/ml_model_training_summary_output_data.h5"
+
+    unformatted_msg = ("Calculating precision-recall (PR) curve using the "
+                       "ML model training summary output data stored in the "
+                       "file ``'{}'``...\n")
+    msg = unformatted_msg.format(path_to_ml_model_training_summary_output_data)
+    print(msg)
+
+    path_to_pr_curve_data = output_dirname + "/pr_curve_data.h5"
+
+    kwargs = \
+        {"path_to_ml_model_training_summary_output_data": \
+         path_to_ml_model_training_summary_output_data,
+         "single_dim_slice": \
+         slice(-len(ml_validation_dataset), None),
+         "path_to_pr_curve_data": \
+         path_to_pr_curve_data}
+    precisions, recalls, decision_thresholds = \
+        ml_model_task_module.calc_and_save_pr_curve(**kwargs)
+
+    unformatted_msg = ("Finished calculating the PR curve. The PR curve data "
+                       "has been saved to the file ``'{}'``.\n")
+    msg = unformatted_msg.format(path_to_pr_curve_data)
+    print(msg)
+
+
+
+    min_acceptable_recall = 0.8
+    mask = (recalls >= min_acceptable_recall)
+    
+    if not torch.any(mask):
+        unformatted_err_msg = ("No decision threshold achieves a recall >= "
+                               "{}.\n\n\n")
+        err_msg = unformatted_err_msg.format(min_acceptable_recall)
+        print(err_msg)
+    else:
+        decision_threshold_idx = torch.argmax(precisions[mask])
+
+        precision = precisions[decision_threshold_idx].item()
+        recall = recalls[decision_threshold_idx].item()
+        decision_threshold = decision_thresholds[decision_threshold_idx].item()
+
+        ml_model.update_decision_threshold(decision_threshold)
+
+        pattern = r"ml_model_at_lr_step_[0-9]*\.pth"
+        largest_lr_step_idx = max([name.split("_")[-1].split(".")[0]
+                                   for name in os.listdir(output_dirname)
+                                   if re.fullmatch(pattern, name)])
+
+        unformatted_filename = \
+            output_dirname + "/ml_model_at_lr_step_{}.pth"
+        ml_model_state_dict_filename = \
+            unformatted_filename.format(largest_lr_step_idx)
+
+        kwargs = {"obj": ml_model.state_dict(),
+                  "f": ml_model_state_dict_filename}
+        torch.save(**kwargs)
+
+        unformatted_msg = ("Updated the decision threshold of the trained ML "
+                           "model to be ``{}``, corresponding to a precision "
+                           "of ``{}`` and a recall of ``{}``.\n\n\n")
+        msg = unformatted_msg.format(decision_threshold, precision, recall)
+        print(msg)
