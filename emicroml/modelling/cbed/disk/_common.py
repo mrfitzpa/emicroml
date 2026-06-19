@@ -5931,13 +5931,19 @@ class _MLLossCalculator(_cls_alias):
             loss_weight = (ml_model._core_attrs["bce_loss_weight"]
                            if ("bce" in key_1)
                            else 1.0)
-
             clamp = torch.clamp
 
-            losses_of_current_mini_batch[key_1] = \
-                (clamp(1.0-metrics_of_current_mini_batch[key_1].mean(), min=0)
-                 if ("ciou" in key_1)
-                 else metrics_of_current_mini_batch[key_1].mean())
+            if "ciou" in key_1:
+                key_3 = "principal_disk_visibility_statuses"
+                cious = metrics_of_current_mini_batch[key_1]
+                mask = ml_targets[key_3]
+                
+                losses_of_current_mini_batch[key_1] = \
+                    clamp(((1.0-cious)*mask).sum(), min=0) / mask.sum()
+            else:
+                losses_of_current_mini_batch[key_1] = \
+                    metrics_of_current_mini_batch[key_1].mean()
+                
             losses_of_current_mini_batch[key_2] += \
                 loss_weight*losses_of_current_mini_batch[key_1]
 
