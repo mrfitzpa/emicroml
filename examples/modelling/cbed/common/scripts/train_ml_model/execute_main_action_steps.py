@@ -255,7 +255,7 @@ if ml_model_task == "cbed/distortion/estimation":
     num_epochs_in_first_lr_annealing_cycle_set = (16,)
     multiplicative_decay_factor_set = (0.5,)
 elif ml_model_task == "cbed/disk/localization":
-    architecture_set = ("CBEDDLocNet",)
+    architecture_set = 5*("CBEDDLocNet",)
 
     attr_name = "num_pixels_across_each_cropped_cbed_pattern"
     num_pixels_across_each_cropped_cbed_pattern = getattr(ml_training_dataset,
@@ -270,10 +270,10 @@ elif ml_model_task == "cbed/disk/localization":
     weight_decay_set = (1e-6, 1e-5, 1e-4, 1e-3, 1e-2)
     momentum_factor_set = len(architecture_set)*(0.9,)
     
-    min_lr_in_first_annealing_cycle_set = (4.68e-2,)
-    num_lr_annealing_cycles_set = (1,)
-    num_epochs_in_first_lr_annealing_cycle_set = (46,)
-    multiplicative_decay_factor_set = (0.5,)
+    min_lr_in_first_annealing_cycle_set = len(architecture_set)*(4.68e-2,)
+    num_lr_annealing_cycles_set = len(architecture_set)*(1,)
+    num_epochs_in_first_lr_annealing_cycle_set = len(architecture_set)*(46,)
+    multiplicative_decay_factor_set = len(architecture_set)*(0.5,)
 elif ml_model_task == "cbed/disk/segmentation":
     architecture_set = 6*("CBEDDSegNet",)
 

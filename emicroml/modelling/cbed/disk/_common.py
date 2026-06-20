@@ -4833,8 +4833,6 @@ class _PredictionBlock(torch.nn.Module):
         self._num_input_nodes = 2**(j_dashv-1)
         self._num_output_nodes = 2**j
 
-        self._terminus_sigmoid_activation_is_to_be_applied = (j == 0)
-
         self._fc_residual_block = self._generate_fc_residual_block()
         self._fc_layer = self._generate_fc_layer()
 
@@ -4867,14 +4865,7 @@ class _PredictionBlock(torch.nn.Module):
 
 
     def _initialize_fc_layer_weights(self, fc_layer):
-        terminus_sigmoid_activation_is_to_be_applied = \
-            self._terminus_sigmoid_activation_is_to_be_applied
-
-        activation_func = (torch.nn.Sigmoid()
-                           if terminus_sigmoid_activation_is_to_be_applied
-                           else torch.nn.Identity())
-        
-        kwargs = {"activation_func": activation_func, "layer": fc_layer}
+        kwargs = {"activation_func": torch.nn.Identity(), "layer": fc_layer}
         _initialize_layer_weights_according_to_activation_func(**kwargs)
 
         return None
@@ -4882,18 +4873,8 @@ class _PredictionBlock(torch.nn.Module):
 
 
     def forward(self, input_tensor):
-        applying_terminus_sigmoid_activation = \
-            self._terminus_sigmoid_activation_is_to_be_applied
-
-        intermediate_tensor = \
-            self._fc_residual_block(input_tensor)
-        intermediate_tensor = \
-            self._fc_layer(input_tensor)
-        if applying_terminus_sigmoid_activation:
-            intermediate_tensor = \
-                torch.nn.functional.sigmoid(intermediate_tensor)
-        output_tensor = \
-            intermediate_tensor
+        intermediate_tensor = self._fc_residual_block(input_tensor)
+        output_tensor = self._fc_layer(input_tensor)
 
         return output_tensor
 
@@ -5140,7 +5121,7 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
             key = "principal_disk_boundary_pt_sets"
             ml_predictions[key] = principal_disk_boundary_pt_sets
         else:
-            key = "principal_disk_visibility_statuses"
+            key = "principal_disk_visibility_status_logits"
             ml_predictions[key] = torch.squeeze(dwt_coeffs[0], dim=1)
 
             key = "principal_disk_bounding_boxes"
@@ -5644,6 +5625,15 @@ class _MLModel(_cls_alias):
                   True}
         ml_predictions = super().make_predictions(**kwargs)
 
+        key_1 = "decision_threshold"
+        key_2 = "principal_disk_visibility_status_logits"
+        key_3 = "principal_disk_visibility_statuses"
+        if key_1 in self._core_attrs:
+            sigmoid = torch.nn.functional.sigmoid
+            decision_threshold = self._core_attrs[key_1]
+            ml_predictions[key_3] = (sigmoid(ml_predictions.pop(key_2))
+                                     >= decision_threshold)
+
         return ml_predictions
 
 
@@ -5738,14 +5728,15 @@ def _calc_mads_of_principal_disk_bounding_boxes(ml_predictions, ml_targets):
 
 def _calc_bces_of_principal_disk_visibility_statuses(ml_predictions,
                                                      ml_targets):
-    calc_bces = torch.nn.functional.binary_cross_entropy
+    calc_bces_with_logits = torch.nn.functional.binary_cross_entropy_with_logits
     
-    key = "principal_disk_visibility_statuses"
+    key_1 = "principal_disk_visibility_status_logits"
+    key_2 = "principal_disk_visibility_statuses"
 
-    kwargs = {"input": ml_predictions[key],
-              "target": ml_targets[key].to(dtype=ml_predictions[key].dtype),
+    kwargs = {"input": ml_predictions[key_1],
+              "target": ml_targets[key_2].to(dtype=ml_predictions[key_1].dtype),
               "reduction": "none"}
-    bces_of_principal_disk_visibility_statuses = calc_bces(**kwargs)
+    bces_of_principal_disk_visibility_statuses = calc_bces_with_logits(**kwargs)
 
     return bces_of_principal_disk_visibility_statuses
 
@@ -5753,13 +5744,19 @@ def _calc_bces_of_principal_disk_visibility_statuses(ml_predictions,
 
 def _calc_signed_errs_of_principal_disk_visibility_statuses(ml_predictions,
                                                             ml_targets):
-    key = "principal_disk_visibility_statuses"
+    sigmoid = torch.nn.functional.sigmoid
 
-    eps = torch.finfo(ml_predictions[key].dtype).eps
+    key_1 = "principal_disk_visibility_status_logits"
+    key_2 = "principal_disk_visibility_statuses"
 
-    signed_errs = (ml_targets[key].to(dtype=ml_predictions[key].dtype)
-                   - torch.clamp(ml_predictions[key], min=eps, max=1-eps))
+    eps = torch.finfo(ml_predictions[key_1].dtype).eps
 
+    target_visibility_statuses = \
+        ml_targets[key_2].to(dtype=ml_predictions[key_1].dtype)
+    predicted_visibility_statuses = \
+        torch.clamp(sigmoid(ml_predictions[key_1]), min=eps, max=1-eps)
+
+    signed_errs = target_visibility_statuses - predicted_visibility_statuses
     signed_errs_of_principal_disk_visibility_statuses = signed_errs
 
     return signed_errs_of_principal_disk_visibility_statuses
@@ -5849,14 +5846,15 @@ class _MLMetricCalculator(_cls_alias):
                 partial_key_set_1 = ("bces", "signed_errs")
 
             for partial_key_1 in partial_key_set_1:
-                partial_key_2 = ("approx_coeff_sets"
-                                 if ("approx_coeff_sets" in key_1)
-                                 else key_1)
+                partial_key_2 = key_1.replace("status_logits", "statuses")
+                partial_key_3 = ("approx_coeff_sets"
+                                 if ("approx_coeff_sets" in partial_key_2)
+                                 else partial_key_2)
 
-                key_2 = "{}_of_{}".format(partial_key_1, key_1)
+                key_2 = "{}_of_{}".format(partial_key_1, partial_key_2)
                 
                 func_name = "_calc_{}_of_{}".format(partial_key_1,
-                                                    partial_key_2)
+                                                    partial_key_3)
                 func_alias = global_symbol_table[func_name]
 
                 kwargs = {"ml_predictions": ml_predictions,

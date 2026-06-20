@@ -2471,30 +2471,6 @@ class MLModel(_MLModel):
 
 
 
-    def predict_principle_disk_visibility_statuses_and_bounding_boxes(
-            self, ml_inputs):
-        r"""Insert text here.
-        """
-        kwargs = {"ml_inputs": ml_inputs,
-                  "unnormalize_normalizable_elems_of_ml_predictions": True}
-        ml_predictions = super().make_predictions(**kwargs)
-
-        decision_threshold = self._core_attrs["decision_threshold"]
-
-        key = \
-            "principle_disk_visibility_statuses"
-        principle_disk_visibility_statuses = \
-            (ml_predictions[key] >= decision_threshold)
-
-        key = \
-            "principal_disk_bounding_boxes"
-        principal_disk_bounding_boxes = \
-            (ml_predictions[key] >= decision_threshold)
-        
-        return principle_disk_visibility_statuses, principal_disk_bounding_boxes
-
-
-
 _module_alias = \
     emicroml.modelling.cbed.disk._common
 _default_normalization_weights = \
