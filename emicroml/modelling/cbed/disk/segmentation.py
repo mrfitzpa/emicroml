@@ -2080,7 +2080,8 @@ class _MLModel(_cls_alias):
         module_alias = emicroml.modelling.cbed.disk._common
         cls_alias = module_alias._MLModel
         kwargs = {**ctor_params,
-                  "bce_loss_weight": 0.0}
+                  "bce_loss_weight": 0.0,
+                  "decision_threshold": 0.5}
         cls_alias.__init__(self, **kwargs)
 
         return None
