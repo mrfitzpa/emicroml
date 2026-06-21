@@ -4874,7 +4874,7 @@ class _PredictionBlock(torch.nn.Module):
 
     def forward(self, input_tensor):
         intermediate_tensor = self._fc_residual_block(input_tensor)
-        output_tensor = self._fc_layer(input_tensor)
+        output_tensor = self._fc_layer(intermediate_tensor)
 
         return output_tensor
 
@@ -5124,8 +5124,15 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
             key = "principal_disk_visibility_status_logits"
             ml_predictions[key] = torch.squeeze(dwt_coeffs[0], dim=1)
 
+            q_x_L_set = torch.min(dwt_coeffs[1][:, :2], dim=-1)[-1]
+            q_x_R_set = torch.max(dwt_coeffs[1][:, :2], dim=-1)[-1]
+            q_y_B_set = torch.min(dwt_coeffs[1][:, 2:], dim=-1)[-1]
+            q_y_T_set = torch.max(dwt_coeffs[1][:, 2:], dim=-1)[-1]
+
             key = "principal_disk_bounding_boxes"
-            ml_predictions[key] = dwt_coeffs[1]
+            kwargs = {"tensors": (q_x_L_set, q_x_R_set, q_y_B_set, q_y_T_set),
+                      "dim": -1}
+            ml_predictions[key] = torch.stack(**kwargs)
 
         kwargs = {"ml_data_dict": ml_predictions,
                   "normalization_weights": self._normalization_weights,
@@ -5640,6 +5647,7 @@ class _MLModel(_cls_alias):
 
 def _calc_cious_of_principal_disk_bounding_boxes(ml_predictions, ml_targets):
     key = "principal_disk_bounding_boxes"
+    eps = 1e-7
 
     q_x_L_set_1, q_x_R_set_1, q_y_B_set_1, q_y_T_set_1 = \
         ml_predictions[key].T
@@ -5659,20 +5667,18 @@ def _calc_cious_of_principal_disk_bounding_boxes(ml_predictions, ml_targets):
     func_alias = \
         _calc_ious_and_aspect_ratio_penalties_of_principal_disk_bounding_boxes
     kwargs = \
-        {"q_x_W_1": q_x_R_set_1 - q_x_L_set_1,
-         "q_x_W_2": q_x_R_set_2 - q_x_L_set_2,
+        {"q_x_W_1": torch.clamp(q_x_R_set_1 - q_x_L_set_1, min=0),
+         "q_x_W_2": torch.clamp(q_x_R_set_2 - q_x_L_set_2, min=0),
          "q_x_W_3": torch.clamp(q_x_R_set_3 - q_x_L_set_3, min=0),
-         "q_y_H_1": q_y_T_set_1 - q_y_B_set_1,
-         "q_y_H_2": q_y_T_set_2 - q_y_B_set_2,
-         "q_y_H_3": torch.clamp(q_y_T_set_3 - q_y_B_set_3, min=0)}         
+         "q_y_H_1": torch.clamp(q_y_T_set_1 - q_y_B_set_1, min=0),
+         "q_y_H_2": torch.clamp(q_y_T_set_2 - q_y_B_set_2, min=0),
+         "q_y_H_3": torch.clamp(q_y_T_set_3 - q_y_B_set_3, min=0)}
     ious, aspect_ratio_penalty_terms = \
         func_alias(**kwargs)
 
     q_x_W_4 = q_x_R_set_4 - q_x_L_set_4    
     q_y_H_4 = q_y_T_set_4 - q_y_B_set_4
     q_xy_d_sq = q_x_W_4**2 + q_y_H_4**2
-    tol = (q_xy_d_sq == 0.0)*1e-7
-    separation_penalty_terms = q_xy_d_sq + tol
 
     q_x_c_set_1 = (q_x_L_set_1+q_x_R_set_1)/2
     q_y_c_set_1 = (q_y_B_set_1+q_y_T_set_1)/2
@@ -5683,6 +5689,8 @@ def _calc_cious_of_principal_disk_bounding_boxes(ml_predictions, ml_targets):
     q_xy_rho_sq = ((q_x_c_set_1-q_x_c_set_2)**2
                    + (q_y_c_set_1-q_y_c_set_2)**2)
 
+    separation_penalty_terms = q_xy_rho_sq / (q_xy_d_sq + eps)
+
     cious = ious - separation_penalty_terms - aspect_ratio_penalty_terms
     cious_of_principal_disk_bounding_boxes = cious
 
@@ -5692,21 +5700,22 @@ def _calc_cious_of_principal_disk_bounding_boxes(ml_predictions, ml_targets):
 
 def _calc_ious_and_aspect_ratio_penalties_of_principal_disk_bounding_boxes(
         q_x_W_1, q_x_W_2, q_x_W_3, q_y_H_1, q_y_H_2, q_y_H_3):
+    eps = 1e-7
+
     q_xy_A_1 = q_x_W_1*q_y_H_1
     q_xy_A_2 = q_x_W_2*q_y_H_2
     q_xy_A_3 = q_x_W_3*q_y_H_3
 
-    tol = (q_xy_A_2 == 0.0)*1e-7
     unity = torch.tensor(1.0, dtype=q_xy_A_3.dtype)
     pi = 4.0 * torch.atan(unity)
 
-    ious = q_xy_A_3 / (q_xy_A_1 + q_xy_A_2 - q_xy_A_3 + tol)
+    ious = q_xy_A_3 / (q_xy_A_1 + q_xy_A_2 - q_xy_A_3 + eps)
 
-    v = (4/pi/pi) * (torch.atan(q_x_W_2/(q_y_H_2+tol))
-                     - torch.atan(q_x_W_1/(q_y_H_1+tol)))**2
+    v = (4/pi/pi) * (torch.atan(q_x_W_2/(q_y_H_2 + eps))
+                     - torch.atan(q_x_W_1/(q_y_H_1 + eps)))**2
 
     with torch.no_grad():
-        alpha = v / ((1.0 - ious) + v + tol)
+        alpha = v / ((1.0 - ious) + v + eps)
 
     ious_of_principal_disk_bounding_boxes = ious
     aspect_ratio_penalties_of_principal_disk_bounding_boxes = alpha*v
