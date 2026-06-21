@@ -5929,7 +5929,7 @@ class _MLLossCalculator(_cls_alias):
         key_set_1 = tuple(key_1
                           for key_1
                           in metrics_of_current_mini_batch
-                          if "mads" not in key_1)
+                          if (("mads" not in key_1) or ("signed" not in key_1)))
 
         losses_of_current_mini_batch = {"total": 0.0}
 
