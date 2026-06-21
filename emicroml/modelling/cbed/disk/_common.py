@@ -5124,10 +5124,10 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
             key = "principal_disk_visibility_status_logits"
             ml_predictions[key] = torch.squeeze(dwt_coeffs[0], dim=1)
 
-            q_x_L_set = torch.min(dwt_coeffs[1][:, :2], dim=-1)[-1]
-            q_x_R_set = torch.max(dwt_coeffs[1][:, :2], dim=-1)[-1]
-            q_y_B_set = torch.min(dwt_coeffs[1][:, 2:], dim=-1)[-1]
-            q_y_T_set = torch.max(dwt_coeffs[1][:, 2:], dim=-1)[-1]
+            q_x_L_set = torch.min(dwt_coeffs[1][:, :2], dim=-1)[0]
+            q_x_R_set = torch.max(dwt_coeffs[1][:, :2], dim=-1)[0]
+            q_y_B_set = torch.min(dwt_coeffs[1][:, 2:], dim=-1)[0]
+            q_y_T_set = torch.max(dwt_coeffs[1][:, 2:], dim=-1)[0]
 
             key = "principal_disk_bounding_boxes"
             kwargs = {"tensors": (q_x_L_set, q_x_R_set, q_y_B_set, q_y_T_set),
