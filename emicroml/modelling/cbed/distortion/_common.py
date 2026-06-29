@@ -2529,6 +2529,7 @@ class _MLMetricCalculator(_cls_alias):
             ml_targets,
             ml_model,
             ml_dataset_manager,
+            phase,
             mini_batch_indices_for_entire_training_session):
         kwargs = \
             {key: val

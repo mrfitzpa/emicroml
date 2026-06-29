@@ -255,7 +255,7 @@ if ml_model_task == "cbed/distortion/estimation":
     num_epochs_in_first_lr_annealing_cycle_set = (16,)
     multiplicative_decay_factor_set = (0.5,)
 elif ml_model_task == "cbed/disk/localization":
-    architecture_set = 5*("CBEDDLocNet",)
+    architecture_set = 5*("cbedd_loc_net",)
 
     attr_name = "num_pixels_across_each_cropped_cbed_pattern"
     num_pixels_across_each_cropped_cbed_pattern = getattr(ml_training_dataset,
@@ -267,15 +267,17 @@ elif ml_model_task == "cbed/disk/localization":
     initial_lr_set = len(architecture_set)*(1e-8,)
     max_lr_set = len(architecture_set)*(2.56e-1,)
 
-    weight_decay_set = (1e-6, 1e-5, 1e-4, 1e-3, 1e-2)
+    weight_decay_set = len(architecture_set)*(10**(-4.5),)
     momentum_factor_set = len(architecture_set)*(0.9,)
     
     min_lr_in_first_annealing_cycle_set = len(architecture_set)*(4.68e-2,)
     num_lr_annealing_cycles_set = len(architecture_set)*(1,)
     num_epochs_in_first_lr_annealing_cycle_set = len(architecture_set)*(46,)
     multiplicative_decay_factor_set = len(architecture_set)*(0.5,)
+
+    bce_loss_weight_set = (0.50, 0.75, 1.00, 1.25, 1.50)
 elif ml_model_task == "cbed/disk/segmentation":
-    architecture_set = 5*("CBEDDSegNet",)
+    architecture_set = 5*("cbedd_seg_net",)
 
     attr_name = "num_pixels_across_each_cropped_cbed_pattern"
     num_pixels_across_each_cropped_cbed_pattern = getattr(ml_training_dataset,
@@ -290,7 +292,7 @@ elif ml_model_task == "cbed/disk/segmentation":
     initial_lr_set = len(architecture_set)*(1e-8,)
     max_lr_set = len(architecture_set)*(2.56e-1,)
 
-    weight_decay_set = (1e-6, 1e-5, 1e-4, 1e-3, 1e-2)
+    weight_decay_set = len(architecture_set)*(10**(-4.5),)
     momentum_factor_set = len(architecture_set)*(0.9,)
 
     min_lr_in_first_annealing_cycle_set = len(architecture_set)*(4.68e-2,)
@@ -463,7 +465,7 @@ elif ml_model_task == "cbed/disk/localization":
          "num_downsamplings": \
          6,
          "bce_loss_weight": \
-         1.0}
+         bce_loss_weight_set[ml_model_idx%M]}
 elif ml_model_task == "cbed/disk/segmentation":
     ml_model_ctor_params = \
         {**ml_model_ctor_params,

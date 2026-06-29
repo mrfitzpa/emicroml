@@ -63,12 +63,6 @@ import hyperspy.api as hs
 import hyperspy.signals
 import hyperspy.axes
 
-# For image processing tools that can be integrated into deep learning models.
-import kornia
-
-# For calculating the similarity between images.
-import skimage.metrics
-
 # For performing multi-resolution analysis.
 import pywt
 
@@ -2704,6 +2698,28 @@ class _MLDataValueValidator(_cls_alias):
                   _generate_default_ml_data_normalizer()}
         cls_alias.__init__(self, **kwargs)
 
+        # Update the variable below when checking the values of the ML dataset.
+        self._num_visible_principal_disks = 0
+
+        return None
+
+
+
+    def _check_values_of_data_chunk(
+            self,
+            data_chunk_is_expected_to_be_normalized_if_normalizable,
+            key_used_to_get_data_chunk,
+            data_chunk,
+            name_of_obj_alias_from_which_data_chunk_was_obtained,
+            obj_alias_from_which_data_chunk_was_obtained):
+        kwargs = {key: val
+                  for key, val in locals().items()
+                  if (key not in ("self", "__class__"))}
+        super()._check_values_of_data_chunk(**kwargs)
+
+        if key_used_to_get_data_chunk == "principal_disk_visibility_statuses":
+            self._num_visible_principal_disks += data_chunk.sum().item()
+
         return None
 
 
@@ -4228,6 +4244,18 @@ def _generate_boundary_pt_marker_set_and_add_to_signal(
 
 
 
+def _load_contiguous_data_chunk(chunk_idx,
+                                max_num_ml_data_instances_per_chunk,
+                                input_hdf5_dataset):
+    kwargs = locals()
+    module_alias = emicroml.modelling._common
+    func_alias = module_alias._load_contiguous_data_chunk
+    data_chunk = func_alias(**kwargs)
+
+    return data_chunk
+
+
+
 _module_alias = \
     emicroml.modelling.cbed._common
 _default_entire_ml_dataset_is_to_be_cached = \
@@ -4279,6 +4307,8 @@ class _MLDataset(_cls_alias):
                   "ml_data_shape_analyzer": ml_data_shape_analyzer}
         self._num_pixels_across_each_cropped_cbed_pattern = func_alias(**kwargs)
 
+        self._num_visible_principal_disks = None
+
         return None
 
 
@@ -4329,6 +4359,15 @@ class _MLDataset(_cls_alias):
                   "ml_data_dict_elem_decoding_order": \
                   _generate_ml_data_dict_elem_decoding_order()}
         torch_ml_dataset = cls_alias(**kwargs)
+
+        if self_core_attrs["entire_ml_dataset_is_to_be_cached"]:
+            obj_alias = \
+                ml_data_normalization_weights_and_biases_loader
+            ml_data_value_validator = \
+                obj_alias._ml_data_value_validator
+
+            self._num_visible_principal_disks = \
+                ml_data_value_validator._num_visible_principal_disks
 
         return torch_ml_dataset
 
@@ -4521,6 +4560,61 @@ class _MLDataset(_cls_alias):
         result = self._num_pixels_across_each_cropped_cbed_pattern
         
         return result
+
+
+
+    @property
+    def num_visible_principal_disks(self):
+        r"""`int`: The number of images in the machine learning dataset that
+        depict visible principal disks.
+
+        See the summary documentation for the class
+        :class:`fakecbed.discretized.CroppedCBEDPattern` for a definition of the
+        principal disk in a cropped CBED pattern.
+
+        Note that ``num_visible_principal_disks`` should be considered
+        **read-only**.
+
+        """
+        result = (self._num_visible_principal_disks
+                  if (self._num_visible_principal_disks is not None)
+                  else self._calc_num_visible_principal_disks())
+        
+        return result
+
+
+
+    def _calc_num_visible_principal_disks(self):
+        self_core_attrs = self.get_core_attrs(deep_copy=False)
+        torch_ml_dataset = self._get_torch_ml_dataset()
+
+        kwargs = {"filename": self_core_attrs["path_to_ml_dataset"],
+                  "path_in_file": "principal_disk_visibility_statuses"}
+        hdf5_dataset_id = h5pywrappers.obj.ID(**kwargs)
+
+        kwargs = {"dataset_id": hdf5_dataset_id, "read_only": True}
+        hdf5_dataset = h5pywrappers.dataset.load(**kwargs)
+        hdf5_dataset_shape = hdf5_dataset.shape
+
+        max_num_ml_data_instances_per_chunk = \
+            torch_ml_dataset._max_num_ml_data_instances_per_chunk
+
+        total_num_ml_data_instances = hdf5_dataset_shape[0]
+        fraction = (total_num_ml_data_instances
+                    / max_num_ml_data_instances_per_chunk)
+        num_chunks = np.ceil(fraction).astype(int)
+
+        num_visible_principal_disks = 0
+        for chunk_idx in range(num_chunks):
+            kwargs = {"chunk_idx": \
+                      chunk_idx,
+                      "max_num_ml_data_instances_per_chunk": \
+                      max_num_ml_data_instances_per_chunk,
+                      "input_hdf5_dataset": hdf5_dataset}
+            data_chunk = _load_contiguous_data_chunk(**kwargs)
+            num_visible_principal_disks += data_chunk.sum().item()
+
+        return num_visible_principal_disks
 
 
 
@@ -5736,15 +5830,33 @@ def _calc_mads_of_principal_disk_bounding_boxes(ml_predictions, ml_targets):
 
 
 def _calc_bces_of_principal_disk_visibility_statuses(ml_predictions,
-                                                     ml_targets):
+                                                     ml_targets,
+                                                     ml_dataset_manager):
+    ml_dataset_manager_core_attrs = \
+        ml_dataset_manager.get_core_attrs(deep_copy=False)
+    ml_training_dataset = \
+        ml_dataset_manager_core_attrs["ml_training_dataset"]
+
+    num_visible_training_principal_disks = \
+        ml_training_dataset.num_visible_principal_disks
+    total_num_training_images = \
+        len(ml_training_dataset)
+
     calc_bces_with_logits = torch.nn.functional.binary_cross_entropy_with_logits
     
     key_1 = "principal_disk_visibility_status_logits"
     key_2 = "principal_disk_visibility_statuses"
 
+    positive_cls_weight = \
+        ((total_num_training_images-num_visible_training_principal_disks)
+         / num_visible_training_principal_disks)
+    positive_cls_weights = \
+        positive_cls_weight*torch.ones_like(ml_predictions[key_1])
+
     kwargs = {"input": ml_predictions[key_1],
               "target": ml_targets[key_2].to(dtype=ml_predictions[key_1].dtype),
-              "reduction": "none"}
+              "reduction": "none",
+              "pos_weight": positive_cls_weights}
     bces_of_principal_disk_visibility_statuses = calc_bces_with_logits(**kwargs)
 
     return bces_of_principal_disk_visibility_statuses
@@ -5829,6 +5941,7 @@ class _MLMetricCalculator(_cls_alias):
             ml_targets,
             ml_model,
             ml_dataset_manager,
+            phase,
             mini_batch_indices_for_entire_training_session):
         kwargs = \
             {key: val
@@ -5844,31 +5957,28 @@ class _MLMetricCalculator(_cls_alias):
         ml_predictions, ml_targets = \
             self._unnormalize_normalizable_elems_in_ml_data_dicts(**kwargs)
 
-        global_symbol_table = globals()
-
         for key_1 in ml_predictions:
             if "boxes" in key_1:
                 partial_key_set_1 = ("cious", "mads")
             elif "boundary" in key_1:
                 partial_key_set_1 = ("meds",)
             else:
-                partial_key_set_1 = ("bces", "signed_errs")
+                partial_key_set_1 = (("bces", "signed_errs")
+                                     if (phase != "testing")
+                                     else ("signed_errs",))
 
             for partial_key_1 in partial_key_set_1:
                 partial_key_2 = key_1.replace("status_logits", "statuses")
-                partial_key_3 = ("approx_coeff_sets"
-                                 if ("approx_coeff_sets" in partial_key_2)
-                                 else partial_key_2)
 
                 key_2 = "{}_of_{}".format(partial_key_1, partial_key_2)
-                
-                func_name = "_calc_{}_of_{}".format(partial_key_1,
-                                                    partial_key_3)
-                func_alias = global_symbol_table[func_name]
 
-                kwargs = {"ml_predictions": ml_predictions,
-                          "ml_targets": ml_targets}
-                metrics_of_current_mini_batch[key_2] = func_alias(**kwargs)
+                kwargs = \
+                    {"name_of_metric": key_2,
+                     "ml_predictions": ml_predictions,
+                     "ml_targets": ml_targets,
+                     "ml_dataset_manager": ml_dataset_manager}
+                metrics_of_current_mini_batch[key_2] = \
+                    self._calc_metric_of_current_mini_batch(**kwargs)
 
         return metrics_of_current_mini_batch
 
@@ -5890,6 +6000,28 @@ class _MLMetricCalculator(_cls_alias):
             _unnormalize_normalizable_elems_in_ml_data_dict(**kwargs)
 
         return ml_predictions, ml_targets
+
+
+
+    def _calc_metric_of_current_mini_batch(self,
+                                           name_of_metric,
+                                           ml_predictions,
+                                           ml_targets,
+                                           ml_dataset_manager):
+        global_symbol_table = globals()
+
+        func_name = ("_calc_meds_of_approx_coeff_sets"
+                     if ("approx_coeff_sets" in name_of_metric)
+                     else "_calc_"+name_of_metric)
+        func_alias = global_symbol_table[func_name]
+
+        kwargs = {"ml_predictions": ml_predictions,
+                  "ml_targets": ml_targets}
+        if "bces" in name_of_metric:
+            kwargs["ml_dataset_manager"] = ml_dataset_manager
+        metric_of_current_mini_batch = func_alias(**kwargs)
+
+        return metric_of_current_mini_batch
 
 
 
@@ -5929,7 +6061,7 @@ class _MLLossCalculator(_cls_alias):
         key_set_1 = tuple(key_1
                           for key_1
                           in metrics_of_current_mini_batch
-                          if (("mads" not in key_1) or ("signed" not in key_1)))
+                          if (("ciou" not in key_1) or ("signed" not in key_1)))
 
         losses_of_current_mini_batch = {"total": 0.0}
 

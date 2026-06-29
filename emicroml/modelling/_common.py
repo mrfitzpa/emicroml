@@ -6317,6 +6317,7 @@ class _MLMetricCalculator():
             ml_targets,
             ml_model,
             ml_dataset_manager,
+            phase,
             mini_batch_indices_for_entire_training_session):
         metrics_of_current_mini_batch = dict()
 
@@ -6421,7 +6422,7 @@ class _MLMetricManager():
         kwargs = \
             {key: val
              for key, val in locals().items()
-             if (key not in ("self", "__class__", "phase"))}
+             if (key not in ("self", "__class__"))}
         self._metrics_of_current_mini_batch = \
             self._calc_metrics_of_current_mini_batch(**kwargs)
 
@@ -6467,7 +6468,8 @@ class _MLMetricManager():
     def _calc_metrics_of_current_mini_batch(self,
                                             ml_inputs,
                                             ml_predictions,
-                                            ml_targets):
+                                            ml_targets,
+                                            phase):
         ml_metric_calculator = self._ml_metric_calculator
 
         kwargs = \
@@ -6481,6 +6483,8 @@ class _MLMetricManager():
              self._ml_model,
              "ml_dataset_manager": \
              self._ml_dataset_manager,
+             "phase": \
+             phase,
              "mini_batch_indices_for_entire_training_session": \
              self._mini_batch_indices_for_entire_training_session}
         metrics_of_current_mini_batch = \
