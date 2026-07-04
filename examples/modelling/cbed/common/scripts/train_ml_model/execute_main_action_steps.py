@@ -98,6 +98,7 @@ import h5pywrappers
 import emicroml.modelling.optimizers
 import emicroml.modelling.lr.schedulers
 import emicroml.modelling.cbed.distortion.estimation
+import emicroml.modelling.cbed.disk.detection
 import emicroml.modelling.cbed.disk.localization
 import emicroml.modelling.cbed.disk.segmentation
 
@@ -109,6 +110,7 @@ import emicroml.modelling.cbed.disk.segmentation
 
 def parse_and_convert_cmd_line_args():
     accepted_ml_model_tasks = ("cbed/distortion/estimation",
+                               "cbed/disk/detection",
                                "cbed/disk/localization",
                                "cbed/disk/segmentation")
 
@@ -254,6 +256,26 @@ if ml_model_task == "cbed/distortion/estimation":
     num_lr_annealing_cycles_set = (1,)
     num_epochs_in_first_lr_annealing_cycle_set = (16,)
     multiplicative_decay_factor_set = (0.5,)
+elif ml_model_task == "cbed/disk/detection":
+    architecture_set = 5*("cbedd_det_net",)
+
+    attr_name = "num_pixels_across_each_cropped_cbed_pattern"
+    num_pixels_across_each_cropped_cbed_pattern = getattr(ml_training_dataset,
+                                                          attr_name)
+
+    mini_batch_size_set = len(architecture_set)*(64,)
+    
+    num_epochs_during_warmup_set = len(architecture_set)*(16,)
+    initial_lr_set = len(architecture_set)*(1e-8,)
+    max_lr_set = len(architecture_set)*(2.56e-1,)
+
+    weight_decay_set = len(architecture_set)*(10**(-4.5),)
+    momentum_factor_set = len(architecture_set)*(0.9,)
+    
+    min_lr_in_first_annealing_cycle_set = len(architecture_set)*(4.68e-2,)
+    num_lr_annealing_cycles_set = len(architecture_set)*(1,)
+    num_epochs_in_first_lr_annealing_cycle_set = len(architecture_set)*(46,)
+    multiplicative_decay_factor_set = len(architecture_set)*(0.5,)
 elif ml_model_task == "cbed/disk/localization":
     architecture_set = 5*("cbedd_loc_net",)
 
@@ -274,8 +296,6 @@ elif ml_model_task == "cbed/disk/localization":
     num_lr_annealing_cycles_set = len(architecture_set)*(1,)
     num_epochs_in_first_lr_annealing_cycle_set = len(architecture_set)*(46,)
     multiplicative_decay_factor_set = len(architecture_set)*(0.5,)
-
-    bce_loss_weight_set = (0.50, 0.75, 1.00, 1.25, 1.50)
 elif ml_model_task == "cbed/disk/segmentation":
     architecture_set = 5*("cbedd_seg_net",)
 
@@ -457,26 +477,21 @@ if ml_model_task == "cbed/distortion/estimation":
          num_pixels_across_each_cbed_pattern,
          "architecture": \
          architecture_set[ml_model_idx%M]}
-elif ml_model_task == "cbed/disk/localization":
+else:
     ml_model_ctor_params = \
         {**ml_model_ctor_params,
          "num_pixels_across_each_cropped_cbed_pattern": \
-         num_pixels_across_each_cropped_cbed_pattern,
-         "num_downsamplings": \
-         6,
-         "bce_loss_weight": \
-         bce_loss_weight_set[ml_model_idx%M]}
-elif ml_model_task == "cbed/disk/segmentation":
-    ml_model_ctor_params = \
-        {**ml_model_ctor_params,
-         "num_pixels_across_each_cropped_cbed_pattern": \
-         num_pixels_across_each_cropped_cbed_pattern,
-         "wavelet_name": \
-         wavelet_name_set[ml_model_idx%M],
-         "j_epsilon": \
-         j_epsilon,
-         "j_dashv": \
-         j_dashv}
+         num_pixels_across_each_cropped_cbed_pattern}
+    if ml_model_task == "cbed/disk/segmentation":
+        ml_model_ctor_params = \
+            {**ml_model_ctor_params,
+             "wavelet_name": wavelet_name_set[ml_model_idx%M],
+             "j_epsilon": j_epsilon,
+             "j_dashv": j_dashv}
+    else:
+        ml_model_ctor_params = \
+            {**ml_model_ctor_params,
+             "num_downsamplings": 5}
 
 kwargs = ml_model_ctor_params
 ml_model = ml_model_task_module.MLModel(**kwargs)
@@ -494,7 +509,7 @@ ml_model_trainer.train_ml_model(ml_model, ml_model_param_groups)
 # classification; save the PR curve to file; estimate the decision threshold
 # that yields the maximum precision for a recall greater than or equal to 0.8;
 # and update the trained ML model with this new decision threshold.
-if ml_model_task == "cbed/disk/localization":
+if ml_model_task == "cbed/disk/detection":
     path_to_ml_model_training_summary_output_data = \
         output_dirname + "/ml_model_training_summary_output_data.h5"
 

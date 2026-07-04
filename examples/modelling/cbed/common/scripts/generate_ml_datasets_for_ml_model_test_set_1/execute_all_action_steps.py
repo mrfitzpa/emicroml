@@ -85,7 +85,7 @@ path_to_script_to_execute = (str(path_to_current_script.parents[1])
 # multiple ML datasets.
 ml_input_image_widths_in_pixels = ((512,)
                                    if ("distortion" in ml_model_task)
-                                   else (64, 128))
+                                   else (128,))
 num_ml_datasets = 1
 
 for ml_input_image_width_idx, _ in enumerate(ml_input_image_widths_in_pixels):

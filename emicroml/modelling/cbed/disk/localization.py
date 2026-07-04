@@ -2050,10 +2050,6 @@ _default_num_downsamplings = \
     5
 _default_mini_batch_norm_eps = \
     _module_alias._default_mini_batch_norm_eps
-_default_bce_loss_weight = \
-    1.0
-_default_decision_threshold = \
-    0.5
 _default_normalization_weights = \
     _module_alias._default_normalization_weights
 _default_normalization_biases = \
@@ -2070,8 +2066,6 @@ class _MLModel(_cls_alias):
                  num_pixels_across_each_cropped_cbed_pattern,
                  num_downsamplings,
                  mini_batch_norm_eps,
-                 bce_loss_weight,
-                 decision_threshold,
                  normalization_weights,
                  normalization_biases):
         ctor_params = {key: val
@@ -2089,7 +2083,8 @@ class _MLModel(_cls_alias):
         kwargs = {**ctor_params,
                   "wavelet_name": wavelet_name,
                   "j_epsilon": j_epsilon,
-                  "j_dashv": j_dashv}
+                  "j_dashv": j_dashv,
+                  "decision_threshold": 0.5}
         del kwargs["num_downsamplings"]
         cls_alias.__init__(self, **kwargs)
 
@@ -2109,15 +2104,6 @@ class _DressedUpBuffer(_cls_alias):
         cls_alias.__init__(self, **kwargs)
 
         return None
-
-
-
-def _check_and_convert_new_decision_threshold(params):
-    obj_name = "new_decision_threshold"
-    kwargs = {"obj": params[obj_name], "obj_name": obj_name}    
-    new_decision_threshold = czekitout.convert.to_float(**kwargs)
-
-    return new_decision_threshold
 
 
 
@@ -2191,10 +2177,6 @@ class MLModel(_MLModel):
         ``eps`` for every construction of an instance of the class
         :class:`torch.nn.BatchNorm1d` and every construction of an instance of
         the class :class:`torch.nn.BatchNorm2d`. Must be a positive number.
-    bce_loss_weight : `float`, optional
-        Insert description here.
-    decision_threshold : `float`, optional
-        Insert description here.
     normalization_weights : `dict`, optional
         The normalization weights of the ML dataset used or to be used to train
         the ML model. This parameter is expected to be equal to the instance
@@ -2223,10 +2205,6 @@ class MLModel(_MLModel):
                  _default_num_downsamplings,
                  mini_batch_norm_eps=\
                  _default_mini_batch_norm_eps,
-                 bce_loss_weight=\
-                 _default_bce_loss_weight,
-                 decision_threshold=\
-                 _default_decision_threshold,
                  normalization_weights=\
                  _default_normalization_weights,
                  normalization_biases=\
@@ -2235,35 +2213,6 @@ class MLModel(_MLModel):
                   for key, val in locals().items()
                   if (key not in ("self", "__class__"))}
         _MLModel.__init__(self, **kwargs)
-
-        return None
-
-
-
-    def update_decision_threshold(self, new_decision_threshold):
-        r"""Update decision threshold
-
-        Insert text
-        """
-        params = {key: val
-                  for key, val in locals().items()
-                  if (key not in ("self", "__class__"))}
-
-        new_decision_threshold = \
-            _check_and_convert_new_decision_threshold(params)
-
-        _ = self._update_decision_threshold(new_decision_threshold)
-        
-        return None
-
-
-
-    def _update_decision_threshold(self, new_decision_threshold):
-        self._core_attrs["decision_threshold"] = new_decision_threshold
-        
-        kwargs = {"obj_to_convert_and_store_as_dressed_up_buffer": \
-                  self._core_attrs}
-        self._ctor_params = _DressedUpBuffer(**kwargs)
 
         return None
 
@@ -3639,49 +3588,6 @@ def _load_ml_model_from_state_dict(ml_model_state_dict,
     ml_model = func_alias(**kwargs)
 
     return ml_model
-
-
-
-def calc_and_save_pr_curve(path_to_ml_model_training_summary_output_data,
-                           single_dim_slice,
-                           path_to_pr_curve_data):
-    r"""Insert text here.
-    """
-    params = locals()
-
-    global_symbol_table = globals()
-
-    func_name = "_check_and_convert_calc_and_save_pr_curve_params"
-    func_alias = global_symbol_table[func_name]
-    params = func_alias(params)
-
-    func_name = func_name[18:-7]
-    func_alias = global_symbol_table[func_name]
-    kwargs = params
-    precisions, recalls, decision_thresholds = func_alias(**kwargs)
-
-    return precisions, recalls, decision_thresholds
-
-
-
-def _check_and_convert_calc_and_save_pr_curve_params(params):
-    module_alias = emicroml.modelling.cbed.disk._common
-    func_alias = module_alias._check_and_convert_calc_and_save_pr_curve_params
-    params = func_alias(params)
-
-    return params
-
-
-
-def _calc_and_save_pr_curve(path_to_ml_model_training_summary_output_data,
-                            single_dim_slice,
-                            path_to_pr_curve_data):
-    kwargs = locals()
-    module_alias = emicroml.modelling.cbed.disk._common
-    func_alias = module_alias._calc_and_save_pr_curve
-    precisions, recalls, decision_thresholds = func_alias(**kwargs)
-
-    return precisions, recalls, decision_thresholds
 
 
 

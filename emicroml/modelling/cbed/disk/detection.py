@@ -26,6 +26,11 @@ import time
 
 
 
+# For validating and converting objects.
+import czekitout.convert
+
+
+
 # Contains the majority of the implementation code for this module, which is
 # also shared with other modules.
 import emicroml.modelling.cbed.disk._common
@@ -932,7 +937,7 @@ def generate_and_save_ml_dataset(
     """
     params = locals()
     params["start_time"] = time.time()
-    params["ml_model_task"] = "cbed/disk/segmentation"
+    params["ml_model_task"] = "cbed/disk/detection"
 
     global_symbol_table = globals()
 
@@ -2028,36 +2033,31 @@ def _de_pre_serialize_ml_dataset_manager(serializable_rep):
 
 
 
+def _get_j_vdash_from_wavelet_name(wavelet_name):
+    module_alias = emicroml.modelling.cbed.disk._common
+    func_alias = module_alias._get_j_vdash_from_wavelet_name
+    j_vdash = func_alias(wavelet_name)
+
+    return j_vdash
+
+
+
 _module_alias = \
     emicroml.modelling.cbed.disk._common
 _default_num_pixels_across_each_cropped_cbed_pattern = \
     _module_alias._default_num_pixels_across_each_cropped_cbed_pattern
+_default_num_downsamplings = \
+    5
 _default_mini_batch_norm_eps = \
     _module_alias._default_mini_batch_norm_eps
-_default_wavelet_name = \
-    _module_alias._default_wavelet_name
-_default_j_epsilon = \
-    _module_alias._default_j_epsilon
-_default_j_dashv = \
-    _module_alias._default_j_dashv
+_default_decision_threshold = \
+    0.5
 _default_normalization_weights = \
     _module_alias._default_normalization_weights
 _default_normalization_biases = \
     _module_alias._default_normalization_biases
 _default_unnormalize_normalizable_elems_of_ml_predictions = \
     _module_alias._default_unnormalize_normalizable_elems_of_ml_predictions
-_default_cropping_window_centers = \
-    None
-_default_auxiliary_distortion_estimation_model = \
-    None
-_default_auxiliary_localization_model = \
-    None
-_default_disk_fitting_alg_params = \
-    None
-_default_distortion_model_sampling_grid_dims_in_pixels = \
-    _default_sampling_grid_dims_in_pixels
-_default_distortion_model_least_squares_alg_params = \
-    _default_least_squares_alg_params
 
 
 
@@ -2066,24 +2066,55 @@ _cls_alias = _module_alias._MLModel
 class _MLModel(_cls_alias):
     def __init__(self,
                  num_pixels_across_each_cropped_cbed_pattern,
+                 num_downsamplings,
                  mini_batch_norm_eps,
-                 wavelet_name,
-                 j_epsilon,
-                 j_dashv,
+                 decision_threshold,
                  normalization_weights,
                  normalization_biases):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
         ctor_params = self._check_and_convert_ctor_params(ctor_params)
+
+        wavelet_name = "db2"
+        j_vdash = _get_j_vdash_from_wavelet_name(wavelet_name)
+        j_epsilon = j_vdash
+        j_dashv = j_vdash + num_downsamplings
         
         module_alias = emicroml.modelling.cbed.disk._common
         cls_alias = module_alias._MLModel
         kwargs = {**ctor_params,
-                  "decision_threshold": 0.5}
+                  "wavelet_name": wavelet_name,
+                  "j_epsilon": j_epsilon,
+                  "j_dashv": j_dashv}
+        del kwargs["num_downsamplings"]
         cls_alias.__init__(self, **kwargs)
 
         return None
+
+
+
+_module_alias = emicroml.modelling._common
+_cls_alias = _module_alias._DressedUpBuffer
+class _DressedUpBuffer(_cls_alias):
+    def __init__(self, obj_to_convert_and_store_as_dressed_up_buffer):
+        kwargs = {key: val
+                  for key, val in locals().items()
+                  if (key not in ("self", "__class__"))}
+        module_alias = emicroml.modelling._common
+        cls_alias = module_alias._DressedUpBuffer
+        cls_alias.__init__(self, **kwargs)
+
+        return None
+
+
+
+def _check_and_convert_new_decision_threshold(params):
+    obj_name = "new_decision_threshold"
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}    
+    new_decision_threshold = czekitout.convert.to_float(**kwargs)
+
+    return new_decision_threshold
 
 
 
@@ -2146,11 +2177,19 @@ class MLModel(_MLModel):
         :class:`emicroml.modelling.cbed.disk.localization.MLDataset`
         representing the aforementioned ML dataset. Moreover, the parameter is
         expected to be a positive integer that is divisible by ``2**5``.
+    num_downsamplings : `int`, optional
+        The number of downsampling operations in the ML model. This parameter is
+        expected to be a positive integer that satisfies ``N % 2**M == 0``
+        where ``N`` and ``M`` are aliases for the parameters
+        ``num_pixels_across_each_cropped_cbed_pattern`` and
+        ``num_downsamplings`` respectively.
     mini_batch_norm_eps : `float`, optional
         This parameter specifies the value to use for the construction parameter
         ``eps`` for every construction of an instance of the class
         :class:`torch.nn.BatchNorm1d` and every construction of an instance of
         the class :class:`torch.nn.BatchNorm2d`. Must be a positive number.
+    decision_threshold : `float`, optional
+        Insert description here.
     normalization_weights : `dict`, optional
         The normalization weights of the ML dataset used or to be used to train
         the ML model. This parameter is expected to be equal to the instance
@@ -2175,14 +2214,12 @@ class MLModel(_MLModel):
     def __init__(self,
                  num_pixels_across_each_cropped_cbed_pattern=\
                  _default_num_pixels_across_each_cropped_cbed_pattern,
+                 num_downsamplings=\
+                 _default_num_downsamplings,
                  mini_batch_norm_eps=\
                  _default_mini_batch_norm_eps,
-                 wavelet_name=\
-                 _default_wavelet_name,
-                 j_epsilon=\
-                 _default_j_epsilon,
-                 j_dashv=\
-                 _default_j_dashv,
+                 decision_threshold=\
+                 _default_decision_threshold,
                  normalization_weights=\
                  _default_normalization_weights,
                  normalization_biases=\
@@ -2191,6 +2228,35 @@ class MLModel(_MLModel):
                   for key, val in locals().items()
                   if (key not in ("self", "__class__"))}
         _MLModel.__init__(self, **kwargs)
+
+        return None
+
+
+
+    def update_decision_threshold(self, new_decision_threshold):
+        r"""Update decision threshold
+
+        Insert text
+        """
+        params = {key: val
+                  for key, val in locals().items()
+                  if (key not in ("self", "__class__"))}
+
+        new_decision_threshold = \
+            _check_and_convert_new_decision_threshold(params)
+
+        _ = self._update_decision_threshold(new_decision_threshold)
+        
+        return None
+
+
+
+    def _update_decision_threshold(self, new_decision_threshold):
+        self._core_attrs["decision_threshold"] = new_decision_threshold
+        
+        kwargs = {"obj_to_convert_and_store_as_dressed_up_buffer": \
+                  self._core_attrs}
+        self._ctor_params = _DressedUpBuffer(**kwargs)
 
         return None
 
@@ -2393,56 +2459,6 @@ class MLModel(_MLModel):
                   for key, val in locals().items()
                   if (key not in ("self", "__class__"))}
         ml_predictions = super().make_predictions(**kwargs)
-
-        return ml_predictions
-
-
-
-    def predict_distortion_models_via_cbed_disk_fit(
-            self,
-            cbed_pattern_images,
-            cropping_window_centers=\
-            _default_cropping_window_centers,
-            auxiliary_distortion_estimation_model=\
-            _default_auxiliary_distortion_estimation_model,
-            auxiliary_localization_model=\
-            _default_auxiliary_localization_model,
-            cbed_disk_fitting_alg_params=\
-            _default_disk_fitting_alg_params,
-            distortion_model_sampling_grid_dims_in_pixels=\
-            _default_distortion_model_sampling_grid_dims_in_pixels,
-            distortion_model_least_squares_alg_params=\
-            _default_distortion_model_least_squares_alg_params):
-        # Perhaps ``cbed_disk_fitting_alg_params`` can store
-        # ``cropping_window_centers``,
-        # ``auxiliary_distortion_estimation_model``, and
-        # ``auxiliary_localization_model``.
-        params = {key: val
-                  for key, val in locals().items()
-                  if (key not in ("self", "__class__"))}
-
-        global_symbol_table = globals()
-        for param_name in params:
-            func_name = "_check_and_convert_" + param_name
-            func_alias = global_symbol_table[func_name]
-            params[param_name] = func_alias(params)
-
-        self._predict_distortion_models_via_cbed_disk_fit(params)
-
-        return ml_predictions
-
-
-
-    def _predict_distortion_models_via_cbed_disk_fit(
-            self,
-            cbed_pattern_images,
-            cropping_window_centers,
-            auxiliary_distortion_estimation_model,
-            auxiliary_localization_model,
-            cbed_disk_fitting_alg_params,
-            distortion_model_sampling_grid_dims_in_pixels,
-            distortion_model_least_squares_alg_params):
-        
 
         return ml_predictions
 
@@ -3616,6 +3632,49 @@ def _load_ml_model_from_state_dict(ml_model_state_dict,
     ml_model = func_alias(**kwargs)
 
     return ml_model
+
+
+
+def calc_and_save_pr_curve(path_to_ml_model_training_summary_output_data,
+                           single_dim_slice,
+                           path_to_pr_curve_data):
+    r"""Insert text here.
+    """
+    params = locals()
+
+    global_symbol_table = globals()
+
+    func_name = "_check_and_convert_calc_and_save_pr_curve_params"
+    func_alias = global_symbol_table[func_name]
+    params = func_alias(params)
+
+    func_name = func_name[18:-7]
+    func_alias = global_symbol_table[func_name]
+    kwargs = params
+    precisions, recalls, decision_thresholds = func_alias(**kwargs)
+
+    return precisions, recalls, decision_thresholds
+
+
+
+def _check_and_convert_calc_and_save_pr_curve_params(params):
+    module_alias = emicroml.modelling.cbed.disk._common
+    func_alias = module_alias._check_and_convert_calc_and_save_pr_curve_params
+    params = func_alias(params)
+
+    return params
+
+
+
+def _calc_and_save_pr_curve(path_to_ml_model_training_summary_output_data,
+                            single_dim_slice,
+                            path_to_pr_curve_data):
+    kwargs = locals()
+    module_alias = emicroml.modelling.cbed.disk._common
+    func_alias = module_alias._calc_and_save_pr_curve
+    precisions, recalls, decision_thresholds = func_alias(**kwargs)
+
+    return precisions, recalls, decision_thresholds
 
 
 

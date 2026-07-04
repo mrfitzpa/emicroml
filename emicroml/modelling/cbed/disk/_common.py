@@ -893,9 +893,6 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
             except Exception as err:
                 generation_attempt_count += 1
 
-                if isinstance(err, RuntimeError):
-                    raise err
-
                 if ((generation_attempt_count == max_num_generation_attempts)
                     or (isinstance(err, KeyboardInterrupt))):
                     unformatted_err_msg = \
@@ -1188,7 +1185,7 @@ class _DefaultCroppedCBEDPatternGenerator(_cls_alias):
             self, cropped_cbed_pattern):
         ml_model_task = _get_ml_model_task(self)
 
-        if ml_model_task == "cbed/disk/localization":
+        if ml_model_task == "cbed/disk/detection":
             kwargs = \
                 {"a": (True, False), "p": (0.3, 1-0.3)}
             cropped_cbed_pattern_is_to_be_modified = \
@@ -1838,8 +1835,9 @@ def _check_cropped_cbed_pattern_signal(cropped_cbed_pattern_signal,
     current_func_name = "_check_cropped_cbed_pattern_signal"
     
     if ((principal_disk_is_overlapping or principal_disk_is_clipped)
-        and (ml_model_task == "cbed/disk/segmentation")):
+        and ("detection" not in ml_model_task)):
         err_msg = globals()[current_func_name+"_err_msg_1"]
+        print("ml_model_task =", ml_model_task)
         raise ValueError(err_msg)
 
     dims_in_pixels = cropped_cbed_pattern_dims_in_pixels
@@ -5024,7 +5022,7 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
         j_vdash = _get_j_vdash_from_wavelet_name(wavelet_name)
         self._j_vdash = j_vdash
         
-        self._num_downsamplings = j_dashv-j_vdash+1
+        self._num_downsamplings = j_dashv-j_vdash
 
         self._first_conv_layer = self._generate_first_conv_layer()
         self._first_mini_batch_norm = self._generate_first_mini_batch_norm()
@@ -5169,11 +5167,15 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
     def _generate_prediction_blocks(self):
         ml_model_task = self._ml_model_task
 
-        j_set = (tuple(j
-                       for j in range(self._j_epsilon-1, self._j_vdash-1, -1)
-                       for _ in range(2))
-                 + (self._j_vdash,)
-                 + (self._j_vdash*("localization" not in ml_model_task),))
+        j_set = tuple(j
+                      for j in range(self._j_epsilon-1, self._j_vdash-1, -1)
+                      for _ in range(2))
+        if "detection" in ml_model_task:
+            j_set += (0,)
+        elif "localization" in ml_model_task:
+            j_set += (self._j_vdash,)
+        else:
+            j_set += (self._j_vdash, self._j_vdash)
 
         prediction_blocks = tuple()
         for j in j_set:
@@ -5203,7 +5205,20 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
 
         dwt_coeffs = self._predict_dwt_coeffs(ml_inputs)
 
-        if "segmentation" in self._ml_model_task:
+        if "detection" in self._ml_model_task:
+            key = "principal_disk_visibility_status_logits"
+            ml_predictions[key] = torch.squeeze(dwt_coeffs[0], dim=1)
+        elif "localization" in self._ml_model_task:
+            q_x_L_set = torch.min(dwt_coeffs[0][:, :2], dim=-1)[0]
+            q_x_R_set = torch.max(dwt_coeffs[0][:, :2], dim=-1)[0]
+            q_y_B_set = torch.min(dwt_coeffs[0][:, 2:], dim=-1)[0]
+            q_y_T_set = torch.max(dwt_coeffs[0][:, 2:], dim=-1)[0]
+
+            key = "principal_disk_bounding_boxes"
+            kwargs = {"tensors": (q_x_L_set, q_x_R_set, q_y_B_set, q_y_T_set),
+                      "dim": -1}
+            ml_predictions[key] = torch.stack(**kwargs)
+        else:
             principal_disk_boundary_pt_sets = \
                 self._perform_mra_reconstruction(dwt_coeffs)
 
@@ -5214,19 +5229,6 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
 
             key = "principal_disk_boundary_pt_sets"
             ml_predictions[key] = principal_disk_boundary_pt_sets
-        else:
-            key = "principal_disk_visibility_status_logits"
-            ml_predictions[key] = torch.squeeze(dwt_coeffs[0], dim=1)
-
-            q_x_L_set = torch.min(dwt_coeffs[1][:, :2], dim=-1)[0]
-            q_x_R_set = torch.max(dwt_coeffs[1][:, :2], dim=-1)[0]
-            q_y_B_set = torch.min(dwt_coeffs[1][:, 2:], dim=-1)[0]
-            q_y_T_set = torch.max(dwt_coeffs[1][:, 2:], dim=-1)[0]
-
-            key = "principal_disk_bounding_boxes"
-            kwargs = {"tensors": (q_x_L_set, q_x_R_set, q_y_B_set, q_y_T_set),
-                      "dim": -1}
-            ml_predictions[key] = torch.stack(**kwargs)
 
         kwargs = {"ml_data_dict": ml_predictions,
                   "normalization_weights": self._normalization_weights,
@@ -5310,7 +5312,9 @@ class _GeneralizedCoreNNModule(torch.nn.Module):
 
     def _calc_num_prediction_blocks_for_current_j(self, j):
         num_prediction_blocks_for_current_j = \
-            2*(1 + (j == self._j_vdash)*(self._j_vdash != self._j_epsilon))
+            (2*(1 + (j == self._j_vdash)*(self._j_vdash != self._j_epsilon))
+             if ("segmentation" in self._ml_model_task)
+             else 1)
 
         return num_prediction_blocks_for_current_j
     
@@ -5454,15 +5458,6 @@ def _check_and_convert_mini_batch_norm_eps(params):
 
 
 
-def _check_and_convert_bce_loss_weight(params):
-    obj_name = "bce_loss_weight"
-    kwargs = {"obj": params[obj_name], "obj_name": obj_name}    
-    bce_loss_weight = czekitout.convert.to_nonnegative_float(**kwargs)
-
-    return bce_loss_weight
-
-
-
 def _check_and_convert_decision_threshold(params):
     obj_name = "decision_threshold"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}    
@@ -5564,7 +5559,6 @@ class _MLModel(_cls_alias):
                  wavelet_name,
                  j_epsilon,
                  j_dashv,
-                 bce_loss_weight,
                  decision_threshold):
         current_cls_ctor_params = \
             {key: val
@@ -5608,7 +5602,7 @@ class _MLModel(_cls_alias):
 
         ml_model_task = _get_ml_model_task(self)
 
-        if "localization" in ml_model_task:
+        if ("detection" in ml_model_task) or ("localization" in ml_model_task):
             wavelet_name = base_cls_ctor_params.pop("wavelet_name")
             j_dashv = base_cls_ctor_params.pop("j_dashv")
             j_vdash = _get_j_vdash_from_wavelet_name(wavelet_name)
@@ -5616,8 +5610,8 @@ class _MLModel(_cls_alias):
             base_cls_ctor_params["num_downsamplings"] = j_dashv - j_vdash
             
             del base_cls_ctor_params["j_epsilon"]
-        else:
-            del base_cls_ctor_params["bce_loss_weight"]
+
+        if "detection" not in ml_model_task:
             del base_cls_ctor_params["decision_threshold"]
 
         return base_cls_ctor_params
@@ -5679,8 +5673,6 @@ class _MLModel(_cls_alias):
              "kernel_size_of_first_conv_layer": 7,
              "num_resnet_building_blocks_per_stage": 5,
              "ml_model_task": _get_ml_model_task(self)}
-        _ = \
-            core_nn_module_ctor_params.pop("bce_loss_weight", None)
         _ = \
             core_nn_module_ctor_params.pop("decision_threshold", None)
 
@@ -6061,15 +6053,12 @@ class _MLLossCalculator(_cls_alias):
         key_set_1 = tuple(key_1
                           for key_1
                           in metrics_of_current_mini_batch
-                          if (("ciou" not in key_1) or ("signed" not in key_1)))
+                          if (("mad" not in key_1) or ("signed" not in key_1)))
 
         losses_of_current_mini_batch = {"total": 0.0}
 
         for key_1 in key_set_1:
             key_2 = "total"
-            loss_weight = (ml_model._core_attrs["bce_loss_weight"]
-                           if ("bce" in key_1)
-                           else 1.0)
             clamp = torch.clamp
 
             if "ciou" in key_1:
@@ -6084,7 +6073,7 @@ class _MLLossCalculator(_cls_alias):
                     metrics_of_current_mini_batch[key_1].mean()
                 
             losses_of_current_mini_batch[key_2] += \
-                loss_weight*losses_of_current_mini_batch[key_1]
+                losses_of_current_mini_batch[key_1]
 
         return losses_of_current_mini_batch
 

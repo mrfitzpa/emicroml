@@ -63,6 +63,7 @@ import sys
 
 # For generating images and targets in ML datasets.
 import emicroml.modelling.cbed.distortion.estimation
+import emicroml.modelling.cbed.disk.detection
 import emicroml.modelling.cbed.disk.localization
 import emicroml.modelling.cbed.disk.segmentation
 
@@ -74,6 +75,7 @@ import emicroml.modelling.cbed.disk.segmentation
 
 def parse_and_convert_cmd_line_args():
     accepted_ml_model_tasks = ("cbed/distortion/estimation",
+                               "cbed/disk/detection",
                                "cbed/disk/localization",
                                "cbed/disk/segmentation")
 
@@ -168,25 +170,25 @@ num_pixels_across_each_cbed_pattern = (ml_input_image_width_in_pixels
                                        else 512)
 sampling_grid_dims_in_pixels = 2*(num_pixels_across_each_cbed_pattern,)
 
-kwargs = {"rng_seed": \
-          ml_dataset_idx + 4000 + ("segmentation" in ml_model_task)*10000,
-          "sampling_grid_dims_in_pixels": \
+kwargs = {"sampling_grid_dims_in_pixels": \
           sampling_grid_dims_in_pixels,
           "least_squares_alg_params": \
           None,
           "device_name": \
-          None}
+          None,
+          "num_pixels_across_each_cbed_pattern": \
+          num_pixels_across_each_cbed_pattern}
 if ml_model_task == "cbed/distortion/estimation":
     kwargs = {**kwargs,
-              "num_pixels_across_each_cbed_pattern": \
-              num_pixels_across_each_cbed_pattern,
+              "rng_seed": \
+              ml_dataset_idx + 4000,
               "max_num_disks_in_any_cbed_pattern": \
               90}
     cls_name = "DefaultCBEDPatternGenerator"
 else:
     kwargs = {**kwargs,
-              "num_pixels_across_each_cbed_pattern": \
-              num_pixels_across_each_cbed_pattern,
+              "rng_seed": \
+              ml_dataset_idx + sum(ord(char) for char in ml_model_task)*100,
               "max_num_disks_in_any_cbed_pattern": \
               10,
               "num_pixels_across_each_cropping_window": \

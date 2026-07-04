@@ -81,6 +81,7 @@ import sys
 
 # For combining ML datasets.
 import emicroml.modelling.cbed.distortion.estimation
+import emicroml.modelling.cbed.disk.detection
 import emicroml.modelling.cbed.disk.localization
 import emicroml.modelling.cbed.disk.segmentation
 
@@ -92,6 +93,7 @@ import emicroml.modelling.cbed.disk.segmentation
 
 def parse_and_convert_cmd_line_args():
     accepted_ml_model_tasks = ("cbed/distortion/estimation",
+                               "cbed/disk/detection",
                                "cbed/disk/localization",
                                "cbed/disk/segmentation")
 
